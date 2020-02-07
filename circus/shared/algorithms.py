@@ -12,7 +12,6 @@ import scipy.linalg
 import scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas
-# from circus.shared.files import get_intersection_norm  # TODO remove (not used)?
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
     batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support
 from circus.shared.messages import print_and_log
@@ -1077,13 +1076,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
         for i in range(nb_temp):
             template = templates[:, i].toarray().ravel()
+            norm = numpy.linalg.norm(template)
+            norm_2 = norm ** 2
             for j in range(nb_temp):
                 if similarity[i, j] >= 0.25:
                     sps[i, j] = numpy.dot(all_snippets[j], template)
                 else:
                     sps[i, j] = numpy.zeros(len(all_snippets[j]), dtype=numpy.float32)
-                nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
-                amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
+                nsps[i, j] = sps[i, j] / norm
+                amplitudes[i, j] = sps[i, j] / norm_2
 
         # And finally, we set a_min/a_max optimally for all the template.
 
@@ -1103,8 +1104,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 if i == j:
                     continue
                 # TODO use scalar products or normalized scalar products?
-                # ref_values = sps[j, j]  # i.e. snippets of j projected on template j
-                # values = sps[i, j]  # i.e. snippets of j projected on template j
+                #ref_values = sps[j, j]  # i.e. snippets of j projected on template j
+                #values = sps[i, j]  # i.e. snippets of j projected on template j
                 ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
                 values = nsps[i, j]  # i.e. snippets of j projected on template j
                 selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j

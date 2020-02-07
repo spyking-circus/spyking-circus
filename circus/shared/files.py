@@ -1809,48 +1809,6 @@ def get_garbage(params, extension=''):
     return result
 
 
-def get_intersection_norm(params, to_explore):
-
-    SHARED_MEMORY = get_shared_memory_flag(params)
-
-    if SHARED_MEMORY:
-        templates = load_data_memshared(params, 'templates', normalize=False)
-    else:
-        templates = load_data(params, 'templates')
-
-    best_elec = load_data(params, 'electrodes')
-    N_e = params.getint('data', 'N_e')
-    N_t = params.getint('detection', 'N_t')
-    N_total = params.nb_channels
-    nodes, edges = get_nodes_and_edges(params)
-    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.arange(len(nodes))
-    res = {}
-    nb_temp = templates.shape[1] // 2
-
-    for i in to_explore:
-        res[i] = numpy.inf * numpy.ones(nb_temp - (i+1), dtype=numpy.float32)
-        t_i = templates[:, i].toarray().reshape(N_e, N_t)
-        # full_norm_i = numpy.sqrt(numpy.sum(t_i**2))
-        indices_i = numpy.array(edges[nodes[best_elec[i]]], dtype=numpy.int32)
-        for count, j in enumerate(range(i+1, nb_temp)):
-            indices_j = numpy.array(edges[nodes[best_elec[j]]], dtype=numpy.int32)
-            mask = numpy.in1d(indices_i, indices_j)
-            mask = inv_nodes[indices_i[mask]]
-            t_j = templates[:, j].toarray().reshape(N_e, N_t)
-            norm_i = numpy.sqrt(numpy.sum(t_i[mask]**2))
-            norm_j = numpy.sqrt(numpy.sum(t_j[mask]**2))
-            product = norm_i * norm_j
-            N_common = len(mask)
-            ratio = N_common / len(numpy.unique(numpy.concatenate((indices_i, indices_j))))
-            # full_norm_j = numpy.sqrt(numpy.sum(t_j**2))
-            # ratio = min((norm_i/full_norm_i), (norm_j/full_norm_j))
-
-            if product != 0 and ratio > 0.25:
-                res[i][count] = product
-    return res
-
-
 def get_overlaps(
         params, extension='', erase=False, normalize=True, maxoverlap=True,
         verbose=True, half=False, use_gpu=False, nb_cpu=1, nb_gpu=0, decimation=False
