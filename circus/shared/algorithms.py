@@ -1080,12 +1080,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             for j in range(nb_temp):
                 if similarity[i, j] >= 0.25:
                     sps[i, j] = numpy.dot(all_snippets[j], template)
-                    nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
-                    amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
                 else:
                     sps[i, j] = numpy.zeros(len(all_snippets[j]), dtype=numpy.float32)
-                    nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
-                    amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
+                nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
+                amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
 
         # And finally, we set a_min/a_max optimally for all the template.
 
