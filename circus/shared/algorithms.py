@@ -867,21 +867,126 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     return [nb_temp, len(to_merge)]
 
 
+# def find_bounds(x, good_values, bad_values):
+#
+#     # a_min = 1.0 - x[0]
+#     a_min = 1.0 - numpy.abs(x[0])
+#     # a_max = 1.0 + x[1]
+#     a_max = 1.0 + numpy.abs(x[1])
+#     nb_true_positives = numpy.sum((a_min <= good_values) & (good_values <= a_max))
+#     nb_false_negatives = numpy.sum((good_values < a_min) | (a_max < good_values))
+#     nb_false_positives = numpy.sum((a_min <= bad_values) & (bad_values <= a_max))
+#     nb_true_negatives = numpy.sum((bad_values < a_min) | (a_max < bad_values))
+#     nb_trues = nb_true_positives + nb_true_negatives
+#     nb_falses = nb_false_negatives + nb_false_positives
+#     error = nb_falses - nb_trues
+#
+#     return error
+
+
 def find_bounds(x, good_values, bad_values):
 
     # a_min = 1.0 - x[0]
     a_min = 1.0 - numpy.abs(x[0])
     # a_max = 1.0 + x[1]
     a_max = 1.0 + numpy.abs(x[1])
-    nb_true_positives = numpy.sum((a_min <= good_values) & (good_values <= a_max))
-    nb_false_negatives = numpy.sum((good_values < a_min) | (a_max < good_values))
-    nb_false_positives = numpy.sum((a_min <= bad_values) & (bad_values <= a_max))
-    nb_true_negatives = numpy.sum((bad_values < a_min) | (a_max < bad_values))
-    nb_trues = nb_true_positives + nb_true_negatives
-    nb_falses = nb_false_negatives + nb_false_positives
-    error = nb_falses - nb_trues
+    error = 0.0
+    selection = (good_values < a_min) | (a_max < good_values)
+    error += numpy.sum(numpy.minimum(
+        numpy.abs(good_values[selection] - a_min),
+        numpy.abs(good_values[selection] - a_max),
+    ))
+    selection = (a_min <= bad_values) & (bad_values <= a_max)
+    error += numpy.sum(numpy.minimum(
+        numpy.abs(bad_values[selection] - a_min),
+        numpy.abs(bad_values[selection] - a_max),
+    ))
 
     return error
+
+
+def optimize_amplitude_interval_extremities(good_values, all_bad_values):
+
+    x_0 = numpy.array([0.25, 0.25])
+    x_opt = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead').x  # TODO change `find_bounds` (not appropriate, discrete).
+    # a_min = 1.0 - x_opt[0]
+    a_min = 1.0 - numpy.abs(x_opt[0])
+    # a_max = 1.0 + x_opt[1]
+    a_max = 1.0 + numpy.abs(x_opt[1])
+
+    return a_min, a_max
+
+
+# def optimize_amplitude_interval_extremities(good_values, all_bad_values):
+#
+#     from sklearn import linear_model
+#
+#     # Optimize maximum.
+#     # # Prepare the data.
+#     selection = all_bad_values >= 1.0
+#     x = numpy.concatenate([good_values - 1.0, all_bad_values[selection] - 1.0])
+#     x = x[:, numpy.newaxis]
+#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
+#     # # Fit the classifier
+#     clf = linear_model.LogisticRegression(C=1e5)
+#     try:
+#         clf.fit(x, y)
+#         intercept = clf.intercept_[0]
+#     except ValueError:
+#         intercept = -5.0
+#     # # Get the optimal value.
+#     a_max = 1.0 + (-1.0 * intercept)
+#
+#     # Optimize minimum.
+#     # # Prepare the data.
+#     selection = all_bad_values <= 1.0
+#     x = numpy.concatenate([-1.0 * (good_values - 1.0), -1.0 * (all_bad_values[selection] - 1.0)])
+#     x = x[:, numpy.newaxis]
+#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
+#     # # Fit the classifier
+#     clf = linear_model.LogisticRegression(C=1e-2)
+#     try:
+#         clf.fit(x, y)
+#         intercept = clf.intercept_[0]
+#     except ValueError:
+#         intercept = -5.0
+#     # # Get the optimal value.
+#     a_min = 1.0 - (-1.0 * intercept)
+#
+#     return a_min, a_max
+
+
+# def optimize_amplitude_interval_extremities(good_values, all_bad_values):
+#
+#     from sklearn.tree import DecisionTreeClassifier
+#
+#     # Optimize maximum.
+#     # # Prepare the data.
+#     selection = all_bad_values >= 1.0
+#     x = numpy.concatenate([good_values - 1.0, all_bad_values[selection] - 1.0])
+#     x = x[:, numpy.newaxis]
+#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
+#     # # Fit the classifier
+#     estimator = DecisionTreeClassifier(max_leaf_nodes=1, random_state=42)
+#     estimator.fit(x, y)
+#     threshold = estimator.tree_.threshold
+#     # # Get the optimal value.
+#     a_max = 1.0 + threshold
+#
+#     # Optimize minimum.
+#     # # Prepare the data.
+#     selection = all_bad_values <= 1.0
+#     x = numpy.concatenate([-1.0 * (good_values - 1.0), -1.0 * (all_bad_values[selection] - 1.0)])
+#     x = x[:, numpy.newaxis]
+#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
+#     # # Fit the classifier
+#     estimator = DecisionTreeClassifier(max_leaf_nodes=1, random_state=42)
+#     estimator.fit(x, y)
+#     threshold = estimator.tree_.threshold
+#     # # Get the optimal value.
+#     a_min = 1.0 - threshold
+#
+#     return a_min, a_max
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
@@ -1006,12 +1111,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             ])
 
             # Then we need to fix a_min and a_max to minimize the error
-            x_0 = numpy.array([0.25, 0.25])
-            x_opt = scipy.optimize.minimize(find_bounds, x_0, args=(good_values, all_bad_values), method='Nelder-Mead').x  # TODO change `find_bounds` (not appropriate, discrete).
-            # a_min = 1.0 - x_opt[0]
-            a_min = 1.0 - numpy.abs(x_opt[0])
-            # a_max = 1.0 + x_opt[1]
-            a_max = 1.0 + numpy.abs(x_opt[1])
+            a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)
 
             # Then we save the optimal amplitude interval.
             hfile['limits'][i] = [a_min, a_max]
