@@ -29,6 +29,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     # dist_peaks = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    templates_normalization = params.getboolean('clustering', 'templates_normalization')  # TODO test, switch, test!
     chunk_size = detect_memory(params, fitting=True)
     gpu_only = params.getboolean('fitting', 'gpu_only')
     nodes, edges = get_nodes_and_edges(params)
@@ -58,7 +59,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
+        if templates_normalization:
+            templates = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
+        else:
+            templates = io.load_data_memshared(params, 'templates', normalize=False, transpose=True)
         N_tm, x = templates.shape
     else:
         templates = io.load_data(params, 'templates')
@@ -83,9 +87,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     norm_templates = io.load_data(params, 'norm-templates')
 
     if not SHARED_MEMORY:
-        for idx in range(templates.shape[1]):
-            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-            templates.data[myslice] /= norm_templates[idx]
+        # Normalize templates (if necessary).
+        if templates_normalization:
+            for idx in range(templates.shape[1]):
+                myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+                templates.data[myslice] /= norm_templates[idx]
+        # Transpose templates.
         templates = templates.T
 
     waveform_neg = numpy.empty(0)  # default assignment (for PyCharm code inspection)
@@ -111,9 +118,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     neighbors = {}
     if collect_all:
-        for i in range(n_tm):
-            tmp = templates[i, :].toarray().reshape(n_e, n_t) * norm_templates[i]
-            neighbors[i] = numpy.where(numpy.sum(tmp, 1) != 0)[0]
+        for i in range(0, n_tm):
+            tmp = templates[i, :].toarray().reshape(n_e, n_t)
+            if templates_normalization:
+                tmp = tmp * norm_templates[i]
+            neighbors[i] = numpy.where(numpy.sum(tmp, axis=1) != 0.0)[0]
 
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
@@ -395,7 +404,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del local_chunk
 
-            if use_gpu: 
+            if use_gpu:
                 sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b = cmt.sparse_dot(templates, sub_mat)
             else:
@@ -448,18 +457,64 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
-                if full_gpu:
-                    best_amp = b_array[best_template_index, peak_index] / n_scalar
-                    best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
-                else:
-                    best_amp = b[best_template_index, peak_index] / n_scalar
-                    if two_components:
-                        best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                if templates_normalization:
+                    if full_gpu:
+                        best_amp = b_array[best_template_index, peak_index] / n_scalar
+                        best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
                     else:
-                        best_amp2 = 0
-
-                best_amp_n = best_amp / norm_templates[best_template_index]
-                best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                        best_amp = b[best_template_index, peak_index] / n_scalar
+                        if two_components:
+                            best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                        else:
+                            best_amp2 = 0.0
+                    best_amp_n = best_amp / norm_templates[best_template_index]
+                    best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                else:
+                    if full_gpu:
+                        best_amp = b_array[best_template_index, peak_index]
+                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar) ** 2.0
+                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar ** 2.0)
+                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar)
+                        # best_amp = best_amp / n_scalar
+                        # best_amp = best_amp / norm_templates[best_template_index] ** 2.0
+                        best_amp = best_amp / (norm_templates[best_template_index] ** 2.0 * n_scalar)
+                        # TODO is `best_amp` value correct?
+                        best_amp2 = b_array[best_template2_index, peak_index]
+                        # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar) ** 2.0
+                        # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar ** 2.0)
+                        # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar)
+                        # best_amp2 = best_amp2 / n_scalar
+                        # best_amp2 = best_amp2 / norm_templates[best_template2_index] ** 2.0
+                        best_amp2 = best_amp2 / (norm_templates[best_template2_index] ** 2.0 * n_scalar)
+                        # TODO is `best_amp2` value correct?
+                    else:
+                        best_amp = b[best_template_index, peak_index]
+                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar) ** 2.0
+                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar ** 2.0)
+                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar)
+                        # best_amp = best_amp / n_scalar
+                        # best_amp = best_amp / norm_templates[best_template_index] ** 2.0
+                        best_amp = best_amp / (norm_templates[best_template_index] ** 2.0 * n_scalar)
+                        # TODO is `best_amp` value correct?
+                        if two_components:
+                            best_amp2 = b[best_template2_index, peak_index]
+                            # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar) ** 2.0
+                            # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar ** 2.0)
+                            # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar)
+                            # best_amp2 = best_amp2 / n_scalar
+                            # best_amp2 = best_amp2 / norm_templates[best_template2_index] ** 2.0
+                            best_amp2 = best_amp2 / (norm_templates[best_template2_index] ** 2.0 * n_scalar)
+                            # TODO is `best_amp2` value correct?
+                        else:
+                            best_amp2 = 0.0
+                    # best_amp_n = b[best_template_index, peak_index]
+                    # best_amp_n = best_amp_n / (norm_templates[best_template_index] ** 2.0 * n_scalar)
+                    best_amp_n = best_amp
+                    # TODO is `best_amp_n` value correct?
+                    # best_amp2_n = b[best_template2_index, peak_index]
+                    # best_amp2_n = best_amp2_n / (norm_templates[best_template2_index] ** 2.0 * n_scalar)
+                    best_amp2_n = best_amp2
+                    # TODO is `best_amp2_n` value correct?
 
                 # Verify amplitude constraint.
                 a_min, a_max = amp_limits[best_template_index, :]

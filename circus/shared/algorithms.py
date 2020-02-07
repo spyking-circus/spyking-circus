@@ -17,7 +17,6 @@ from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, di
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array
-# from circus.shared.mpi import get_local_ring  # TODO remove (not used)?
 
 import scipy.linalg
 import scipy.sparse
@@ -99,26 +98,25 @@ class DistanceMatrix(object):
 
         return result
 
-    # TODO remove (no usage)?
-    def get_deltas(self, rho):
-
-        rho_sort_id = numpy.argsort(rho)  # index to sort
-        rho_sort_id = (rho_sort_id[::-1])  # reversing sorting indexes
-        # sort_rho = rho[rho_sort_id]  # sorting rho in ascending order  # TODO remove (not used)?
-        auxdelta = numpy.zeros(self.size, dtype=numpy.float32)
-
-        for count, i in enumerate(rho_sort_id):
-            line = self.get_row(i)[rho_sort_id[:count+1]]
-            line[line == 0] = float("inf")
-            auxdelta[count] = numpy.min(line)
-
-        delta = numpy.zeros_like(auxdelta) 
-        delta[rho_sort_id] = auxdelta 
-        delta[rho == numpy.max(rho)] = \
-            numpy.max(delta[numpy.logical_not(numpy.isinf(delta))])  # assigns max delta to the max rho
-        delta[numpy.isinf(delta)] = 0
-
-        return delta
+    # # TODO remove (no usage)?
+    # def get_deltas(self, rho):
+    #
+    #     rho_sort_id = numpy.argsort(rho)  # index to sort
+    #     rho_sort_id = (rho_sort_id[::-1])  # reversing sorting indexes
+    #     auxdelta = numpy.zeros(self.size, dtype=numpy.float32)
+    #
+    #     for count, i in enumerate(rho_sort_id):
+    #         line = self.get_row(i)[rho_sort_id[:count+1]]
+    #         line[line == 0] = float("inf")
+    #         auxdelta[count] = numpy.min(line)
+    #
+    #     delta = numpy.zeros_like(auxdelta)
+    #     delta[rho_sort_id] = auxdelta
+    #     delta[rho == numpy.max(rho)] = \
+    #         numpy.max(delta[numpy.logical_not(numpy.isinf(delta))])  # assigns max delta to the max rho
+    #     delta[numpy.isinf(delta)] = 0
+    #
+    #     return delta
 
     def get_deltas_and_neighbors(self, rho):
         """Find the distance to and the index of the nearest point with a higher density.
@@ -233,7 +231,9 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     # halolabels -= 1
     # centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]  # indices of centroids
     # TODO check if the 2 following lines are correct.
-    halolabels = labels - 1
+    # halolabels = labels - 1
+    # centers = numpy.where(centers - 1 >= 0)[0]
+    halolabels = halo_assign(labels, rho, n_min) - 1
     centers = numpy.where(centers - 1 >= 0)[0]
     del distances
 
@@ -315,46 +315,63 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
     return nb_clusters, labels, centroids
 
 
-def halo_assign(dist, labels, centers, n_min):
-    """Unassign outliers.
+# def halo_assign(dist, labels, centers, n_min):
+#     """Unassign outliers.
+#
+#     Arguments:
+#         dist:
+#         labels:
+#         centers:
+#         n_min:
+#     Return:
+#         halolabels
+#     """
+#
+#     halolabels = labels.copy()
+#     sameclusmat = numpy.equal(labels, labels[:, None])  # array of size (nb_points, nb_point)
+#     sameclus_cent = sameclusmat[centers > 0, :]  # selects only centroids
+#     center_indices = numpy.where(centers > 0)[0]
+#     dist2cent = dist.get_rows(center_indices)  # distance to centroids
+#     dist2cluscent = dist2cent * sameclus_cent  # preserves only distances to the corresponding cluster centroid
+#     gt_mean_dist2cent = numpy.zeros(dist2cluscent.shape, dtype=numpy.bool)
+#     nb_centers = len(center_indices)
+#     for i in range(0, nb_centers):
+#         # idx = numpy.where(dist2cluscent[i] > 0)[0]  # TODO remove (deprecated)?
+#         idx = numpy.where(labels == centers[i])[0]
+#         nb_points = len(idx)
+#         mean_i = numpy.mean(dist2cluscent[i, idx])
+#         median_i = numpy.median(dist2cluscent[i, idx])
+#         mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - median_i))
+#         bound = mean_i + mad_i
+#
+#         gt_mean_dist2cent[i] = dist2cluscent[i] > bound
+#         nb_outliers = numpy.sum(gt_mean_dist2cent[i])
+#         # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?
+#         #     gt_mean_dist2cent[i] = False
+#         if nb_points - nb_outliers < n_min:  # TODO keep (correct)?
+#             gt_mean_dist2cent[i, idx] = False  # unassign all the points associated to this cluster
+#     selection = numpy.sum(gt_mean_dist2cent, axis=0) > 0
+#     halolabels[selection] = 0  # set to 0 <=> unassign
+#
+#     return halolabels
 
-    Arguments:
-        dist:
-        labels:
-        centers:
-        n_min:
-    Return:
-        halolabels
-    """
+
+def halo_assign(labels, rhos, n_min):
+    """Unassign outliers."""
 
     halolabels = labels.copy()
-    sameclusmat = numpy.equal(labels, labels[:, None])  # array of size (nb_points, nb_point)
-    sameclus_cent = sameclusmat[centers > 0, :]  # selects only centroids
-    center_indices = numpy.where(centers > 0)[0]
-    dist2cent = dist.get_rows(center_indices)  # distance to centroids
-    dist2cluscent = dist2cent * sameclus_cent  # preserves only distances to the corresponding cluster centroid
-    gt_mean_dist2cent = numpy.zeros(dist2cluscent.shape, dtype=numpy.bool)
-    nb_centers = len(center_indices)
-    for i in range(0, nb_centers):
-        # idx = numpy.where(dist2cluscent[i] > 0)[0]  # TODO remove (deprecated)?
-        idx = numpy.where(labels == centers[i])[0]
-        nb_points = len(idx)
-        mean_i = numpy.mean(dist2cluscent[i, idx])
-        median_i = numpy.median(dist2cluscent[i, idx])
-        mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - median_i))
-        bound = mean_i + mad_i
-
-        gt_mean_dist2cent[i] = dist2cluscent[i] > bound
-        nb_outliers = numpy.sum(gt_mean_dist2cent[i])
-        # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?
-        #     gt_mean_dist2cent[i] = False
-        if nb_points - nb_outliers < n_min:  # TODO keep (correct)?
-            gt_mean_dist2cent[i, idx] = False  # unassign all the points associated to this cluster
-    selection = numpy.sum(gt_mean_dist2cent, axis=0) > 0
-    halolabels[selection] = 0  # set to 0 <=> unassign
+    for label_nb in numpy.unique(labels):
+        indices = numpy.where(labels == label_nb)[0]
+        median_rho = numpy.median(rhos[indices])
+        # selected_indices = indices[rhos[indices] < median_rho]
+        mad_rho = numpy.median(numpy.abs(rhos[indices] - median_rho))
+        selected_indices = indices[rhos[indices] < median_rho - mad_rho]  # TODO enhance?
+        if len(selected_indices) < n_min:
+            continue
+        halolabels[selected_indices] = 0  # i.e. set to 0 (unassign)
 
     return halolabels
-    
+
 
 def merging(groups, merging_method, merging_param, data):
 
@@ -727,7 +744,6 @@ def slice_result(result, times):
 
     sub_results = []
 
-    # nb_temp = len(result['spiketimes'])  # TODO remove (not used)?
     for t in times:
         sub_result = {'spiketimes': {}, 'amplitudes': {}}
         for key in result['spiketimes'].keys():
@@ -943,11 +959,13 @@ def optimize_amplitude_minimum(good_values, bad_values):
         selection = good_values_ < a_min_
         # error += numpy.sum(numpy.abs(good_values_[selection] - a_min_))
         error += numpy.sum(numpy.square(numpy.abs(good_values_[selection] - a_min_)))
+        # error += numpy.sum(numpy.power(numpy.abs(good_values_[selection] - a_min_), 1.1))  # not smooth around 0
 
         assert numpy.all(bad_values_ <= 1.0)
         selection = a_min_ <= bad_values_
         # error += numpy.sum(numpy.abs(bad_values_[selection] - a_min_))
         error += numpy.sum(numpy.square(numpy.abs(bad_values_[selection] - a_min_)))
+        # error += numpy.sum(numpy.power(numpy.abs(bad_values_[selection] - a_min_), 1.1))  # not smooth around 0
 
         # error += numpy.abs(a_min_ - 1.0)
         # error += 0.1 * numpy.abs(a_min_ - 1.0)
@@ -978,11 +996,13 @@ def optimize_amplitude_maximum(good_values, bad_values):
         selection = a_max_ < good_values_
         # error += numpy.sum(numpy.abs(good_values_[selection] - a_max_))
         error += numpy.sum(numpy.square(numpy.abs(good_values_[selection] - a_max_)))
+        # error += numpy.sum(numpy.power(numpy.abs(good_values_[selection] - a_max_), 1.1))  # not smooth around 0
 
         assert numpy.all(bad_values_ >= 1.0)
         selection = bad_values_ <= a_max_
         # error += numpy.sum(numpy.abs(bad_values_[selection] - a_max_))
         error += numpy.sum(numpy.square(numpy.abs(bad_values_[selection] - a_max_)))
+        # error += numpy.sum(numpy.power(numpy.abs(bad_values_[selection] - a_max_), 1.1))  # not smooth around 0
 
         # error += numpy.abs(a_max_ - 1.0)
         # error += 0.1 * numpy.abs(a_max_ - 1.0)
@@ -1074,7 +1094,7 @@ def optimize_amplitude_maximum(good_values, bad_values):
 #     return a_min, a_max
 
 
-def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
+def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
 
     data_file = params.data_file
     template_shift = params.getint('detection', 'template_shift')
@@ -1092,8 +1112,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
-    max_snippets = 250
-    thr_similarity = 0.25
+    # max_snippets = 250
+    max_snippets = 300  # TODO use this value as default?
+    # max_snippets = 500
+    # max_snippets = 1000
+    # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
     
@@ -1189,18 +1212,21 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
         for i in range(nb_temp):
 
-            # First, we search only snippets that have a higher amplitudes with
+            # First, we collect admissible snippets (according to their (normalized) scalar products).
             good_values = amplitudes[i, i]
             bad_values = {}
             neutral_values = {}
             for j in range(nb_temp):
                 # if (similarity[i, j] >= thr_similarity) and (i != j):
                 if i != j:
-                    # TODO use scalar products or normalized scalar products?
-                    # ref_values = sps[j, j]  # i.e. snippets of j projected on template j
-                    # values = sps[i, j]  # i.e. snippets of j projected on template j
-                    ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
-                    values = nsps[i, j]  # i.e. snippets of j projected on template j
+                    if normalization:
+                        # Use the normalized scalar products.
+                        ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
+                        values = nsps[i, j]  # i.e. snippets of j projected on template j
+                    else:
+                        # Use the scalar products (not normalized).
+                        ref_values = sps[j, j]  # i.e. snippets of j projected on template j
+                        values = sps[i, j]  # i.e. snippets of j projected on template j
                     selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
                     bad_values[j] = amplitudes[i, j][selection]
                     selection = ref_values > values
@@ -1223,17 +1249,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             # Then we save the optimal amplitude interval.
             hfile['limits'][i] = [a_min, a_max]
 
-            # TODO sanity plot?
             if debug_plots not in ['None', '']:
                 fig, ax = plt.subplots()
                 s = 2 ** 2
                 # ...
-                color = 'gray'
                 linewidth = 0.3
-                ax.axhline(y=0.0, color=color, linewidth=linewidth)
-                ax.axhline(y=a_min, color=color, linewidth=linewidth)
-                ax.axhline(y=1.0, color=color, linewidth=linewidth)
-                ax.axhline(y=a_max, color=color, linewidth=linewidth)
+                ax.axhline(y=0.0, color='gray', linewidth=linewidth)
+                ax.axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+                ax.axhline(y=1.0, color='gray', linewidth=linewidth)
+                ax.axhline(y=a_max, color='tab:blue', linewidth=linewidth)
                 # Plot neutral amplitudes.
                 x = numpy.random.uniform(size=all_neutral_values.size)
                 y = all_neutral_values
@@ -1259,9 +1283,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 # ...
                 color = 'tab:red'
                 for x_, y_ in zip(x, y):
-                    if 1.0 < y_ and  y_ < a_max:
+                    if 1.0 < y_ < a_max:
                         ax.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
-                    if a_min < y_ and y_ < 1.0:
+                    if a_min < y_ < 1.0:
                         ax.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
                 # Hide the right and top spines
                 ax.spines['right'].set_visible(False)
@@ -1286,9 +1310,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
             # Then we quickly compute a purity level (for the sake of logging).
             if len(all_bad_values) > 0:
-                purity_level[i] = 1 - numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max)) / float(len(all_bad_values))
+                nb_false_positives = numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max))
+                purity_level[i] = 1.0 - float(nb_false_positives) / float(len(all_bad_values))
             else:
-                purity_level[i] = 1
+                purity_level[i] = 1.0
 
         hfile['purity'] = purity_level
         hfile.close()

@@ -87,6 +87,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_ss_bins = params.getint('clustering', 'nb_ss_bins')
     use_hanning = params.getboolean('detection', 'hanning')
     use_savgol = params.getboolean('clustering', 'savgol')
+    templates_normalization = params.getboolean('clustering', 'templates_normalization')
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
@@ -1549,14 +1550,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    io.get_overlaps(
+        params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
+    )
 
     if fine_amplitude:
 
         if comm.rank == 0:
             print_and_log(["Refining the amplitudes..."], 'default', logger)
 
-        algo.refine_amplitudes(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu, debug_plots=debug_plots)
+        algo.refine_amplitudes(
+            params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu,
+            normalization=templates_normalization, debug_plots=debug_plots
+        )
 
     comm.Barrier()
     sys.stderr.flush()
