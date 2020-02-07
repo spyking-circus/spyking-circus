@@ -12,7 +12,6 @@ import scipy.linalg
 import scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas
-# from circus.shared.files import get_intersection_norm  # TODO remove (not used)?
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
     batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support
 from circus.shared.messages import print_and_log
@@ -1079,6 +1078,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     best_elec = load_data(params, 'electrodes')
     limits = load_data(params, 'limits')
     N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
     n_total = params.nb_channels
     clusters = load_data(params, 'clusters-nodata')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -1087,6 +1087,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
+
+    max_snippets = 250
+    thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
     
@@ -1101,12 +1104,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     # For each electrode, get the local cluster labels.
     indices = {}
     for i in range(N_e):
-        data = numpy.unique(clusters['clusters_%d' % i])
-        data = data[data > -1]
-        indices[i] = {
-            'count': 0,
-            'indices': data,
-        }
+        labels = numpy.unique(clusters['clusters_%d' % i])
+        labels = labels[labels > -1]
+        indices[i] = list(labels)
 
     all_snippets = []
 
@@ -1125,29 +1125,21 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             times = clusters['times_%d' % ref_elec]
             labels = clusters['clusters_%d' % ref_elec]
             peaks = clusters['peaks_%d' % ref_elec]
-            tgt_index = indices[ref_elec]['count']  # i.e. local cluster index (per electrode)
-            tgt_label = indices[ref_elec]['indices'][tgt_index]  # i.e. local cluster label (per electrode)
+            tgt_label = indices[ref_elec].pop(0)  # i.e. local cluster label (per electrode)
             idx = numpy.where(labels == tgt_label)[0]
-            indices[ref_elec]['count'] += 1
+
             if peaks[idx][0] == 0:
                 p = 'pos'
             elif peaks[idx][0] == 1:
                 p = 'neg'
             else:
                 raise ValueError("unexpected value {}".format(peaks[idx][0]))
-            # numpy.random.seed(42)
-            # times_i = numpy.random.permutation(times[idx])[:250]
-            # labels_i = labels[idx][:250]
-            numpy.random.seed(42)
-            idx = numpy.random.permutation(idx)[:250]
-            times_i = times[idx]
-            labels_i = labels[idx]
-            snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-            # print("snippets.shape: {}".format(snippets.shape))  # TODO remove!
+            idx_i = numpy.random.permutation(idx)[:max_snippets]
+            times_i = times[idx_i]
+            labels_i = labels[idx_i]
+            snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p, auto_align=False)
 
-            # x, y, z = snippets.shape
-            # all_snippets.append(snippets.reshape(x, y * z)
             nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
             all_snippets.append(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps))
 
@@ -1158,12 +1150,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         nsps = {}  # i.e. all the normalized scalar products
         amplitudes = {}  # i.e. all the amplitudes
 
+        similarity = load_data(params, 'maxoverlap')
+        similarity = similarity[:nb_temp, :nb_temp]/(N_e * N_t)
+        similarity[range(nb_temp), range(nb_temp)] = 1
+
         for i in range(nb_temp):
             template = templates[:, i].toarray().ravel()
+            norm = numpy.linalg.norm(template)
+            norm_2 = norm ** 2
             for j in range(nb_temp):
-                sps[i, j] = numpy.dot(all_snippets[j], template)
-                nsps[i, j] = sps[i, j] / numpy.linalg.norm(template)
-                amplitudes[i, j] = sps[i, j] / numpy.sum(numpy.square(template))
+                if similarity[i, j] >= thr_similarity:
+                    sps[i, j] = numpy.dot(all_snippets[j], template)
+                    nsps[i, j] = sps[i, j] / norm
+                    amplitudes[i, j] = sps[i, j] / norm_2
 
         # And finally, we set a_min/a_max optimally for all the template.
 
@@ -1180,15 +1179,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             good_values = amplitudes[i, i]
             bad_values = {}
             for j in range(nb_temp):
-                if i == j:
-                    continue
-                # TODO use scalar products or normalized scalar products?
-                # ref_values = sps[j, j]  # i.e. snippets of j projected on template j
-                # values = sps[i, j]  # i.e. snippets of j projected on template j
-                ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
-                values = nsps[i, j]  # i.e. snippets of j projected on template j
-                selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
-                bad_values[j] = amplitudes[i, j][selection]  # TODO error here, `selection` instead of `~selection`.
+                if (similarity[i, j] >= thr_similarity) and (i != j):
+                    # TODO use scalar products or normalized scalar products?
+                    #ref_values = sps[j, j]  # i.e. snippets of j projected on template j
+                    #values = sps[i, j]  # i.e. snippets of j projected on template j
+                    ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
+                    values = nsps[i, j]  # i.e. snippets of j projected on template j
+                    selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
+                    bad_values[j] = amplitudes[i, j][selection]  # TODO error here, `selection` instead of `~selection`.
+
             all_bad_values = numpy.concatenate([
                 values
                 for values in bad_values.values()
@@ -1250,7 +1249,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 plt.close(fig)
 
             # Then we quickly compute a purity level (for the sake of logging).
-            purity_level[i] = 1 - numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max)) / len(all_bad_values)
+            if len(all_bad_values) > 0:
+                purity_level[i] = 1 - numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max)) / float(len(all_bad_values))
+            else:
+                purity_level[i] = 1
 
         hfile['purity'] = purity_level
         hfile.close()
