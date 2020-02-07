@@ -959,7 +959,9 @@ def optimize_amplitude_minimum(good_values, bad_values):
     # args = (good_values, bad_values[bad_values < 1.0])
     args = (good_values.astype(numpy.float), bad_values[bad_values < 1.0].astype(numpy.float))
     optimize_result = scipy.optimize.minimize(a_min_error, numpy.array([a_min_0]), args=args)
-    print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+    # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+    # # Either "Desired error not necessarily achieved due to precision loss.",
+    # # or "Optimization terminated successfully.".
     a_min_opt = optimize_result.x[0]
 
     return a_min_opt
@@ -992,7 +994,9 @@ def optimize_amplitude_maximum(good_values, bad_values):
     # args = (good_values, bad_values[bad_values > 1.0])
     args = (good_values.astype(numpy.float), bad_values[bad_values > 1.0].astype(numpy.float))
     optimize_result = scipy.optimize.minimize(a_max_error, numpy.array([a_max_0]), args=args)
-    print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+    # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+    # # Either "Desired error not necessarily achieved due to precision loss.",
+    # # or "Optimization terminated successfully.".
     a_max_opt = optimize_result.x[0]
 
     return a_max_opt
