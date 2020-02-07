@@ -168,6 +168,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
     # Plot PC 1 vs PC 0.
     ax = fig.add_subplot(242)
+    ax.set_aspect('equal')
     ax.scatter(data[not_assigned, 0], data[not_assigned, 1], s=marker_size, c='k', alpha=0.5, linewidths=0)
     ax.scatter(data[assigned, 0], data[assigned, 1], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
     ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
@@ -179,6 +180,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
         # Plot PC 2 vs PC 0.
         ax = fig.add_subplot(243)
+        ax.set_aspect('equal')
         ax.scatter(data[not_assigned, 0], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
         ax.scatter(data[assigned, 0], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
         ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
@@ -188,6 +190,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
         # Plot PC 2 vs PC 1.
         ax = fig.add_subplot(244)
+        ax.set_aspect('equal')
         ax.scatter(data[not_assigned, 1], data[not_assigned, 2], s=marker_size, c='k', alpha=0.5, linewidths=0)
         ax.scatter(data[assigned, 1], data[assigned, 2], s=marker_size, c=colors, cmap=my_cmap, linewidths=0)
         ax.axhline(y=0.0, color='k', alpha=0.5, linewidth=0.3)
@@ -199,6 +202,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
     # Rho plot.
     ax = fig.add_subplot(247)
+    ax.set_aspect('equal')
     idx = numpy.argsort(rho[assigned])
     ax.scatter(
         data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size, c=rho[assigned[idx]], cmap=my_cmap, linewidths=0
@@ -214,6 +218,7 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
     # Delta plot.
     ax = fig.add_subplot(248)
+    ax.set_aspect('equal')
     idx = numpy.argsort(delta[assigned])
     ax.scatter(
         data[assigned[idx], 0], data[assigned[idx], 1], s=marker_size,
