@@ -1825,6 +1825,7 @@ def get_overlaps(
     tmp_path = os.path.join(os.path.abspath(params.get('data', 'data_file_noext')), 'tmp')
     filename = file_out_suff + '.overlap%s.hdf5' % extension
     duration = 2 * N_t - 1
+    n_scalar = N_e * N_t
 
     if os.path.exists(filename) and not erase:
         return h5py.File(filename, 'r')
@@ -1852,8 +1853,9 @@ def get_overlaps(
     nodes, edges = get_nodes_and_edges(params)
     N, N_tm = templates.shape
 
+    norm_templates = load_data(params, 'norm-templates')
+
     if not SHARED_MEMORY and normalize:
-        norm_templates = load_data(params, 'norm-templates')
         for idx in range(N_tm):
             myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             templates.data[myslice] /= norm_templates[idx]
@@ -2037,6 +2039,11 @@ def get_overlaps(
             for key in ['maxoverlap', 'maxlag', 'version']:
                 if key in myfile2.keys():
                     myfile2.pop(key)
+
+            if not normalize:
+                maxoverlap /= norm_templates[: N_half]
+                maxoverlap /= norm_templates[: N_half][:, numpy.newaxis]
+                maxoverlap /= n_scalar
 
             myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
             if hdf5_compress:
