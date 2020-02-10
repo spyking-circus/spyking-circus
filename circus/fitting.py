@@ -59,10 +59,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        if templates_normalization:
-            templates = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
-        else:
-            templates = io.load_data_memshared(params, 'templates', normalize=False, transpose=True)
+        templates = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
         N_tm, x = templates.shape
     else:
         templates = io.load_data(params, 'templates')
@@ -85,6 +82,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
+    if templates_normalization:
+        norm_templates_2 = (norm_templates ** 2.0) * n_scalar
 
     if not SHARED_MEMORY:
         # Normalize templates (if necessary).
@@ -399,9 +398,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
-            # snippet_norm = numpy.sum(sub_mat ** 2, 0) / n_scalar
-            # sub_mat /= snippet_norm
-
             del local_chunk
 
             if use_gpu:
@@ -472,49 +468,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     if full_gpu:
                         best_amp = b_array[best_template_index, peak_index]
-                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar) ** 2.0
-                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar ** 2.0)
-                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar)
-                        # best_amp = best_amp / n_scalar
-                        # best_amp = best_amp / norm_templates[best_template_index] ** 2.0
-                        best_amp = best_amp / (norm_templates[best_template_index] ** 2.0 * n_scalar)
+                        best_amp = best_amp / norm_templates_2[best_template_index]
                         # TODO is `best_amp` value correct?
                         best_amp2 = b_array[best_template2_index, peak_index]
-                        # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar) ** 2.0
-                        # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar ** 2.0)
-                        # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar)
-                        # best_amp2 = best_amp2 / n_scalar
-                        # best_amp2 = best_amp2 / norm_templates[best_template2_index] ** 2.0
-                        best_amp2 = best_amp2 / (norm_templates[best_template2_index] ** 2.0 * n_scalar)
+                        best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
                         # TODO is `best_amp2` value correct?
                     else:
                         best_amp = b[best_template_index, peak_index]
-                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar) ** 2.0
-                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar ** 2.0)
-                        # best_amp = best_amp / (norm_templates[best_template_index] * n_scalar)
-                        # best_amp = best_amp / n_scalar
-                        # best_amp = best_amp / norm_templates[best_template_index] ** 2.0
-                        best_amp = best_amp / (norm_templates[best_template_index] ** 2.0 * n_scalar)
+                        best_amp = best_amp / norm_templates_2[best_template_index]
                         # TODO is `best_amp` value correct?
                         if two_components:
                             best_amp2 = b[best_template2_index, peak_index]
-                            # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar) ** 2.0
-                            # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar ** 2.0)
-                            # best_amp2 = best_amp2 / (norm_templates[best_template2_index] * n_scalar)
-                            # best_amp2 = best_amp2 / n_scalar
-                            # best_amp2 = best_amp2 / norm_templates[best_template2_index] ** 2.0
-                            best_amp2 = best_amp2 / (norm_templates[best_template2_index] ** 2.0 * n_scalar)
+                            best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
                             # TODO is `best_amp2` value correct?
                         else:
                             best_amp2 = 0.0
-                    # best_amp_n = b[best_template_index, peak_index]
-                    # best_amp_n = best_amp_n / (norm_templates[best_template_index] ** 2.0 * n_scalar)
+
                     best_amp_n = best_amp
-                    # TODO is `best_amp_n` value correct?
-                    # best_amp2_n = b[best_template2_index, peak_index]
-                    # best_amp2_n = best_amp2_n / (norm_templates[best_template2_index] ** 2.0 * n_scalar)
                     best_amp2_n = best_amp2
-                    # TODO is `best_amp2_n` value correct?
 
                 # Verify amplitude constraint.
                 a_min, a_max = amp_limits[best_template_index, :]
