@@ -98,26 +98,6 @@ class DistanceMatrix(object):
 
         return result
 
-    # # TODO remove (no usage)?
-    # def get_deltas(self, rho):
-    #
-    #     rho_sort_id = numpy.argsort(rho)  # index to sort
-    #     rho_sort_id = (rho_sort_id[::-1])  # reversing sorting indexes
-    #     auxdelta = numpy.zeros(self.size, dtype=numpy.float32)
-    #
-    #     for count, i in enumerate(rho_sort_id):
-    #         line = self.get_row(i)[rho_sort_id[:count+1]]
-    #         line[line == 0] = float("inf")
-    #         auxdelta[count] = numpy.min(line)
-    #
-    #     delta = numpy.zeros_like(auxdelta)
-    #     delta[rho_sort_id] = auxdelta
-    #     delta[rho == numpy.max(rho)] = \
-    #         numpy.max(delta[numpy.logical_not(numpy.isinf(delta))])  # assigns max delta to the max rho
-    #     delta[numpy.isinf(delta)] = 0
-    #
-    #     return delta
-
     def get_deltas_and_neighbors(self, rho):
         """Find the distance to and the index of the nearest point with a higher density.
 
@@ -206,21 +186,6 @@ def compute_rho(data, update=None, mratio=0.01):
     return answer
 
 
-# # TODO remove (deprecated)?
-# def clustering_by_density(rho, dist, n_min, alpha=3):
-#
-#     distances = DistanceMatrix(len(rho))
-#     distances.distances = dist
-#     delta = compute_delta(distances, rho)
-#     nclus, labels, centers = find_centroids_and_cluster(distances, rho, delta, alpha)
-#     halolabels = halo_assign(distances, labels, centers, n_min)
-#     halolabels -= 1
-#     centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
-#     del distances
-#
-#     return halolabels, rho, delta, centers
-
-
 def clustering_by_density(rho, dist, n_min, alpha=3):
 
     nb_points = len(rho)
@@ -238,34 +203,6 @@ def clustering_by_density(rho, dist, n_min, alpha=3):
     del distances
 
     return halolabels, rho, deltas, centers
-
-
-# # TODO remove (deprecated)?
-# def compute_delta(dist, rho):
-#     return dist.get_deltas(rho)
-
-
-# # TODO remove (deprecated)?
-# def find_centroids_and_cluster(dist, rho, delta, alpha=3):
-#
-#     npnts = len(rho)
-#     centers = numpy.zeros(npnts)
-#
-#     auxid = fit_rho_delta(rho, delta, alpha)
-#     nclus = len(auxid)
-#
-#     centers[auxid] = numpy.arange(nclus) + 1  # assigning labels to centroids
-#
-#     # Assigning points to clusters based on their distance to the centroids.
-#     if nclus <= 1:
-#         labels = numpy.ones(npnts)
-#     else:
-#         centersx = numpy.where(centers)[0]  # index of centroids
-#         dist2cent = dist.get_rows(centersx)
-#         labels = numpy.argmin(dist2cent, axis=0) + 1
-#         _, cluscounts = numpy.unique(labels, return_counts=True)  # number of elements of each cluster
-#
-#     return nclus, labels, centers
 
 
 def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='nearest_denser_point'):
@@ -315,48 +252,7 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
     return nb_clusters, labels, centroids
 
 
-# def halo_assign(dist, labels, centers, n_min):
-#     """Unassign outliers.
-#
-#     Arguments:
-#         dist:
-#         labels:
-#         centers:
-#         n_min:
-#     Return:
-#         halolabels
-#     """
-#
-#     halolabels = labels.copy()
-#     sameclusmat = numpy.equal(labels, labels[:, None])  # array of size (nb_points, nb_point)
-#     sameclus_cent = sameclusmat[centers > 0, :]  # selects only centroids
-#     center_indices = numpy.where(centers > 0)[0]
-#     dist2cent = dist.get_rows(center_indices)  # distance to centroids
-#     dist2cluscent = dist2cent * sameclus_cent  # preserves only distances to the corresponding cluster centroid
-#     gt_mean_dist2cent = numpy.zeros(dist2cluscent.shape, dtype=numpy.bool)
-#     nb_centers = len(center_indices)
-#     for i in range(0, nb_centers):
-#         # idx = numpy.where(dist2cluscent[i] > 0)[0]  # TODO remove (deprecated)?
-#         idx = numpy.where(labels == centers[i])[0]
-#         nb_points = len(idx)
-#         mean_i = numpy.mean(dist2cluscent[i, idx])
-#         median_i = numpy.median(dist2cluscent[i, idx])
-#         mad_i = numpy.median(numpy.abs(dist2cluscent[i, idx] - median_i))
-#         bound = mean_i + mad_i
-#
-#         gt_mean_dist2cent[i] = dist2cluscent[i] > bound
-#         nb_outliers = numpy.sum(gt_mean_dist2cent[i])
-#         # if nb_outliers - nb_points < n_min:  # TODO remove (incorrect)?
-#         #     gt_mean_dist2cent[i] = False
-#         if nb_points - nb_outliers < n_min:  # TODO keep (correct)?
-#             gt_mean_dist2cent[i, idx] = False  # unassign all the points associated to this cluster
-#     selection = numpy.sum(gt_mean_dist2cent, axis=0) > 0
-#     halolabels[selection] = 0  # set to 0 <=> unassign
-#
-#     return halolabels
-
-
-def halo_assign(labels, rhos, n_min):
+def halo_assign(labels, rhos, n_min, nb_mad=3):
     """Unassign outliers."""
 
     halolabels = labels.copy()
@@ -365,10 +261,9 @@ def halo_assign(labels, rhos, n_min):
         median_rho = numpy.median(rhos[indices])
         # selected_indices = indices[rhos[indices] < median_rho]
         mad_rho = numpy.median(numpy.abs(rhos[indices] - median_rho))
-        selected_indices = indices[rhos[indices] < median_rho - mad_rho]  # TODO enhance?
-        if len(selected_indices) < n_min:
-            continue
-        halolabels[selected_indices] = 0  # i.e. set to 0 (unassign)
+        selected_indices = indices[rhos[indices] < (median_rho - nb_mad*mad_rho)]  # TODO enhance?
+        if len(indices) - len(selected_indices) > n_min:
+            halolabels[selected_indices] = 0  # i.e. set to 0 (unassign)
 
     return halolabels
 
