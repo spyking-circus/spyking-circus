@@ -1007,10 +1007,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
-    # max_snippets = 250
-    max_snippets = 300  # TODO use this value as default?
-    # max_snippets = 500
-    # max_snippets = 1000
+    max_snippets = 250
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)

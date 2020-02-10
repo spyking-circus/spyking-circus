@@ -1252,7 +1252,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y * z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes /= numpy.sum(first_flat ** 2)
-                        # center = numpy.median(amplitudes)  # TODO remove this line?
+                        center = numpy.median(amplitudes)  # TODO remove this line?
 
                         # TODO remove the following lines?
                         # # We are rescaling the template such that median amplitude is exactly 1
@@ -1271,7 +1271,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y * z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes /= numpy.sum(first_flat ** 2)
-                        variation = numpy.median(numpy.abs(amplitudes - 1))
+                        variation = numpy.median(numpy.abs(amplitudes - center))
 
                         templates = templates.ravel()
                         dx = templates.nonzero()[0].astype(numpy.uint32)
@@ -1557,7 +1557,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if fine_amplitude:
 
         if comm.rank == 0:
-            print_and_log(["Refining the amplitudes..."], 'default', logger)
+            print_and_log(["Optimizing the amplitudes..."], 'default', logger)
 
         algo.refine_amplitudes(
             params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu,
