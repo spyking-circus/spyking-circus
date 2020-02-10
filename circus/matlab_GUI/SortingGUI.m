@@ -134,8 +134,9 @@ else
     info     = h5info(tmpfile);
     handles.has_hdf5  = true;
     handles.is_dense  = true;
+    handles.has_purity = false;
     handles.has_norms = false;
-    has_tagged        = false;
+    handles.has_tagged = false;
     handles.has_version = false;
     for id=1:size(info.Datasets, 1)
         if strcmp(info.Datasets(id).Name, 'version')
@@ -153,7 +154,10 @@ else
             handles.is_dense = false;
         end
         if strcmp(info.Datasets(id).Name, 'tagged')
-            has_tagged = true;
+            handles.has_tagged = true;
+        end
+        if strcmp(info.Datasets(id).Name, 'purity')
+            handles.has_purity = true;
         end
         if strcmp(info.Datasets(id).Name, 'norms')
             handles.has_norms = true;
@@ -176,8 +180,12 @@ else
         handles.templates_size = [handles.templates_size(1) handles.templates_size(2) handles.templates_size(3)/2];
     end
     
-    if has_tagged
+    if handles.has_tagged
         handles.Tagged = h5read(tmpfile, '/tagged');
+    end
+    
+    if handles.has_purity
+        handles.Purity = h5read(tmpfile, '/purity');
     end
     
     if handles.has_norms
@@ -1207,8 +1215,10 @@ RCellNb  = handles.to_keep(CellNb);
 RCellNb2 = handles.to_keep(CellNb2);
 
 set(handles.Nspk1, 'String', int2str(length(handles.SpikeTimes{CellNb})));
+set(handles.PurityTemp1, 'String', num2str(handles.Purity(CellNb)));
 if ~isempty(CellNb2) && (CellNb2>0) && (CellNb2 <= length(handles.SpikeTimes))
     set(handles.Nspk2, 'String', int2str(length(handles.SpikeTimes{CellNb2})));
+    set(handles.PurityTemp2, 'String', num2str(handles.Purity(CellNb2)));
 end
 
 set(handles.ElecNb,'String',int2str(handles.BestElec(CellNb)))
@@ -1631,6 +1641,10 @@ if handles.has_norms
     handles.norms(CellNb, :) = [];
 end
 
+if handles.has_purity
+    handles.Purity(CellNb, :)= [];
+end
+
 nb_actions = length(handles.all_actions);
 handles.all_actions{nb_actions + 1} = struct('action', 'remove', 'source', CellNb);
 
@@ -1716,6 +1730,11 @@ end
 if handles.has_norms
     h5create(tmp_templates, '/norms', numel(handles.norms));
     h5write(tmp_templates, '/norms', reshape(handles.norms, [], 1));
+end
+
+if handles.has_purity
+    h5create(tmp_templates, '/purity', numel(handles.Purity));
+    h5write(tmp_templates, '/purity', reshape(handles.Purity, [], 1));
 end
 
 %h5create(tmp_templates, '/templates', [2*nb_templates handles.templates_size(2) handles.templates_size(1)])
@@ -1843,6 +1862,7 @@ handles.lags     = handles.lags(:,myslice);
 handles.lags(CellNb, CellNb+1) = 0;
 handles.lags(CellNb+1, CellNb) = 0;
 handles.norms       = handles.norms(myslice, :)
+handles.Purity      = handles.Purity(myslice, :)
 handles.to_keep     = handles.to_keep(myslice);
 
 handles.amp_time_list = handles.amp_time_list(myslice);
