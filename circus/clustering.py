@@ -58,6 +58,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_repeats = params.getint('clustering', 'nb_repeats')
     make_plots = params.get('clustering', 'make_plots')
     debug_plots = params.get('clustering', 'debug_plots')
+    halo_rejection = params.getfloat('clustering', 'halo_rejection')
     merging_param = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
@@ -974,7 +975,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         # Now we perform the clustering.
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(
-                            result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity
+                            result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity,
+                            halo_rejection=halo_rejection
                         )
                         result['delta_%s_' % p + str(ielec)] = d  # i.e. save delta values
 

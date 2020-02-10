@@ -186,19 +186,14 @@ def compute_rho(data, update=None, mratio=0.01):
     return answer
 
 
-def clustering_by_density(rho, dist, n_min, alpha=3):
+def clustering_by_density(rho, dist, n_min, alpha=3, halo_rejection=3):
 
     nb_points = len(rho)
     distances = DistanceMatrix(nb_points, distances=dist)
     deltas, neighbors = distances.get_deltas_and_neighbors(rho)
     nb_clusters, labels, centers = find_centroids_and_clusters(distances, rho, deltas, neighbors, alpha)
-    # halolabels = halo_assign(distances, labels, centers, n_min)  # TODO check this line.
-    # halolabels -= 1
-    # centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]  # indices of centroids
-    # TODO check if the 2 following lines are correct.
-    # halolabels = labels - 1
-    # centers = numpy.where(centers - 1 >= 0)[0]
-    halolabels = halo_assign(labels, rho, n_min) - 1
+
+    halolabels = halo_assign(labels, rho, n_min, halo_rejection) - 1
     centers = numpy.where(centers - 1 >= 0)[0]
     del distances
 
@@ -252,7 +247,7 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
     return nb_clusters, labels, centroids
 
 
-def halo_assign(labels, rhos, n_min, nb_mad=3):
+def halo_assign(labels, rhos, n_min, halo_rejection=3):
     """Unassign outliers."""
 
     halolabels = labels.copy()
@@ -261,10 +256,9 @@ def halo_assign(labels, rhos, n_min, nb_mad=3):
         median_rho = numpy.median(rhos[indices])
         # selected_indices = indices[rhos[indices] < median_rho]
         mad_rho = numpy.median(numpy.abs(rhos[indices] - median_rho))
-        selected_indices = indices[rhos[indices] < (median_rho - nb_mad*mad_rho)]  # TODO enhance?
+        selected_indices = indices[rhos[indices] < (median_rho - halo_rejection*mad_rho)]  # TODO enhance?
         if len(indices) - len(selected_indices) > n_min:
             halolabels[selected_indices] = 0  # i.e. set to 0 (unassign)
-
     return halolabels
 
 
