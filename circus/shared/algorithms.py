@@ -1102,6 +1102,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             # First, we collect admissible snippets (according to their (normalized) scalar products).
             good_values = amplitudes[i, i]
+            tgt_values = nsps[i, i]
             bad_values = {}
             neutral_values = {}
             nb_chances = numpy.zeros(len(all_snippets[i]), dtype=numpy.int32)
@@ -1124,7 +1125,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     selection = ref_values > values
                     neutral_values[j] = amplitudes[i, j][selection]
 
-                    selection = good_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
+                    selection = tgt_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
                     nb_chances[selection] += 1
 
             all_bad_values = numpy.concatenate([
