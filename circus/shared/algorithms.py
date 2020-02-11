@@ -1102,7 +1102,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             # First, we collect admissible snippets (according to their (normalized) scalar products).
             good_values = amplitudes[i, i]
-            tgt_values = nsps[i, i]
+            if normalization:
+                tgt_values = nsps[i, i]
+            else:
+                tgt_values = sps[i, i]
+
             bad_values = {}
             neutral_values = {}
             nb_chances = numpy.zeros(len(all_snippets[i]), dtype=numpy.int32)
