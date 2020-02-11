@@ -948,6 +948,20 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
+    elif data == 'nb_chances':
+        filename = file_out_suff + '.templates%s.hdf5' % extension
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            if 'nb_chances' in myfile.keys():
+                return myfile['nb_chances'][:]
+            else:
+                N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+                nb_chances = params.get('fitting', 'nb_chances')
+                return nb_chances * numpy.ones(nb_templates//2, dtype=numpy.int32)
+        else:
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'nb_templates':
         filename = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(filename):

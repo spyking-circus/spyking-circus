@@ -1095,6 +1095,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         hfile = h5py.File(file_name, 'r+', libver='earliest')
 
         purity_level = numpy.zeros(nb_temp, dtype=numpy.float32)
+        max_nb_chances = numpy.zeros(nb_temp, dtype=numpy.int32)
 
         import matplotlib.pyplot as plt  # TODO move elsewhere...
 
@@ -1239,7 +1240,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             else:
                 purity_level[i] = 1.0
 
+            max_nb_chances[i] = nb_chances.max()
+
         hfile['purity'] = purity_level
+        hfile['nb_chances'] = max_nb_chances
         hfile.close()
 
     return

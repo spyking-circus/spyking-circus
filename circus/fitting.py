@@ -36,7 +36,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     tmp_limits = [float(v) for v in tmp_limits]
     amp_auto = params.getboolean('fitting', 'amp_auto')
-    nb_chances = params.getint('fitting', 'nb_chances')
+    auto_nb_chances = params.getboolean('fitting', 'auto_nb_chances')
+    if auto_nb_chances:
+        nb_chances = io.load_data(params, 'nb_chances')
+        total_nb_chances = numpy.percentile(nb_chances, 90)
+        if comm.rank == 0:
+            print_and_log(['nb_chances set automatically to %d' %total_nb_chances], 'default', logger)
+    else:
+        total_nb_chances = params.getint('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
     # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')
@@ -440,7 +447,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            while numpy.mean(failure) < nb_chances:
+            while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
                 if full_gpu:
@@ -541,7 +548,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
-                    if failure[peak_index] == nb_chances:
+                    if failure[peak_index] == total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
                         mask[:, peak_index] = False
                     else:
