@@ -1282,7 +1282,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_data.append(templates[dx])
 
                         to_keep = indices[~numpy.in1d(indices, to_delete)]
-                        supports[g_count][to_keep] = True
+                        supports[g_count, to_keep] = True
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         distance = \
@@ -1556,10 +1556,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
     )
 
-    if fine_amplitude:
+    if (fine_amplitude) or (debug_plots not in ['None', '']):
 
-        if comm.rank == 0:
+        if comm.rank == 0 and fine_amplitude:
             print_and_log(["Optimizing the amplitudes..."], 'default', logger)
+        elif comm.rank == 0 and (debug_plots not in ['None', '']):
+            print_and_log(["Plotting amplitudes snippets..."], 'default', logger)
+
 
         algo.refine_amplitudes(
             params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu,

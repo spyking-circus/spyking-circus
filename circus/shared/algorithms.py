@@ -990,6 +990,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     norm_templates = load_data(params, 'norm-templates')
     best_elec = load_data(params, 'electrodes')
     limits = load_data(params, 'limits')
+    fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     N_e = params.getint('data', 'N_e')
     N_t = params.getint('detection', 'N_t')
     n_total = params.nb_channels
@@ -1001,7 +1002,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
-    max_snippets = 250
+    max_snippets = 500
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1011,6 +1012,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     else:
         templates = load_data(params, 'templates')
 
+    supports = load_data(params, 'supports')
     x, n_tm = templates.shape
     nb_temp = int(n_tm // 2)
 
@@ -1083,7 +1085,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 #     sps[i, j] = numpy.dot(all_snippets[j], template)
                 #     nsps[i, j] = sps[i, j] / norm
                 #     amplitudes[i, j] = sps[i, j] / norm_2
-                sps[i, j] = numpy.dot(all_snippets[j], template)
+                sps[i, j] = all_snippets[j].dot(template)
                 nsps[i, j] = sps[i, j] / norm
                 amplitudes[i, j] = sps[i, j] / norm_2
 
@@ -1107,12 +1109,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 if i != j:
                     if normalization:
                         # Use the normalized scalar products.
-                        ref_values = nsps[j, j]  # i.e. snippets of j projected on template j
-                        values = nsps[i, j]  # i.e. snippets of j projected on template j
+                        ref_values = nsps[j, j]  # i.e. snippets of j projected on template i
+                        values = nsps[i, j]  # i.e. snippets of j projected on template i
                     else:
                         # Use the scalar products (not normalized).
-                        ref_values = sps[j, j]  # i.e. snippets of j projected on template j
-                        values = sps[i, j]  # i.e. snippets of j projected on template j
+                        ref_values = sps[j, j]  # i.e. snippets of j projected on template i
+                        values = sps[i, j]  # i.e. snippets of j projected on template i
                     selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
                     bad_values[j] = amplitudes[i, j][selection]
                     selection = ref_values > values
@@ -1129,11 +1131,14 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             # Then we need to fix a_min and a_max to minimize the error
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
-            a_min = optimize_amplitude_minimum(good_values, all_bad_values)
-            a_max = optimize_amplitude_maximum(good_values, all_bad_values)
+            if fine_amplitude:
+                a_min = optimize_amplitude_minimum(good_values, all_bad_values)
+                a_max = optimize_amplitude_maximum(good_values, all_bad_values)
 
-            # Then we save the optimal amplitude interval.
-            hfile['limits'][i] = [a_min, a_max]
+                # Then we save the optimal amplitude interval.
+                hfile['limits'][i] = [a_min, a_max]
+            else:
+                a_min, a_max = hfile['limits'][i]
 
             if debug_plots not in ['None', '']:
                 fig, ax = plt.subplots()
