@@ -41,7 +41,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_chances = io.load_data(params, 'nb_chances')
         total_nb_chances = numpy.percentile(nb_chances, 90)
         if comm.rank == 0:
-            print_and_log(['nb_chances set automatically to %d' %total_nb_chances], 'default', logger)
+            print_and_log(['nb_chances set automatically to %d' %total_nb_chances], 'debug', logger)
     else:
         total_nb_chances = params.getint('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
@@ -89,7 +89,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
-    if templates_normalization:
+    if not templates_normalization:
         norm_templates_2 = (norm_templates ** 2.0) * n_scalar
 
     if not SHARED_MEMORY:
