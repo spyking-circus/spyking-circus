@@ -1002,7 +1002,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
-    max_snippets = 500
+    max_snippets = 250
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1104,6 +1104,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             good_values = amplitudes[i, i]
             bad_values = {}
             neutral_values = {}
+            nb_chances = numpy.zeros(len(all_snippets[i]), dtype=numpy.int32)
             for j in range(nb_temp):
                 # if (similarity[i, j] >= thr_similarity) and (i != j):
                 if i != j:
@@ -1111,14 +1112,20 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                         # Use the normalized scalar products.
                         ref_values = nsps[j, j]  # i.e. snippets of j projected on template i
                         values = nsps[i, j]  # i.e. snippets of j projected on template i
+                        ref2_values = nsps[j, i]  # i.e. snippets of i projected on template j
                     else:
                         # Use the scalar products (not normalized).
                         ref_values = sps[j, j]  # i.e. snippets of j projected on template i
                         values = sps[i, j]  # i.e. snippets of j projected on template i
+                        ref2_values = sps[j, i]  # i.e. snippets of i projected on template j
+
                     selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
                     bad_values[j] = amplitudes[i, j][selection]
                     selection = ref_values > values
                     neutral_values[j] = amplitudes[i, j][selection]
+
+                    selection = good_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
+                    nb_chances[selection] += 1
 
             all_bad_values = numpy.concatenate([
                 values
@@ -1141,50 +1148,71 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 a_min, a_max = hfile['limits'][i]
 
             if debug_plots not in ['None', '']:
-                fig, ax = plt.subplots()
+                fig, ax = plt.subplots(2)
                 s = 2 ** 2
                 # ...
                 linewidth = 0.3
-                ax.axhline(y=0.0, color='gray', linewidth=linewidth)
-                ax.axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-                ax.axhline(y=1.0, color='gray', linewidth=linewidth)
-                ax.axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+                ax[0].axhline(y=0.0, color='gray', linewidth=linewidth)
+                ax[0].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+                ax[0].axhline(y=1.0, color='gray', linewidth=linewidth)
+                ax[0].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
                 # Plot neutral amplitudes.
                 x = numpy.random.uniform(size=all_neutral_values.size)
                 y = all_neutral_values
                 color = 'gray'
-                ax.scatter(x, y, s=s, color=color, alpha=0.1)
+                ax[0].scatter(x, y, s=s, color=color, alpha=0.1)
                 # Plot good amplitudes.
                 x = numpy.random.uniform(size=good_values.size)
                 y = good_values
                 color = 'tab:green'
-                ax.scatter(x, y, s=s, color=color)
+                ax[0].scatter(x, y, s=s, color=color)
                 # ...
                 color = 'tab:green'
                 for x_, y_ in zip(x, y):
                     if y_ > a_max:
-                        ax.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                        ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
                     if y_ < a_min:
-                        ax.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+                        ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
                 # ...
                 x = numpy.random.uniform(size=all_bad_values.size)
                 y = all_bad_values
                 color = 'tab:red'
-                ax.scatter(x, y, s=s, color=color)
+                ax[0].scatter(x, y, s=s, color=color)
                 # ...
                 color = 'tab:red'
                 for x_, y_ in zip(x, y):
                     if 1.0 < y_ < a_max:
-                        ax.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                        ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
                     if a_min < y_ < 1.0:
-                        ax.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+                        ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
                 # Hide the right and top spines
-                ax.spines['right'].set_visible(False)
-                ax.spines['top'].set_visible(False)
+                ax[0].spines['right'].set_visible(False)
+                ax[0].spines['top'].set_visible(False)
                 # ...
-                ax.set_ylabel("amplitude")
+                ax[0].set_ylabel("amplitude")
                 # ax.set_xticklabels([])
-                ax.set_xticks([])
+                ax[0].set_xticks([])
+                
+                ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
+                ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+                ax[1].axhline(y=1.0, color='gray', linewidth=linewidth)
+                ax[1].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+                
+                # Plot good amplitudes.
+                x = numpy.random.uniform(size=good_values.size)
+                y = good_values
+                r = ax[1].scatter(x, y, s=s, c=nb_chances)
+                fig.colorbar(r, ax=ax[1])
+
+                # Hide the right and top spines
+                ax[1].spines['right'].set_visible(False)
+                ax[1].spines['top'].set_visible(False)
+                ax[1].set_title('Average nb_chances %g' %numpy.mean(nb_chances))
+                # ...
+                ax[1].set_ylabel("amplitude")
+                # ax.set_xticklabels([])
+                ax[1].set_xticks([])
+
                 plt.tight_layout()
                 # Save and close figure.
                 output_path = os.path.join(
