@@ -548,7 +548,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
-                    if failure[peak_index] == total_nb_chances:
+                    if failure[peak_index] > total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
                         mask[:, peak_index] = False
                     else:

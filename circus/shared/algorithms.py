@@ -1240,7 +1240,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             else:
                 purity_level[i] = 1.0
 
-            max_nb_chances[i] = nb_chances.max()
+            max_nb_chances[i] = nb_chances.max() + 1
 
         hfile['purity'] = purity_level
         hfile['nb_chances'] = max_nb_chances
