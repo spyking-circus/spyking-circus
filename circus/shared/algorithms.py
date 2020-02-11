@@ -839,32 +839,25 @@ def optimize_amplitude_interval_extremities(good_values, all_bad_values):
 
 def optimize_amplitude_minimum(good_values, bad_values):
 
-    def a_min_error(a_min, good_values_, bad_values_):
+    def a_min_error(a_min, good_values_, bad_values_, center):
 
         a_min_ = a_min[0]
-
         error = 0.0
 
         selection = good_values_ < a_min_
-        # error += numpy.sum(numpy.abs(good_values_[selection] - a_min_))
-        error += numpy.sum(numpy.square(numpy.abs(good_values_[selection] - a_min_)))
-        # error += numpy.sum(numpy.power(numpy.abs(good_values_[selection] - a_min_), 1.1))  # not smooth around 0
-
-        assert numpy.all(bad_values_ <= 1.0)
+        error += numpy.sum((good_values_[selection] - a_min_)**2)
+        
         selection = a_min_ <= bad_values_
-        # error += numpy.sum(numpy.abs(bad_values_[selection] - a_min_))
-        error += numpy.sum(numpy.square(numpy.abs(bad_values_[selection] - a_min_)))
-        # error += numpy.sum(numpy.power(numpy.abs(bad_values_[selection] - a_min_), 1.1))  # not smooth around 0
+        error += numpy.sum((bad_values_[selection] - a_min_)**2)
 
-        # error += numpy.abs(a_min_ - 1.0)
-        # error += 0.1 * numpy.abs(a_min_ - 1.0)
-        error += 0.01 * numpy.abs(a_min_ - 1.0)
+        error += 0.01 * numpy.abs(a_min_ - center)
 
         return error
 
-    a_min_0 = 1.0 - 0.1
+    center = numpy.median(good_values)
+    a_min_0 = center - 0.1
     # args = (good_values, bad_values[bad_values < 1.0])
-    args = (good_values.astype(numpy.float), bad_values[bad_values < 1.0].astype(numpy.float))
+    args = (good_values.astype(numpy.float), bad_values[bad_values < center].astype(numpy.float), center)
     optimize_result = scipy.optimize.minimize(a_min_error, numpy.array([a_min_0]), args=args)
     # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
     # # Either "Desired error not necessarily achieved due to precision loss.",
@@ -876,32 +869,25 @@ def optimize_amplitude_minimum(good_values, bad_values):
 
 def optimize_amplitude_maximum(good_values, bad_values):
 
-    def a_max_error(a_max, good_values_, bad_values_):
+    def a_max_error(a_max, good_values_, bad_values_, center):
 
         a_max_ = a_max[0]
-
         error = 0.0
 
         selection = a_max_ < good_values_
-        # error += numpy.sum(numpy.abs(good_values_[selection] - a_max_))
-        error += numpy.sum(numpy.square(numpy.abs(good_values_[selection] - a_max_)))
-        # error += numpy.sum(numpy.power(numpy.abs(good_values_[selection] - a_max_), 1.1))  # not smooth around 0
+        error += numpy.sum((good_values_[selection] - a_max_)**2)
 
-        assert numpy.all(bad_values_ >= 1.0)
         selection = bad_values_ <= a_max_
-        # error += numpy.sum(numpy.abs(bad_values_[selection] - a_max_))
-        error += numpy.sum(numpy.square(numpy.abs(bad_values_[selection] - a_max_)))
-        # error += numpy.sum(numpy.power(numpy.abs(bad_values_[selection] - a_max_), 1.1))  # not smooth around 0
+        error += numpy.sum((bad_values_[selection] - a_max_)**2)
 
-        # error += numpy.abs(a_max_ - 1.0)
-        # error += 0.1 * numpy.abs(a_max_ - 1.0)
-        error += 0.01 * numpy.abs(a_max_ - 1.0)
+        error += 0.01 * numpy.abs(a_max_ - center)
 
         return error
 
-    a_max_0 = 1.0 + 0.1
-    # args = (good_values, bad_values[bad_values > 1.0])
-    args = (good_values.astype(numpy.float), bad_values[bad_values > 1.0].astype(numpy.float))
+    center = numpy.median(good_values)
+    a_max_0 = center + 0.1
+
+    args = (good_values.astype(numpy.float), bad_values[bad_values > center].astype(numpy.float), center)
     optimize_result = scipy.optimize.minimize(a_max_error, numpy.array([a_max_0]), args=args)
     # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
     # # Either "Desired error not necessarily achieved due to precision loss.",
@@ -910,77 +896,6 @@ def optimize_amplitude_maximum(good_values, bad_values):
 
     return a_max_opt
 
-
-# def optimize_amplitude_interval_extremities(good_values, all_bad_values):
-#
-#     from sklearn import linear_model
-#
-#     # Optimize maximum.
-#     # # Prepare the data.
-#     selection = all_bad_values >= 1.0
-#     x = numpy.concatenate([good_values - 1.0, all_bad_values[selection] - 1.0])
-#     x = x[:, numpy.newaxis]
-#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
-#     # # Fit the classifier
-#     clf = linear_model.LogisticRegression(C=1e5)
-#     try:
-#         clf.fit(x, y)
-#         intercept = clf.intercept_[0]
-#     except ValueError:
-#         intercept = -5.0
-#     # # Get the optimal value.
-#     a_max = 1.0 + (-1.0 * intercept)
-#
-#     # Optimize minimum.
-#     # # Prepare the data.
-#     selection = all_bad_values <= 1.0
-#     x = numpy.concatenate([-1.0 * (good_values - 1.0), -1.0 * (all_bad_values[selection] - 1.0)])
-#     x = x[:, numpy.newaxis]
-#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
-#     # # Fit the classifier
-#     clf = linear_model.LogisticRegression(C=1e-2)
-#     try:
-#         clf.fit(x, y)
-#         intercept = clf.intercept_[0]
-#     except ValueError:
-#         intercept = -5.0
-#     # # Get the optimal value.
-#     a_min = 1.0 - (-1.0 * intercept)
-#
-#     return a_min, a_max
-
-
-# def optimize_amplitude_interval_extremities(good_values, all_bad_values):
-#
-#     from sklearn.tree import DecisionTreeClassifier
-#
-#     # Optimize maximum.
-#     # # Prepare the data.
-#     selection = all_bad_values >= 1.0
-#     x = numpy.concatenate([good_values - 1.0, all_bad_values[selection] - 1.0])
-#     x = x[:, numpy.newaxis]
-#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
-#     # # Fit the classifier
-#     estimator = DecisionTreeClassifier(max_leaf_nodes=1, random_state=42)
-#     estimator.fit(x, y)
-#     threshold = estimator.tree_.threshold
-#     # # Get the optimal value.
-#     a_max = 1.0 + threshold
-#
-#     # Optimize minimum.
-#     # # Prepare the data.
-#     selection = all_bad_values <= 1.0
-#     x = numpy.concatenate([-1.0 * (good_values - 1.0), -1.0 * (all_bad_values[selection] - 1.0)])
-#     x = x[:, numpy.newaxis]
-#     y = numpy.concatenate([numpy.zeros_like(good_values), numpy.ones_like(all_bad_values[selection])])
-#     # # Fit the classifier
-#     estimator = DecisionTreeClassifier(max_leaf_nodes=1, random_state=42)
-#     estimator.fit(x, y)
-#     threshold = estimator.tree_.threshold
-#     # # Get the optimal value.
-#     a_min = 1.0 - threshold
-#
-#     return a_min, a_max
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
