@@ -850,7 +850,7 @@ def optimize_amplitude_minimum(good_values, bad_values):
         selection = a_min_ <= bad_values_
         error += numpy.sum((bad_values_[selection] - a_min_)**2)
 
-        error += 0.01 * numpy.abs(a_min_ - center)
+        error += 0.01 * (a_min_ - center)**2
 
         return error
 
@@ -880,7 +880,7 @@ def optimize_amplitude_maximum(good_values, bad_values):
         selection = bad_values_ <= a_max_
         error += numpy.sum((bad_values_[selection] - a_max_)**2)
 
-        error += 0.01 * numpy.abs(a_max_ - center)
+        error += 0.01 * (a_max_ - center)**2
 
         return error
 
