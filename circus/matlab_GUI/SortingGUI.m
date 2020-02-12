@@ -186,8 +186,10 @@ else
     
     if handles.has_purity
         handles.Purity = h5read(tmpfile, '/purity');
+    else
+        handles.Purity = zeros(handles.templates_size(3));
     end
-    
+
     if handles.has_norms
         norms = double(h5read(tmpfile, '/norms'));
         handles.norms = reshape(norms, [], 2);
