@@ -933,7 +933,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
     max_snippets = 250
-    max_error = 0.5
+    max_error = 0.25
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1086,9 +1086,20 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
                 # Then we have a trade-off between the empirical boundary and the optimized one, given the total
                 # number of data points collected
-                tmp = numpy.exp(-error/max_error)
-                a_min = (1-tmp)*a_min + tmp*a_min_0
-                a_max = (1-tmp)*a_max + tmp*a_max_0
+
+                ## Decaying exponential
+                #tmp = numpy.exp(-error/max_error)
+                #a_min = tmp*a_min + (1 - tmp)*a_min_0
+                #a_max = tmp*a_max + (1 - tmp)*a_max_0
+
+                ## Linear
+                a_min = (1 - error)*a_min + error*a_min_0
+                a_max = (1 - error)*a_max + error*a_max_0
+
+                ## Sigmoidal
+                #a_min = a_min + (a_min_0 - a_min)/(1 + numpy.exp(-10*(error - 0.5)))
+                #a_max = a_max + (a_max_0 - a_max)/(1 + numpy.exp(-10*(error - 0.5)))
+
             else:
                 a_min, a_max = a_min_0, a_max_0
 
