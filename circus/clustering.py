@@ -1290,8 +1290,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
                         noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
 
-                        amp_min = 1 - min([dispersion[0] * variation, noise_limit])
-                        amp_max = 1 + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
+                        amp_min = center - min([dispersion[0] * variation, noise_limit])
+                        amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
 
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps += [[amp_min, amp_max]]
