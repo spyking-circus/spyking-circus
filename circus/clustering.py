@@ -21,9 +21,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     logger = logging.getLogger('circus.clustering')
     #################################################################
     data_file = params.data_file
-    N_e = params.getint('data', 'N_e')
-    N_total = params.nb_channels
-    N_t = params.getint('detection', 'N_t')
+    n_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
+    n_t = params.getint('detection', 'N_t')
     dist_peaks = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -47,17 +47,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     safety_space = params.getboolean('clustering', 'safety_space')
     comp_templates = params.getboolean('clustering', 'compress')
     dispersion = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
-    dispersion = map(float, dispersion)
+    dispersion = [float(v) for v in dispersion]
     nodes, edges = get_nodes_and_edges(params)
     chunk_size = detect_memory(params)
     max_elts_elec = params.getint('clustering', 'max_elts')
     two_components = params.getboolean('clustering', 'two_components')
     if sign_peaks == 'both':
         max_elts_elec *= 2
-    nb_elts = int(params.getfloat('clustering', 'nb_elts') * N_e * max_elts_elec)
+    nb_elts = int(params.getfloat('clustering', 'nb_elts') * n_e * max_elts_elec)
     nb_repeats = params.getint('clustering', 'nb_repeats')
     make_plots = params.get('clustering', 'make_plots')
     debug_plots = params.get('clustering', 'debug_plots')
+    halo_rejection = params.getfloat('clustering', 'halo_rejection')
     merging_param = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
@@ -68,6 +69,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     test_clusters = params.getboolean('clustering', 'test_clusters')
+    fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     sparsify = params.getfloat('clustering', 'sparsify')
     debug = params.getboolean('clustering', 'debug')
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
@@ -75,7 +77,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     elt_count = 0
     m_ratio = params.getfloat('clustering', 'm_ratio')
     sub_output_dim = params.getint('clustering', 'sub_dim')
-    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     to_write = ['clusters_', 'times_', 'data_', 'peaks_']
     if debug:
@@ -86,6 +88,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_ss_bins = params.getint('clustering', 'nb_ss_bins')
     use_hanning = params.getboolean('detection', 'hanning')
     use_savgol = params.getboolean('clustering', 'savgol')
+    templates_normalization = params.getboolean('clustering', 'templates_normalization')
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
@@ -107,22 +110,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         raise ValueError("unexpected value: %s" % sign_peaks)
 
     nodes_indices = {}
-    for elec in numpy.arange(N_e):
+    for elec in numpy.arange(n_e):
         nodes_indices[elec] = inv_nodes[edges[nodes[elec]]]
 
     smart_searches = {}
     for p in search_peaks:
-        smart_searches[p] = numpy.ones(N_e, dtype=numpy.float32)*int(smart_search)
+        smart_searches[p] = numpy.ones(n_e, dtype=numpy.float32) * int(smart_search)
 
     basis = {}
 
     if use_hanning:
-        hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
+        hanning_filter = numpy.hanning(n_t)[:, numpy.newaxis]
     else:
         hanning_filter = None  # default assignment (for PyCharm code inspection)
 
     if use_savgol:
-        savgol_filter = numpy.hanning(N_t)
+        savgol_filter = numpy.hanning(n_t)
         savgol_window = params.getint('clustering', 'savgol_window')
     else:
         savgol_filter = None  # default assignment (for PyCharm code inspection)
@@ -154,7 +157,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
     stds = io.load_data(params, 'stds')
-    n_scalar = N_e * N_t
+    n_scalar = n_e * n_t
     if do_spatial_whitening:
         spatial_whitening = io.load_data(params, 'spatial_whitening')
     else:
@@ -180,12 +183,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if ignore_dead_times:
         all_dead_times = get_dead_times(params)
+    else:
+        all_dead_times = None  # default assignment (for PyCharm code inspection)
 
     result = {}
 
     if use_gpu:
         import cudamat as cmt
-        # # Need to properly handle multi GPU per MPI nodes?
+        # Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
             gpu_id = int(comm.rank // nb_cpu)
         else:
@@ -210,7 +215,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     elec_positions = {}
 
-    for i in range(N_e):
+    for i in range(n_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
         result['all_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
         result['times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
@@ -243,6 +248,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     # # We will perform several passes to enhance the quality of the clustering
 
     sdata = None  # default assignment (for PyCharm code inspection)
+    loop_max_elts_elec = None  # default assignment (for PyCharm code inspection)
+    loop_nb_elts = None  # default assignment (for PyCharm code inspection)
+    local_nb_clusters = 0
+    # local_hits = 0
+    local_mergings = 0
+    cluster_results = {}
 
     while gpass < (nb_repeats + 1):
 
@@ -276,7 +287,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 lines = ["Searching random spikes to refine the clustering (%d/%d)..." % (gpass, nb_repeats)]
                 print_and_log(lines, 'default', logger)
 
-        for i in range(N_e):
+        for i in range(n_e):
             if gpass == 0:
                 for p in search_peaks:
                     result['tmp_%s_' % p + str(i)] = [numpy.zeros(0, dtype=numpy.float32)]
@@ -319,7 +330,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # # This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes
         # # should search spikes for a subset of electrodes, to avoid too many communications.
         if gpass == 0 or not smart_search:
-            nb_elecs = numpy.sum(comm.rank == numpy.mod(numpy.arange(N_e), comm.size))
+            nb_elecs = numpy.sum(comm.rank == numpy.mod(numpy.arange(n_e), comm.size))
             loop_max_elts_elec = params.getint('clustering', 'max_elts')
             if sign_peaks == 'both':
                 loop_max_elts_elec *= 2
@@ -387,10 +398,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         filter_chunk = scipy.ndimage.filters.convolve1d(
                             local_chunk, waveform_pos, axis=0, mode='constant'
                         )
-                        for i in range(N_e):
+                        for i in range(n_e):
                             peaktimes = scipy.signal.find_peaks(
                                 filter_chunk[:, i], height=matched_thresholds_pos[i],
-                                width=spike_width, distance=dist_peaks, wlen=N_t
+                                width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
                             all_peaktimes.append(peaktimes)
@@ -401,10 +412,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         filter_chunk = scipy.ndimage.filters.convolve1d(
                             local_chunk, waveform_neg, axis=0, mode='constant'
                         )
-                        for i in range(N_e):
+                        for i in range(n_e):
                             peaktimes = scipy.signal.find_peaks(
                                 filter_chunk[:, i], height=matched_thresholds_neg[i],
-                                width=spike_width, distance=dist_peaks, wlen=N_t
+                                width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
                             all_peaktimes.append(peaktimes)
@@ -413,20 +424,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 else:
 
-                    for i in range(N_e):
+                    for i in range(n_e):
                         x = local_chunk[:, i]
                         height = thresholds[i]
                         if sign_peaks == 'negative':
                             peaktimes = scipy.signal.find_peaks(
-                                -x, height=height, width=spike_width, distance=dist_peaks, wlen=N_t
+                                -x, height=height, width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                         elif sign_peaks == 'positive':
                             peaktimes = scipy.signal.find_peaks(
-                                +x, height=height, width=spike_width, distance=dist_peaks, wlen=N_t
+                                +x, height=height, width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                         elif sign_peaks == 'both':
                             peaktimes = scipy.signal.find_peaks(
-                                numpy.abs(x), height=height, width=spike_width, distance=dist_peaks, wlen=N_t
+                                numpy.abs(x), height=height, width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                         else:
                             peaktimes = numpy.empty(0, dtype=numpy.uint32)
@@ -451,12 +462,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if ignore_dead_times:
                     dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
                     if dead_indices[0] != dead_indices[1]:
-                        is_included = numpy.in1d(local_peaktimes + t_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
+                        is_included = numpy.in1d(
+                            local_peaktimes + t_offset,
+                            all_dead_times[dead_indices[0]:dead_indices[1]]
+                        )
                         local_peaktimes = local_peaktimes[~is_included]
                         local_peaktimes = numpy.sort(local_peaktimes)
 
                 if gpass == 0:
-                    for i in range(comm.rank, N_e, comm.size):
+                    for i in range(comm.rank, n_e, comm.size):
                         for p in search_peaks:
                             if result['count_%s_' % p + str(i)] < loop_max_elts_elec:
                                 result['nb_chunks_%s_' % p + str(i)] += 1
@@ -464,7 +478,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if len(local_peaktimes) > 0:
 
                     diff_times = local_peaktimes[-1]-local_peaktimes[0]
-                    all_times = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
+                    all_times = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
                     min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
                     max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
 
@@ -473,7 +487,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     all_idx = numpy.take(local_peaktimes, argmax_peak)
 
                     if gpass > 1:
-                        for elec in range(N_e):
+                        for elec in range(n_e):
                             subset = (result['all_times_' + str(elec)] - local_offset).astype(numpy.int32)
                             peaks = numpy.compress((subset >= 0) & (subset < local_shape), subset)
                             inter = numpy.in1d(local_peaktimes, peaks)
@@ -505,7 +519,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':
-                            if N_e == 1:
+                            if n_e == 1:
                                 elec = 0
                                 if local_chunk[peak] < 0:
                                     negative_peak = True
@@ -547,7 +561,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     # # test if the sample is pure Gaussian noise
                                     if reject_noise:
                                         slice_window = sub_mat[duration - noise_window: duration + noise_window]
-                                        values = numpy.linalg.norm(slice_window, axis=0) / (stds[indices] * 2 * noise_window)
+                                        values = \
+                                            numpy.linalg.norm(slice_window, axis=0) / (stds[indices] * 2 * noise_window)
                                         is_noise = numpy.all(
                                             values < rejection_threshold
                                         )
@@ -578,10 +593,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if alignment:
 
-                                                # if loc_peak == 'neg':
-                                                #     weights = weights_neg
-                                                # elif loc_peak == 'pos':
-                                                #     weights = weights_pos
                                                 local_factor = align_factor * ((smoothing_factor * mads[elec]) ** 2)
 
                                                 if len(indices) == 1:
@@ -600,9 +611,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     if smoothed:
                                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
                                                     ddata = numpy.linspace(
-                                                        rmin - template_shift, rmin + template_shift, N_t
+                                                        rmin - template_shift, rmin + template_shift, n_t
                                                     )
-                                                    sub_mat = f(ddata).astype(numpy.float32).reshape(N_t, 1)
+                                                    sub_mat = f(ddata).astype(numpy.float32).reshape(n_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
                                                     ydata = numpy.arange(len(indices))
@@ -622,7 +633,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                         xdata, ydata, sub_mat, s=0, kx=3, ky=1
                                                     )
                                                     ddata = numpy.linspace(
-                                                        rmin - template_shift, rmin + template_shift, N_t
+                                                        rmin - template_shift, rmin + template_shift, n_t
                                                     )
                                                     sub_mat = f(ddata, ydata).astype(numpy.float32)
 
@@ -643,8 +654,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     if smart_searches[loc_peak][elec] > 0:
 
                                                         ext_amp = sub_mat[template_shift, elec_positions[elec]]
-                                                        idx = numpy.searchsorted(result['bounds_%s_' % loc_peak + str(elec)], ext_amp, 'right') - 1
-                                                        to_keep = result['hist_%s_' % loc_peak + str(elec)][idx] < numpy.random.rand()
+                                                        idx = numpy.searchsorted(
+                                                            result['bounds_%s_' % loc_peak + str(elec)], ext_amp,
+                                                            side='right'
+                                                        )
+                                                        idx = idx - 1
+                                                        hist = result['hist_%s_' % loc_peak + str(elec)][idx]
+                                                        to_keep = hist < numpy.random.rand()
 
                                                         if to_keep:
                                                             to_accept = True
@@ -696,18 +712,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     to_add
                                                 ))
                                             if gpass == 1:
-                                                result['peaks_' + str(elec)].append([int(negative_peak)])
+                                                negative_peaks = numpy.array([int(negative_peak)])
+                                                result['peaks_' + str(elec)].append(negative_peaks)
                                             if safety_space:
                                                 all_times[indices, min_times[midx]:max_times[midx]] = True
                                             else:
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
                                     else:
                                         nb_noise += 1
-                                        # import pylab
-                                        # pylab.plot(sub_mat)
-                                        # pylab.show()
 
-        for elec in range(N_e):
+        for elec in range(n_e):
             for p in search_peaks:
                 if gpass == 0:
                     result['tmp_%s_' % p + str(elec)] = numpy.concatenate(result['tmp_%s_' % p + str(elec)])
@@ -763,21 +777,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # we run a clustering for each electrode.
         # print "Clustering the data..."
         local_nb_clusters = 0
-        local_hits = 0
+        # local_hits = 0
         local_mergings = 0
         cluster_results = {}
         for p in search_peaks:
             cluster_results[p] = {}
 
         if gpass > 1:
-            for ielec in range(N_e):
+            for ielec in range(n_e):
                 for p in search_peaks:
                     result['tmp_%s_' % p + str(ielec)] = gather_array(
                         result['tmp_%s_' % p + str(ielec)], comm,
                         numpy.mod(ielec, comm.size), 1, compress=blosc_compress
                     )
         elif gpass == 1:
-            for ielec in range(comm.rank, N_e, comm.size):
+            for ielec in range(comm.rank, n_e, comm.size):
                 result['times_' + str(ielec)] = numpy.copy(result['loc_times_' + str(ielec)])
 
         if comm.rank == 0:
@@ -799,8 +813,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Node %d will use temp file %s" % (comm.rank, tmp_file)], 'debug', logger)
         elif gpass > 1:
             tmp_h5py = h5py.File(result['dist_file'], 'r', libver='earliest')
+        else:
+            tmp_h5py = None  # default assignment (for PyCharm code inspection)
 
-        to_explore = range(comm.rank, N_e, comm.size)
+        to_explore = range(comm.rank, n_e, comm.size)
         sys.stderr.flush()
 
         if (comm.rank == 0) and gpass == nb_repeats:
@@ -825,23 +841,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = thresholds[ielec]
                             if bound < ampmax:
-                                bins = numpy.linspace(bound, 1.5 * ampmax, nb_ss_bins - 1).tolist()
+                                bins = list(numpy.linspace(bound, 1.5 * ampmax, nb_ss_bins - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                             else:
-                                bins = numpy.linspace(bound, bound * 10, nb_ss_bins - 1).tolist()
+                                bins = list(numpy.linspace(bound, bound * 10, nb_ss_bins - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
-
                         elif p == 'neg':
                             if matched_filter:
                                 bound = -matched_thresholds_neg[ielec]
                             else:
                                 bound = -thresholds[ielec]
                             if ampmin < bound:
-                                bins = numpy.linspace(1.5 * ampmin, bound, nb_ss_bins - 1).tolist()
+                                bins = list(numpy.linspace(1.5 * ampmin, bound, nb_ss_bins - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                             else:
-                                bins = numpy.linspace(10 * bound, bound, nb_ss_bins - 1).tolist()
+                                bins = list(numpy.linspace(10 * bound, bound, nb_ss_bins - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
+                        else:
+                            raise ValueError("Unexpected value %s" % p)
 
                         a, b = numpy.histogram(result['tmp_%s_' % p + str(ielec)], bins)
                         nb_spikes = numpy.sum(a)
@@ -883,8 +900,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 pca.fit(result['data_%s_' % p + str(ielec)])
                                 result['pca_%s_' % p + str(ielec)] = pca.components_.T.astype(numpy.float32)
                                 print_and_log([
-                                    "The variance explained by local PCA on electrode %s from %d %s spikes is %g with %d dimensions"
-                                    % (ielec, len(result['data_%s_' % p + str(ielec)]), p, numpy.sum(pca.explained_variance_ratio_), result['pca_%s_' % p + str(ielec)].shape[1])
+                                    "The variance explained by local PCA on electrode %s from %d %s spikes is %g with"
+                                    " %d dimensions" % (
+                                        ielec,
+                                        len(result['data_%s_' % p + str(ielec)]),
+                                        p,
+                                        float(numpy.sum(pca.explained_variance_ratio_)),
+                                        result['pca_%s_' % p + str(ielec)].shape[1]
+                                    )
                                 ], 'debug', logger)
                             else:
                                 dimension = result['data_%s_' % p + str(ielec)].shape[1]
@@ -923,7 +946,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' % p + str(ielec)]) > 1:
 
                         rho, sdist = algo.compute_rho(
-                            result['sub_%s_' % p + str(ielec)], update=(result['tmp_%s_' % p + str(ielec)], result['sdist_%s_' % p + str(ielec)]), mratio=m_ratio
+                            result['sub_%s_' % p + str(ielec)],
+                            update=(result['tmp_%s_' % p + str(ielec)], result['sdist_%s_' % p + str(ielec)]),
+                            mratio=m_ratio
                         )
                         result['rho_%s_' % p + str(ielec)] = rho
                         result['sdist_%s_' % p + str(ielec)] = sdist
@@ -940,6 +965,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         flag = 'positive'
                     elif p == 'neg':
                         flag = 'negative'
+                    else:
+                        raise ValueError("Unexpected value %s" % p)
 
                     if n_data > 1:
                         dist = tmp_h5py.get('dist_%s_' % p + str(ielec))[:]
@@ -948,8 +975,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         # Now we perform the clustering.
                         cluster_results[p][ielec]['groups'], r, d, c = algo.clustering_by_density(
-                            result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity
+                            result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity,
+                            halo_rejection=halo_rejection
                         )
+
                         result['delta_%s_' % p + str(ielec)] = d  # i.e. save delta values
 
                         # Now we perform a merging step, for clusters that look too similar.
@@ -1065,25 +1094,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         gpass += 1
 
     # Final concatenations (for efficiency).
-    for elec in range(N_e):
+    for elec in range(n_e):
         result['peaks_' + str(elec)] = numpy.concatenate(result['peaks_' + str(elec)])
 
     sys.stderr.flush()
     try:
         os.remove(result['dist_file'])
-    except Exception:
+    except OSError:
         pass
 
     comm.Barrier()
 
-    gdata = gather_array(numpy.array([local_hits], dtype=numpy.float32), comm, 0)
+    # gdata = gather_array(numpy.array([local_hits], dtype=numpy.float32), comm, 0)
     gdata2 = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
     gdata3 = gather_array(numpy.array([local_nb_clusters], dtype=numpy.float32), comm, 0)
 
     mean_channels = 0
 
     if comm.rank == 0:
-        total_hits = int(numpy.sum(gdata))
+        # total_hits = int(numpy.sum(gdata))
         total_mergings = int(numpy.sum(gdata2))
         total_nb_clusters = int(numpy.sum(gdata3))
         lines = [
@@ -1101,6 +1130,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Templates will be smoothed by Savitzky Golay Filtering ..."], 'debug', logger)
 
     # Now we perform the extraction of the templates.
+
+    temp_x = [numpy.zeros(0, dtype=numpy.uint32)]
+    temp_y = [numpy.zeros(0, dtype=numpy.uint32)]
+    temp_data = [numpy.zeros(0, dtype=numpy.float32)]
+    templates_to_remove = [numpy.empty(0, dtype=numpy.int32)]
+
     if extraction in ['median-raw', 'mean-raw']:
 
         total_nb_clusters = int(comm.bcast(numpy.array([int(numpy.sum(gdata3))], dtype=numpy.int32), root=0)[0])
@@ -1114,7 +1149,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             norms = hfile.create_dataset('norms', shape=(2 * total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
             amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
-            supports = hfile.create_dataset('supports', shape=(total_nb_clusters, N_e), dtype=numpy.bool, chunks=True)
+            supports = hfile.create_dataset('supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True)
             g_count = node_pad
             g_offset = total_nb_clusters
         else:
@@ -1122,14 +1157,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
-            supports = hfile.create_dataset('supports', shape=(local_nb_clusters, N_e), dtype=numpy.bool, chunks=True)
+            supports = hfile.create_dataset('supports', shape=(local_nb_clusters, n_e), dtype=numpy.bool, chunks=True)
             g_count = 0
             g_offset = local_nb_clusters
-
-        temp_x = [numpy.zeros(0, dtype=numpy.uint32)]
-        temp_y = [numpy.zeros(0, dtype=numpy.uint32)]
-        temp_data = [numpy.zeros(0, dtype=numpy.float32)]
-        templates_to_remove = [numpy.empty(0, dtype=numpy.int32)]
 
         comm.Barrier()
         cfile = h5py.File(file_out_suff + '.clusters-%d.hdf5' % comm.rank, 'w', libver='earliest')
@@ -1137,7 +1167,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file.close()
 
-        to_explore = range(comm.rank, N_e, comm.size)
+        to_explore = range(comm.rank, n_e, comm.size)
 
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(to_explore)
@@ -1155,15 +1185,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             
             shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ielec])
             indices = inv_nodes[shank_nodes]
-            sindices = nodes_indices[ielec]
-            n_neighb = len(sindices)
 
             for p in search_peaks:
 
-                # print "Dealing with cluster", ielec
-                n_data = len(result['data_%s_' % p + str(ielec)])
-                data = result['data_%s_' % p + str(ielec)].reshape(n_data, basis['proj_%s' % p].shape[1], n_neighb)
-                loc_pad = count_templates
                 myamps = []
                 mask = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
 
@@ -1205,6 +1229,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
+                    else:
+                        to_delete = numpy.empty(0)  # i.e. no channel to silence
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
@@ -1212,6 +1238,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     elif p == 'pos':
                         tmpidx = numpy.unravel_index(first_component.argmax(), first_component.shape)
                         ratio = thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].max()
+                    else:
+                        raise ValueError("Unexpected value %s" % p)
 
                     shift = template_shift - tmpidx[1]
                     is_noise = len(indices) == len(to_delete) or (1 / ratio) < noise_thresh
@@ -1223,18 +1251,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         x, y, z = sub_data_raw.shape
                         sub_data_raw[:, to_delete, :] = 0
-                        sub_data_flat_raw = sub_data_raw.reshape(x, y*z)
-                        first_flat = first_component.reshape(y*z, 1)
+                        sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
+                        first_flat = first_component.reshape(y * z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
-                        amplitudes /= numpy.sum(first_flat**2)
-                        center = numpy.median(amplitudes)
+                        amplitudes /= numpy.sum(first_flat ** 2)
+                        center = numpy.median(amplitudes)  # TODO remove this line?
 
-                        # We are rescaling the template such that median amplitude is exactly 1
-                        # This is changed because of the smoothing
-                        first_component *= center
-                        ratio /= center
+                        # TODO remove the following lines?
+                        # # We are rescaling the template such that median amplitude is exactly 1
+                        # # This is changed because of the smoothing
+                        # first_component *= center
+                        # ratio /= center
 
-                        templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                        templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
                         if shift > 0:
                             templates[indices, shift:] = first_component[:, :-shift]
                         elif shift < 0:
@@ -1245,7 +1274,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y * z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes /= numpy.sum(first_flat ** 2)
-                        variation = numpy.median(numpy.abs(amplitudes - 1))
+                        variation = numpy.median(numpy.abs(amplitudes - center))
 
                         templates = templates.ravel()
                         dx = templates.nonzero()[0].astype(numpy.uint32)
@@ -1254,7 +1283,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_data.append(templates[dx])
 
                         to_keep = indices[~numpy.in1d(indices, to_delete)]
-                        supports[g_count][to_keep] = True
+                        supports[g_count, to_keep] = True
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         distance = \
@@ -1268,10 +1297,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         myamps += [[amp_min, amp_max]]
 
                         offset = total_nb_clusters + count_templates
-                        sub_templates = numpy.zeros((N_e, N_t), dtype=numpy.float32)
+                        sub_templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
 
                         if two_components:
-                            sub_templates[:, :-1] = numpy.diff(templates.reshape(N_e, N_t))
+                            sub_templates[:, :-1] = numpy.diff(templates.reshape(n_e, n_t))
 
                         sub_templates = sub_templates.ravel()
                         dx = sub_templates.nonzero()[0].astype(numpy.uint32)
@@ -1284,7 +1313,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     count_templates += 1
                     g_count += 1
 
-                # Sanity plots of the waveforms.
+                # TODO remove the following commented lines?
+                # # Sanity plots of the waveforms.
                 # if make_plots not in ['None', '']:
                 #     if n_data > 1:
                 #         save = [plot_path, '%s_%d.%s' % (p, ielec, make_plots)]
@@ -1296,7 +1326,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 #             (temp_data[-1][vidx], (temp_x[-1][vidx], temp_y[-1][vidx] - loc_pad)),
                 #             shape=(n_scalar, nb_temp)
                 #         )
-                #         sub_tmp = sub_tmp.toarray().reshape(N_e, N_t, nb_temp)
+                #         sub_tmp = sub_tmp.toarray().reshape(n_e, n_t, nb_temp)
                 #         sub_tmp = sub_tmp[ielec, :, :]
                 #         plot.view_waveforms_clusters(
                 #             numpy.dot(sub_data, basis['rec_%s' % p]), cluster_results[p][ielec]['groups'],
@@ -1325,8 +1355,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     (result['clusters_' + str(ielec)],
                      result['clusters_%s_' % p + str(ielec)])
                 )
-
-            del data
 
             # Final concatenations (for efficiency).
             result['data_' + str(ielec)] = numpy.concatenate(result['data_' + str(ielec)])
@@ -1397,7 +1425,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
                 io.write_datasets(cfile, ['electrodes'], {'electrodes': electrodes[:]})
                 for i in range(comm.size):
-                    for j in range(i, N_e, comm.size):
+                    for j in range(i, n_e, comm.size):
                         io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
                     rs[i].close()
                     os.remove(file_out_suff + '.clusters-%d.hdf5' % i)
@@ -1415,7 +1443,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     h5py.File(file_out_suff + '.clusters-%d.hdf5' % i, 'r', libver='earliest')
                     for i in range(comm.size)
                 ]
-                result = {}
                 hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w', libver='earliest')
                 cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
                 electrodes = hfile.create_dataset(
@@ -1428,7 +1455,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     'limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True
                 )
                 supports = hfile.create_dataset(
-                    'supports', shape=(total_nb_clusters, N_e), dtype=numpy.bool, chunks=True
+                    'supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True
                 )
                 count = 0
                 for i in range(comm.size):
@@ -1440,7 +1467,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     supports[count:count+middle] = ts[i].get('supports')
                     count += middle
-                    for j in range(i, N_e, comm.size):
+                    for j in range(i, n_e, comm.size):
                         io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
                     ts[i].close()
                     rs[i].close()
@@ -1461,8 +1488,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 hfile.create_dataset('temp_x', data=temp_x)
                 hfile.create_dataset('temp_y', data=temp_y)
                 hfile.create_dataset('temp_data', data=temp_data)
-            hfile.create_dataset('temp_shape', data=numpy.array([N_e, N_t, 2 * total_nb_clusters], dtype=numpy.int32))
+            hfile.create_dataset('temp_shape', data=numpy.array([n_e, n_t, 2 * total_nb_clusters], dtype=numpy.int32))
             hfile.close()
+
+    else:  # extraction not in ['median-raw', 'mean-raw']
+
+        raise ValueError("Unexpected value %s" % extraction)
 
     del temp_x, temp_y, temp_data
 
@@ -1522,4 +1553,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+    io.get_overlaps(
+        params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
+    )
+
+    if (fine_amplitude) or (debug_plots not in ['None', '']):
+
+        if comm.rank == 0 and fine_amplitude:
+            print_and_log(["Optimizing the amplitudes..."], 'default', logger)
+        elif comm.rank == 0 and (debug_plots not in ['None', '']):
+            print_and_log(["Plotting amplitudes snippets..."], 'default', logger)
+
+
+        algo.refine_amplitudes(
+            params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu,
+            normalization=templates_normalization, debug_plots=debug_plots
+        )
+
+    comm.Barrier()
+    sys.stderr.flush()

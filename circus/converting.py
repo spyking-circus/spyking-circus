@@ -154,6 +154,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             to_write_sparse = numpy.zeros((N_tm, N_t, n_channels_max), dtype=numpy.float32)
             mapping_sparse = -1 * numpy.ones((N_tm, n_channels_max), dtype=numpy.int32)
 
+        purity = io.load_data(params, 'purity', extension)
+
+        f = open(os.path.join(output_path, 'cluster_purity.tsv'), 'w')
+        f.write('cluster_id\tpurity\n')
+        for i in range(N_tm):
+            f.write('%d\t%g\n' % (i, purity[i]))
+        f.close()
+
         for t in range(N_tm):
             tmp = templates[:, t].toarray().reshape(N_e, N_t).T
             x, y = tmp.nonzero()

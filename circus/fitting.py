@@ -14,34 +14,42 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     SHARED_MEMORY = get_shared_memory_flag(params)
     logger = logging.getLogger('circus.fitting')
     data_file = params.data_file
-    N_e = params.getint('data', 'N_e')
-    N_total = params.nb_channels
-    N_t = params.getint('detection', 'N_t')
+    n_e = params.getint('data', 'N_e')
+    n_total = params.nb_channels
+    n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
-    file_out = params.get('data', 'file_out')
+    # file_out = params.get('data', 'file_out')
     file_out_suff = params.get('data', 'file_out_suff')
     sign_peaks = params.get('detection', 'peaks')
     matched_filter = params.getboolean('detection', 'matched-filter')
-    spike_thresh = params.getfloat('detection', 'spike_thresh')
+    # spike_thresh = params.getfloat('detection', 'spike_thresh')
     ratio_thresh = params.getfloat('fitting', 'ratio_thresh')
     two_components = params.getboolean('fitting', 'two_components')
-    spike_width = params.getfloat('detection', 'spike_width')
-    dist_peaks = params.getint('detection', 'dist_peaks')
+    # spike_width = params.getfloat('detection', 'spike_width')
+    # dist_peaks = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    templates_normalization = params.getboolean('clustering', 'templates_normalization')  # TODO test, switch, test!
     chunk_size = detect_memory(params, fitting=True)
     gpu_only = params.getboolean('fitting', 'gpu_only')
     nodes, edges = get_nodes_and_edges(params)
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
-    tmp_limits = map(float, tmp_limits)
+    tmp_limits = [float(v) for v in tmp_limits]
     amp_auto = params.getboolean('fitting', 'amp_auto')
-    nb_chances = params.getint('fitting', 'nb_chances')
+    auto_nb_chances = params.getboolean('fitting', 'auto_nb_chances')
+    if auto_nb_chances:
+        nb_chances = io.load_data(params, 'nb_chances')
+        total_nb_chances = numpy.percentile(nb_chances, 75)
+        if comm.rank == 0:
+            print_and_log(['nb_chances set automatically to %d' %total_nb_chances], 'debug', logger)
+    else:
+        total_nb_chances = params.getint('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
-    noise_thr = params.getfloat('clustering', 'noise_thr')
+    # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')
     debug = params.getboolean('fitting', 'debug')
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
-    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     data_file.open()
     #################################################################
@@ -56,9 +64,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_set_device(gpu_id)
         cmt.init()
         cmt.cuda_sync_threads()
-        
+
     if SHARED_MEMORY:
-        templates = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
+        templates = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
         N_tm, x = templates.shape
     else:
         templates = io.load_data(params, 'templates')
@@ -68,10 +76,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     temp_3_shift = 3 * template_shift
     full_gpu = use_gpu and gpu_only
     n_tm = N_tm // 2
-    n_scalar = N_e * N_t
+    n_scalar = n_e * n_t
 
     temp_window = numpy.arange(-template_shift, template_shift + 1)
-    size_window = N_e * (2 * template_shift + 1)
+    size_window = n_e * (2 * template_shift + 1)
 
     if not amp_auto:
         amp_limits = numpy.zeros((n_tm, 2))
@@ -81,33 +89,46 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
+    if not templates_normalization:
+        norm_templates_2 = (norm_templates ** 2.0) * n_scalar
 
     if not SHARED_MEMORY:
-        for idx in range(templates.shape[1]):
-            myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-            templates.data[myslice] /= norm_templates[idx]
+        # Normalize templates (if necessary).
+        if templates_normalization:
+            for idx in range(templates.shape[1]):
+                myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+                templates.data[myslice] /= norm_templates[idx]
+        # Transpose templates.
         templates = templates.T
 
+    waveform_neg = numpy.empty(0)  # default assignment (for PyCharm code inspection)
+    matched_thresholds_neg = None  # default assignment (for PyCharm code inspection)
+    waveform_pos = numpy.empty(0)  # default assignment (for PyCharm code inspection)
+    matched_thresholds_pos = None  # default assignment (for PyCharm code inspection)
     if matched_filter:
         if sign_peaks in ['negative', 'both']:
             waveform_neg = io.load_data(params, 'waveform')[::-1]
             waveform_neg /= (numpy.abs(numpy.sum(waveform_neg)) * len(waveform_neg))
-            matched_tresholds_neg = io.load_data(params, 'matched-thresholds')
+            matched_thresholds_neg = io.load_data(params, 'matched-thresholds')
         if sign_peaks in ['positive', 'both']:
             waveform_pos = io.load_data(params, 'waveform-pos')[::-1]
             waveform_pos /= (numpy.abs(numpy.sum(waveform_pos)) * len(waveform_pos))
-            matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
+            matched_thresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if ignore_dead_times:
         all_dead_times = get_dead_times(params)
+    else:
+        all_dead_times = None  # default assignment (for PyCharm code inspection)
 
     thresholds = io.get_accurate_thresholds(params, ratio_thresh)
 
+    neighbors = {}
     if collect_all:
-        neighbors = {}
-        for i in range(n_tm):
-            tmp = templates[i, :].toarray().reshape(N_e, N_t) * norm_templates[i]
-            neighbors[i] = numpy.where(numpy.sum(tmp, 1) != 0)[0]
+        for i in range(0, n_tm):
+            tmp = templates[i, :].toarray().reshape(n_e, n_t)
+            if templates_normalization:
+                tmp = tmp * norm_templates[i]
+            neighbors[i] = numpy.where(numpy.sum(tmp, axis=1) != 0.0)[0]
 
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
@@ -124,16 +145,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     c_overlap = io.get_overlaps(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
     over_shape = c_overlap.get('over_shape')[:]
-    N_over = int(numpy.sqrt(over_shape[0]))
-    S_over = over_shape[1]
+    n_over = int(numpy.sqrt(over_shape[0]))
+    s_over = over_shape[1]
     # # If the number of overlaps is different from templates, we need to recompute them.
-    if N_over != N_tm:
+    if n_over != N_tm:
         if comm.rank == 0:
             print_and_log(['Templates have been modified, recomputing the overlaps...'], 'default', logger)
         c_overlap = io.get_overlaps(params, erase=True, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         over_shape = c_overlap.get('over_shape')[:]
-        N_over = int(numpy.sqrt(over_shape[0]))
-        S_over = over_shape[1]
+        n_over = int(numpy.sqrt(over_shape[0]))
+        s_over = over_shape[1]
 
     if SHARED_MEMORY:
         c_overs = io.load_data_memshared(params, 'overlaps')
@@ -154,18 +175,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if do_spatial_whitening:
         spatial_whitening = io.load_data(params, 'spatial_whitening')
+    else:
+        spatial_whitening = None  # default assignment (for PyCharm code inspection)
     if do_temporal_whitening:
         temporal_whitening = io.load_data(params, 'temporal_whitening')
+    else:
+        temporal_whitening = None  # default assignment (for PyCharm code inspection)
 
     if full_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
-            for i in range(N_over):
+            for i in range(n_over):
                 c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
         except Exception:
             if comm.rank == 0:
                 print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', logger)
-            for i in range(N_over):
+            for i in range(n_over):
                 if i in c_overs:
                     del c_overs[i]
             full_gpu = False
@@ -186,6 +211,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         garbage_temp_file = open(file_out_suff + '.gtemplates-%d.data' % comm.rank, 'wb')
         comm.Barrier()
+    else:
+        garbage_times_file = None  # default assignment (for PyCharm code inspection)
+        garbage_temp_file = None  # default assignment (for PyCharm code inspection)
 
     if debug:
         # Open debug files.
@@ -212,20 +240,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         success_flags_debug_file = open(file_out_suff + '.success_flags_debug_%d.data' % comm.rank, mode='wb')
         comm.Barrier()
     else:
-        chunk_nbs_debug_file = None
-        iteration_nbs_debug_file = None
-        peak_nbs_debug_file = None
-        peak_local_time_steps_debug_file = None
-        peak_time_steps_debug_file = None
-        peak_scalar_products_debug_file = None
-        peak_solved_flags_debug_file = None
-        template_nbs_debug_file = None
-        success_flags_debug_file = None
+        chunk_nbs_debug_file = None  # default assignment (for PyCharm code inspection)
+        iteration_nbs_debug_file = None  # default assignment (for PyCharm code inspection)
+        peak_nbs_debug_file = None  # default assignment (for PyCharm code inspection)
+        peak_local_time_steps_debug_file = None  # default assignment (for PyCharm code inspection)
+        peak_time_steps_debug_file = None  # default assignment (for PyCharm code inspection)
+        peak_scalar_products_debug_file = None  # default assignment (for PyCharm code inspection)
+        peak_solved_flags_debug_file = None  # default assignment (for PyCharm code inspection)
+        template_nbs_debug_file = None  # default assignment (for PyCharm code inspection)
+        success_flags_debug_file = None  # default assignment (for PyCharm code inspection)
 
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     last_chunk_size = 0
+    slice_indices = numpy.zeros(0, dtype=numpy.int32)
 
     to_explore = range(comm.rank, processed_chunks, comm.size)
 
@@ -275,11 +304,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if do_temporal_whitening:
             local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
-        # print "Extracting the peaks..."
+        # Extracting peaks.
 
+        all_found_spikes = {}
         if collect_all:
-            all_found_spikes = {}
-            for i in range(N_e):
+            for i in range(n_e):
                 all_found_spikes[i] = []
 
         local_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
@@ -287,27 +316,29 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
-                for i in range(N_e):
-                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_pos[i])[0]
+                for i in range(n_e):
+                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_thresholds_pos[i])[0]
                     local_peaktimes.append(peaktimes)
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             if sign_peaks in ['negative', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
-                for i in range(N_e):
-                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_tresholds_neg[i])[0]
+                for i in range(n_e):
+                    peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_thresholds_neg[i])[0]
                     local_peaktimes.append(peaktimes)
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             local_peaktimes = numpy.concatenate(local_peaktimes)
         else:
-            for i in range(N_e):
+            for i in range(n_e):
                 if sign_peaks == 'negative':
                     peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'positive':
                     peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=thresholds[i])[0]
                 elif sign_peaks == 'both':
                     peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
+                else:
+                    raise ValueError("Unexpected value %s" % sign_peaks)
                 local_peaktimes.append(peaktimes)
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
@@ -323,6 +354,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 is_included = numpy.in1d(local_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                 local_peaktimes = local_peaktimes[~is_included]
                 local_peaktimes = numpy.sort(local_peaktimes)
+        else:
+            dead_indices = None  # default assignment (for PyCharm code inspection)
 
         # print "Removing the useless borders..."
         local_borders = (template_shift, len_chunk - template_shift)
@@ -330,7 +363,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.compress(idx, local_peaktimes)
 
         if collect_all:
-            for i in range(N_e):
+            for i in range(n_e):
                 all_found_spikes[i] = numpy.array(all_found_spikes[i], dtype=numpy.uint32)
 
                 if ignore_dead_times:
@@ -344,36 +377,37 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 idx = (all_found_spikes[i] >= local_borders[0]) & (all_found_spikes[i] < local_borders[1])
                 all_found_spikes[i] = numpy.compress(idx, all_found_spikes[i])
 
-        n_t = len(local_peaktimes)
+        nb_local_peak_times = len(local_peaktimes)
 
         if full_gpu:
             # all_indices = cmt.CUDAMatrix(all_indices)
-            tmp_gpu = cmt.CUDAMatrix(local_peaktimes.reshape((1, n_t)), copy_on_host=False)
+            # tmp_gpu = cmt.CUDAMatrix(local_peaktimes.reshape((1, nb_local_peak_times)), copy_on_host=False)
+            _ = cmt.CUDAMatrix(local_peaktimes.reshape((1, nb_local_peak_times)), copy_on_host=False)
 
-        if n_t > 0:
+        if nb_local_peak_times > 0:
             # print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."
 
             if collect_all:
                 c_local_chunk = local_chunk.copy()
+            else:
+                c_local_chunk = None  # default assignment (for PyCharm code inspection)
 
             local_chunk = local_chunk.T.ravel()
-            sub_mat = numpy.zeros((size_window, n_t), dtype=numpy.float32)
+            sub_mat = numpy.zeros((size_window, nb_local_peak_times), dtype=numpy.float32)
 
             if len_chunk != last_chunk_size:
-                slice_indices = numpy.zeros(0, dtype=numpy.int32)
-                for idx in range(N_e):
-                    slice_indices = numpy.concatenate((slice_indices, len_chunk*idx + temp_window))
+                slice_indices = [numpy.zeros(0, dtype=numpy.int32)]
+                for idx in range(0, n_e):
+                    slice_indices.append(len_chunk * idx + temp_window)
+                slice_indices = numpy.concatenate(slice_indices)
                 last_chunk_size = len_chunk
 
             for count, idx in enumerate(local_peaktimes):
                 sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
 
-            # snippet_norm = numpy.sum(sub_mat ** 2, 0) / n_scalar
-            # sub_mat /= snippet_norm
-
             del local_chunk
 
-            if use_gpu: 
+            if use_gpu:
                 sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b = cmt.sparse_dot(templates, sub_mat)
             else:
@@ -389,26 +423,31 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if use_gpu and not full_gpu:
                 b = b.asarray()           
 
-            failure = numpy.zeros(n_t, dtype=numpy.int32)
+            failure = numpy.zeros(nb_local_peak_times, dtype=numpy.int32)
 
             if full_gpu:
-                mask = numpy.zeros((2*n_tm, n_t), dtype=numpy.float32)
+                mask = numpy.zeros((2 * n_tm, nb_local_peak_times), dtype=numpy.float32)
                 mask[:n_tm, :] = 1
-                data = cmt.empty(mask.shape)
+                # data = cmt.empty(mask.shape)
+                _ = cmt.empty(mask.shape)
                 patch_gpu = b.shape[1] == 1
             else:
-                mask = numpy.ones((n_tm, n_t), dtype=numpy.bool)
+                mask = numpy.ones((n_tm, nb_local_peak_times), dtype=numpy.bool)
                 patch_gpu = None
 
             if collect_all:
-                c_all_times = numpy.zeros((len_chunk, N_e), dtype=numpy.bool)
+                c_all_times = numpy.zeros((len_chunk, n_e), dtype=numpy.bool)
                 c_min_times = numpy.maximum(numpy.arange(len_chunk) - template_shift, 0)
                 c_max_times = numpy.minimum(numpy.arange(len_chunk) + template_shift + 1, len_chunk)
-                for i in range(N_e):
+                for i in range(n_e):
                     c_all_times[all_found_spikes[i], i] = True
+            else:
+                c_all_times = None  # default assignment (for PyCharm code inspection)
+                c_min_times = None  # default assignment (for PyCharm code inspection)
+                c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            while numpy.mean(failure) < nb_chances:
+            while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
                 if full_gpu:
@@ -421,18 +460,39 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
-                if full_gpu:
-                    best_amp = b_array[best_template_index, peak_index] / n_scalar
-                    best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
-                else:
-                    best_amp = b[best_template_index, peak_index] / n_scalar
-                    if two_components:
-                        best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                if templates_normalization:
+                    if full_gpu:
+                        best_amp = b_array[best_template_index, peak_index] / n_scalar
+                        best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
                     else:
-                        best_amp2 = 0
+                        best_amp = b[best_template_index, peak_index] / n_scalar
+                        if two_components:
+                            best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                        else:
+                            best_amp2 = 0.0
+                    best_amp_n = best_amp / norm_templates[best_template_index]
+                    best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                else:
+                    if full_gpu:
+                        best_amp = b_array[best_template_index, peak_index]
+                        best_amp = best_amp / norm_templates_2[best_template_index]
+                        # TODO is `best_amp` value correct?
+                        best_amp2 = b_array[best_template2_index, peak_index]
+                        best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
+                        # TODO is `best_amp2` value correct?
+                    else:
+                        best_amp = b[best_template_index, peak_index]
+                        best_amp = best_amp / norm_templates_2[best_template_index]
+                        # TODO is `best_amp` value correct?
+                        if two_components:
+                            best_amp2 = b[best_template2_index, peak_index]
+                            best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
+                            # TODO is `best_amp2` value correct?
+                        else:
+                            best_amp2 = 0.0
 
-                best_amp_n = best_amp / norm_templates[best_template_index]
-                best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                    best_amp_n = best_amp
+                    best_amp2_n = best_amp2
 
                 # Verify amplitude constraint.
                 a_min, a_max = amp_limits[best_template_index, :]
@@ -445,7 +505,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     is_neighbor = np.where(np.abs(peak_data) <= temp_2_shift)[0]
                     idx_neighbor = peak_data[is_neighbor] + temp_2_shift
                     nb_neighbors = len(is_neighbor)
-                    indices = np.zeros((S_over, nb_neighbors), dtype=np.int32)
+                    indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
                     indices[idx_neighbor, np.arange(nb_neighbors)] = 1
 
                     if full_gpu:
@@ -488,7 +548,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
-                    if failure[peak_index] == nb_chances:
+                    if failure[peak_index] >= total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
                         mask[:, peak_index] = False
                     else:
@@ -528,14 +588,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if sign_peaks == 'negative':
                     bestlecs = numpy.argmin(c_local_chunk, 1)
                     if matched_filter:
-                        threshs = -matched_tresholds_neg[bestlecs]
+                        threshs = -matched_thresholds_neg[bestlecs]
                     else:
                         threshs = -thresholds[bestlecs]
                     idx = numpy.where(numpy.min(c_local_chunk, 1) < threshs)[0]
                 elif sign_peaks == 'positive':
                     bestlecs = numpy.argmax(c_local_chunk, 1)
                     if matched_filter:
-                        threshs = matched_tresholds_pos[bestlecs]
+                        threshs = matched_thresholds_pos[bestlecs]
                     else:
                         threshs = thresholds[bestlecs]
                     idx = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
@@ -543,10 +603,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     c_local_chunk = numpy.abs(c_local_chunk)
                     bestlecs = numpy.argmax(c_local_chunk, 1)
                     if matched_filter:
-                        threshs = numpy.minimum(matched_tresholds_neg[bestlecs], matched_tresholds_pos[bestlecs])
+                        threshs = numpy.minimum(matched_thresholds_neg[bestlecs], matched_thresholds_pos[bestlecs])
                     else:
                         threshs = thresholds[bestlecs]
                     idx = numpy.where(numpy.max(c_local_chunk, 1) > threshs)[0]
+                else:
+                    raise ValueError("Unexpected value %s" % sign_peaks)
 
                 gspikes = numpy.take(gspikes, idx)
                 bestlecs = numpy.take(bestlecs, idx)
