@@ -192,7 +192,6 @@ def clustering_by_density(rho, dist, n_min, alpha=3, halo_rejection=3):
     distances = DistanceMatrix(nb_points, distances=dist)
     deltas, neighbors = distances.get_deltas_and_neighbors(rho)
     nb_clusters, labels, centers = find_centroids_and_clusters(distances, rho, deltas, neighbors, alpha)
-
     halolabels = halo_assign(labels, rho, n_min, halo_rejection) - 1
     centers = numpy.where(centers - 1 >= 0)[0]
     del distances
