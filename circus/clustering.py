@@ -978,6 +978,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity,
                             halo_rejection=halo_rejection
                         )
+
                         result['delta_%s_' % p + str(ielec)] = d  # i.e. save delta values
 
                         # Now we perform a merging step, for clusters that look too similar.

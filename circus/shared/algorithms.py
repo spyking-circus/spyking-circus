@@ -897,6 +897,22 @@ def optimize_amplitude_maximum(good_values, bad_values):
     return a_max_opt
 
 
+def compute_error(good_values, bad_values, bounds):
+    if len(good_values) > 0:
+        nb_false_negatives = numpy.sum((good_values < bounds[0]) | (good_values > bounds[1])) / float(len(good_values))
+    else:
+        nb_false_negatives = 0.0
+
+    if len(bad_values) > 0:
+        nb_false_positives = numpy.sum((bounds[0] <= bad_values) & (bad_values <= bounds[1])) / float(len(bad_values))
+    else:
+        nb_false_positives = 0.0
+
+    total_nb_points = len(good_values) + len(bad_values)
+    ratio_good = float(len(good_values)) / total_nb_points
+    ratio_bad = float(len(bad_values)) / total_nb_points
+
+    return (ratio_good*nb_false_negatives + ratio_bad*nb_false_positives)
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
 
@@ -918,7 +934,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
     max_snippets = 250
-    max_nb_points = 100
+    max_error = 0.5
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1059,27 +1075,40 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 for values in neutral_values.values()
             ])
 
+            a_min_0, a_max_0 = hfile['limits'][i]
+
             # Then we need to fix a_min and a_max to minimize the error
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
             if fine_amplitude:
                 a_min = optimize_amplitude_minimum(good_values, all_bad_values)
                 a_max = optimize_amplitude_maximum(good_values, all_bad_values)
 
-                a_min_0, a_max_0 = hfile['limits'][i]
-                nb_points = len(good_values) + len(all_bad_values)
+                error = compute_error(good_values, all_bad_values, [a_min, a_max])
 
                 # Then we have a trade-off between the empirical boundary and the optimized one, given the total
                 # number of data points collected
-                tmp = numpy.exp(-nb_points/max_nb_points)
+                tmp = numpy.exp(-error/max_error)
                 a_min = (1-tmp)*a_min + tmp*a_min_0
                 a_max = (1-tmp)*a_max + tmp*a_max_0
-
-                # Then we save the optimal amplitude interval.
-
-
-                hfile['limits'][i] = [a_min, a_max]
             else:
-                a_min, a_max = hfile['limits'][i]
+                a_min, a_max = a_min_0, a_max_0
+
+
+            error = compute_error(good_values, all_bad_values, [a_min, a_max])
+
+            hfile['limits'][i] = [a_min, a_max]
+
+            # Then we quickly compute a purity level (for the sake of logging).
+            if len(all_bad_values) > 0:
+                purity_level[i] = 1.0 - error
+            else:
+                purity_level[i] = 1.0
+
+            mask = (a_min <= good_values) & (good_values <= a_max)
+            if numpy.sum(mask) > 0:
+                max_nb_chances[i] = nb_chances[mask].max() + 1
+            else:
+                max_nb_chances[i] = 1
 
             if debug_plots not in ['None', '']:
                 fig, ax = plt.subplots(2)
@@ -1126,7 +1155,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 ax[0].set_ylabel("amplitude")
                 # ax.set_xticklabels([])
                 ax[0].set_xticks([])
-                ax[0].set_title('%g good / %g bad' %(len(good_values), len(bad_values)))
+                ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(bad_values), error))
                 
                 ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
                 ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
@@ -1160,19 +1189,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 )
                 fig.savefig(output_path)
                 plt.close(fig)
-
-            # Then we quickly compute a purity level (for the sake of logging).
-            if len(all_bad_values) > 0:
-                nb_false_positives = numpy.sum((a_min <= all_bad_values) & (all_bad_values <= a_max))
-                purity_level[i] = 1.0 - float(nb_false_positives) / float(len(all_bad_values))
-            else:
-                purity_level[i] = 1.0
-
-            mask = (a_min <= good_values) & (good_values <= a_max)
-            if numpy.sum(mask) > 0:
-                max_nb_chances[i] = nb_chances[mask].max() + 1
-            else:
-                max_nb_chances[i] = 1
 
         hfile['purity'] = purity_level
         hfile['nb_chances'] = max_nb_chances
