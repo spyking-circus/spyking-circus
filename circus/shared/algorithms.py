@@ -918,6 +918,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
     max_snippets = 250
+    max_nb_points = 100
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1018,6 +1019,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             # First, we collect admissible snippets (according to their (normalized) scalar products).
             good_values = amplitudes[i, i]
+            center = numpy.median(good_values)
             if normalization:
                 tgt_values = nsps[i, i]
             else:
@@ -1063,7 +1065,18 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 a_min = optimize_amplitude_minimum(good_values, all_bad_values)
                 a_max = optimize_amplitude_maximum(good_values, all_bad_values)
 
+                a_min_0, a_max_0 = hfile['limits'][i]
+                nb_points = len(good_values) + len(all_bad_values)
+
+                # Then we have a trade-off between the empirical boundary and the optimized one, given the total
+                # number of data points collected
+                tmp = numpy.exp(-nb_points/max_nb_points)
+                a_min = (1-tmp)*a_min + tmp*a_min_0
+                a_max = (1-tmp)*a_max + tmp*a_max_0
+
                 # Then we save the optimal amplitude interval.
+
+
                 hfile['limits'][i] = [a_min, a_max]
             else:
                 a_min, a_max = hfile['limits'][i]
@@ -1075,7 +1088,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 linewidth = 0.3
                 ax[0].axhline(y=0.0, color='gray', linewidth=linewidth)
                 ax[0].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-                ax[0].axhline(y=1.0, color='gray', linewidth=linewidth)
+                ax[0].axhline(y=center, color='gray', linewidth=linewidth)
                 ax[0].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
                 # Plot neutral amplitudes.
                 x = numpy.random.uniform(size=all_neutral_values.size)
@@ -1083,28 +1096,28 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 color = 'gray'
                 ax[0].scatter(x, y, s=s, color=color, alpha=0.1)
                 # Plot good amplitudes.
-                x = numpy.random.uniform(size=good_values.size)
+                x1 = numpy.random.uniform(size=good_values.size)
                 y = good_values
                 color = 'tab:green'
-                ax[0].scatter(x, y, s=s, color=color)
+                ax[0].scatter(x1, y, s=s, color=color)
                 # ...
                 color = 'tab:green'
-                for x_, y_ in zip(x, y):
+                for x_, y_ in zip(x1, y):
                     if y_ > a_max:
                         ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
                     if y_ < a_min:
                         ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
                 # ...
-                x = numpy.random.uniform(size=all_bad_values.size)
+                x2 = numpy.random.uniform(size=all_bad_values.size)
                 y = all_bad_values
                 color = 'tab:red'
-                ax[0].scatter(x, y, s=s, color=color)
+                ax[0].scatter(x2, y, s=s, color=color)
                 # ...
                 color = 'tab:red'
-                for x_, y_ in zip(x, y):
-                    if 1.0 < y_ < a_max:
+                for x_, y_ in zip(x2, y):
+                    if center < y_ < a_max:
                         ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
-                    if a_min < y_ < 1.0:
+                    if a_min < y_ < center:
                         ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
                 # Hide the right and top spines
                 ax[0].spines['right'].set_visible(False)
@@ -1113,16 +1126,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 ax[0].set_ylabel("amplitude")
                 # ax.set_xticklabels([])
                 ax[0].set_xticks([])
+                ax[0].set_title('%g good / %g bad' %(len(good_values), len(bad_values)))
                 
                 ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
                 ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-                ax[1].axhline(y=1.0, color='gray', linewidth=linewidth)
+                ax[1].axhline(y=center, color='gray', linewidth=linewidth)
                 ax[1].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
                 
                 # Plot good amplitudes.
-                x = numpy.random.uniform(size=good_values.size)
                 y = good_values
-                r = ax[1].scatter(x, y, s=s, c=nb_chances)
+                r = ax[1].scatter(x1, y, s=s, c=nb_chances)
                 fig.colorbar(r, ax=ax[1])
 
                 # Hide the right and top spines
@@ -1155,7 +1168,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             else:
                 purity_level[i] = 1.0
 
-            max_nb_chances[i] = nb_chances.max() + 1
+            mask = (a_min <= good_values) & (good_values <= a_max)
+            if numpy.sum(mask) > 0:
+                max_nb_chances[i] = nb_chances[mask].max() + 1
+            else:
+                max_nb_chances[i] = 1
 
         hfile['purity'] = purity_level
         hfile['nb_chances'] = max_nb_chances
