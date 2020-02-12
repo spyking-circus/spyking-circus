@@ -1255,13 +1255,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         first_flat = first_component.reshape(y * z, 1)
                         amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                         amplitudes /= numpy.sum(first_flat ** 2)
-                        center = numpy.median(amplitudes)  # TODO remove this line?
+                        center = 1 #numpy.median(amplitudes)  # TODO remove this line?
+                        variation = numpy.median(numpy.abs(amplitudes - center))
 
                         # TODO remove the following lines?
                         # # We are rescaling the template such that median amplitude is exactly 1
                         # # This is changed because of the smoothing
                         # first_component *= center
-                        # ratio /= center
 
                         templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
                         if shift > 0:
@@ -1270,11 +1270,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             templates[indices, :shift] = first_component[:, -shift:]
                         else:
                             templates[indices, :] = first_component
-
-                        first_flat = first_component.reshape(y * z, 1)
-                        amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
-                        amplitudes /= numpy.sum(first_flat ** 2)
-                        variation = numpy.median(numpy.abs(amplitudes - center))
 
                         templates = templates.ravel()
                         dx = templates.nonzero()[0].astype(numpy.uint32)
@@ -1287,11 +1282,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         distance = \
-                            min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
+                        min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
                         noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
-
                         amp_min = center - min([dispersion[0] * variation, noise_limit])
-                        amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
+
+                        if fine_amplitude:
+                            amp_max = center + dispersion[1] * variation
+                        else:
+                            amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
 
                         amps_lims[g_count] = [amp_min, amp_max]
                         myamps += [[amp_min, amp_max]]
