@@ -844,8 +844,12 @@ def compute_error(good_values, bad_values, bounds):
         nb_false_positives = 0.0
 
     total_nb_points = len(good_values) + len(bad_values)
-    ratio_good = float(len(good_values)) / total_nb_points
-    ratio_bad = float(len(bad_values)) / total_nb_points
+    if total_nb_points > 0:
+        ratio_good = float(len(good_values)) / total_nb_points
+        ratio_bad = float(len(bad_values)) / total_nb_points
+    else:
+        ratio_good = 0
+        ratio_bad = 0
 
     return (ratio_good*nb_false_negatives + ratio_bad*nb_false_positives)
 
@@ -1007,7 +1011,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
                     selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
                     bad_values[j] = amplitudes[i, j][selection]
-                    selection = ref_values > values
+                    selection = ref_values > values   # i.e. snippets of j on which a fit with template i is tried *after* a fit with template j
                     neutral_values[j] = amplitudes[i, j][selection]
 
                     selection = tgt_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
@@ -1036,25 +1040,37 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
                 a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
 
-                # Then we have a trade-off between the empirical boundary and the optimized one, given the total
-                # number of data points collected
+                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
+                print(error)
+                # # If we have a large error, this is likely due to the fact that the dictionary is not clean. So we
+                # # need to identify the templates that are duplicates, and somehow fuse their good_values. We do that
+                # iteratively, ordering template by similarity. As long as adding them decrease the total error, we keep
+                # doing so
+                if error > 0.9:
 
-                ## Decaying exponential
-                #tmp = numpy.exp(-total_nb_points/max_nb_points)
-                #a_min = (1 - tmp)*a_min + tmp*a_min_0
-                #a_max = (1 - tmp)*a_max + tmp*a_max_0
+                    count = 1
+                    indices = numpy.argsort(similarity[i])[::-1]
 
-                ## Linear
-                #if a_min >= a_min_0:
-                #    a_min = (1 - error)*a_min + error*a_min_0
-                #if a_max <= a_max_0:
-                #    a_max = (1 - error)*a_max + error*a_max_0
+                    while similarity[i, indices[count]] > 0.85:
 
-                ## Sigmoidal
-                #if a_min >= a_min_0:
-                #    a_min = a_min + (a_min_0 - a_min)/(1 + numpy.exp(-10*(error - 0.5)))
-                #if a_max <= a_max_0:
-                #    a_max = a_max + (a_max_0 - a_max)/(1 + numpy.exp(-10*(error - 0.5)))
+                        sub_bad_values = []
+                        sub_good_values = [good_values]
+
+                        print(indices[1:count+1])
+                        for key, value in bad_values.items():
+                            if key in indices[1:count+1]:
+                                sub_good_values.append(value)
+                                sub_bad_values.append(amplitudes[key, 'noise'])
+                            else:
+                                sub_bad_values.append(value)
+
+                        sub_good_values = numpy.concatenate(sub_good_values)
+                        sub_bad_values = numpy.concatenate(sub_bad_values)
+                        a_min = optimize_amplitude_minimum(sub_good_values, sub_bad_values)
+                        a_max = optimize_amplitude_maximum(sub_good_values, sub_bad_values)
+
+                        error = compute_error(sub_good_values, sub_bad_values, [a_min, a_max])
+                        count += 1
 
             else:
                 a_min, a_max = a_min_0, a_max_0
