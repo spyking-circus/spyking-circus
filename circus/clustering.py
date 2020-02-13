@@ -79,7 +79,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sub_output_dim = params.getint('clustering', 'sub_dim')
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-    to_write = ['clusters_', 'times_', 'data_', 'peaks_']
+    to_write = ['clusters_', 'times_', 'data_', 'peaks_', 'noise_times_']
     if debug:
         to_write += ['rho_', 'delta_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
@@ -221,6 +221,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         result['times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
         result['clusters_' + str(i)] = numpy.zeros(0, dtype=numpy.int32)
         result['peaks_' + str(i)] = [numpy.empty(0, dtype=numpy.uint32)]
+        result['noise_times_' + str(i)] = [numpy.zeros(0, dtype=numpy.uint32)]
         for p in search_peaks:
             result['pca_%s_' % p + str(i)] = None
         indices = nodes_indices[i]
@@ -720,8 +721,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
                                     else:
                                         nb_noise += 1
+                                        if gpass == 1:
+                                            result['noise_times_' + str(elec)].append([peak + local_offset])
 
         for elec in range(n_e):
+            if gpass == 1:
+                result['noise_times_' + str(elec)] = numpy.concatenate(result['noise_times_' + str(elec)]).astype(numpy.uint32)
             for p in search_peaks:
                 if gpass == 0:
                     result['tmp_%s_' % p + str(elec)] = numpy.concatenate(result['tmp_%s_' % p + str(elec)])
