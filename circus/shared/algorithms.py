@@ -1079,26 +1079,30 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # Then we need to fix a_min and a_max to minimize the error
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
             if fine_amplitude:
-                a_min = optimize_amplitude_minimum(good_values, all_bad_values)
-                a_max = optimize_amplitude_maximum(good_values, all_bad_values)
 
-                error = compute_error(good_values, all_bad_values, [a_min, a_max])
+                mask = nb_chances <= numpy.median(nb_chances)
+                very_good_values = good_values[mask]
+
+                a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
+                a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
+
+                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
                 # Then we have a trade-off between the empirical boundary and the optimized one, given the total
                 # number of data points collected
 
                 ## Decaying exponential
-                #tmp = numpy.exp(-error/max_error)
-                #if a_min >= a_min_0:
-                #   a_min = tmp*a_min + (1 - tmp)*a_min_0
-                #if a_max <= a_max_0:
-                #   a_max = tmp*a_max + (1 - tmp)*a_max_0
+                tmp = numpy.exp(-error/max_error)
+                if a_min >= a_min_0:
+                    a_min = tmp*a_min + (1 - tmp)*a_min_0
+                if a_max <= a_max_0:
+                    a_max = tmp*a_max + (1 - tmp)*a_max_0
 
                 ## Linear
-                if a_min >= a_min_0:
-                    a_min = (1 - error)*a_min + error*a_min_0
-                if a_max <= a_max_0:
-                    a_max = (1 - error)*a_max + error*a_max_0
+                #if a_min >= a_min_0:
+                #    a_min = (1 - error)*a_min + error*a_min_0
+                #if a_max <= a_max_0:
+                #    a_max = (1 - error)*a_max + error*a_max_0
 
                 ## Sigmoidal
                 #if a_min >= a_min_0:
@@ -1109,8 +1113,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             else:
                 a_min, a_max = a_min_0, a_max_0
 
-
-            error = compute_error(good_values, all_bad_values, [a_min, a_max])
+            error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
             hfile['limits'][i] = [a_min, a_max]
 
