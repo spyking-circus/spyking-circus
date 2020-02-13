@@ -1043,14 +1043,17 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
                 # # If we have a large error, this is likely due to the fact that the dictionary is not clean. So we
-                # need to identify the templates that are duplicates, and somehow fuse their good_values. We do that
+                # need to identify the templates that are duplicates, and somehow fuse their good_values. 
+                # Otherwise, this is likely to mess around with the boundaries. One way to do that is
                 # iteratively, ordering template by similarity. As long as adding them decrease the total error, we keep
                 # doing so and try to use the amplitudes estimated on fused spikes
+                count = 1
+                nb_merges = 0
+                indices = numpy.argsort(similarity[i])[::-1]
+
                 if error > 0.1:
 
-                    count = 1
-                    indices = numpy.argsort(similarity[i])[::-1]
-
+                    # This is rather ad-hoc, we need to improve this loop
                     while similarity[i, indices[count]] > 0.85:
 
                         sub_bad_values = []
@@ -1070,6 +1073,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
                         error = compute_error(sub_good_values, sub_bad_values, [a_min, a_max])
                         count += 1
+                        nb_merges += 1
+                        if error < 0.1:
+                            break
 
             else:
                 a_min, a_max = a_min_0, a_max_0
@@ -1134,7 +1140,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 ax[0].set_ylabel("amplitude")
                 # ax.set_xticklabels([])
                 ax[0].set_xticks([])
-                ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
+                ax[0].set_title('%g good / %g bad / %g error / %d merges' %(len(good_values), len(all_bad_values), error, nb_merges))
                 
                 ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
                 ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
