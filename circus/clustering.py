@@ -721,7 +721,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 all_times[elec, min_times[midx]:max_times[midx]] = True
                                     else:
                                         nb_noise += 1
-                                        if gpass == 1:
+                                        if gpass <= 1:
                                             result['noise_times_' + str(elec)].append([peak + local_offset])
 
         for elec in range(n_e):
