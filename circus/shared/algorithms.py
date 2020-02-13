@@ -1039,14 +1039,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
                 a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
                 a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
-
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
-                print(error)
+
                 # # If we have a large error, this is likely due to the fact that the dictionary is not clean. So we
-                # # need to identify the templates that are duplicates, and somehow fuse their good_values. We do that
+                # need to identify the templates that are duplicates, and somehow fuse their good_values. We do that
                 # iteratively, ordering template by similarity. As long as adding them decrease the total error, we keep
-                # doing so
-                if error > 0.9:
+                # doing so and try to use the amplitudes estimated on fused spikes
+                if error > 0.2:
 
                     count = 1
                     indices = numpy.argsort(similarity[i])[::-1]
@@ -1054,9 +1053,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     while similarity[i, indices[count]] > 0.85:
 
                         sub_bad_values = []
-                        sub_good_values = [good_values]
+                        sub_good_values = [very_good_values]
 
-                        print(indices[1:count+1])
                         for key, value in bad_values.items():
                             if key in indices[1:count+1]:
                                 sub_good_values.append(value)
@@ -1074,8 +1072,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             else:
                 a_min, a_max = a_min_0, a_max_0
-
-            error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
+                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
             hfile['limits'][i] = [a_min, a_max]
 
