@@ -89,7 +89,7 @@ class CircusParser(object):
                           ['fitting', 'gpu_only', 'bool', 'False'],
                           ['fitting', 'ratio_thresh', 'float', '0.9'],
                           ['fitting', 'two_components', 'bool', 'True'],
-                          ['fitting', 'auto_nb_chances', 'bool', 'True'],
+                          ['fitting', 'auto_nb_chances', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
@@ -184,7 +184,7 @@ class CircusParser(object):
                           ['noedits', 'ground_done', 'string', 'False'],
                           ['noedits', 'artefacts_done', 'string', 'False']]
 
-    __extra_values__ = [['fitting', 'nb_chances', 'int', '3'],
+    __extra_values__ = [['fitting', 'nb_chances', 'float', '3'],
                         ['fitting', 'max_chunk', 'float', 'inf'],
                         ['fitting', 'chunk_size', 'int', '1'],
                         ['fitting', 'debug', 'bool', 'False'],
