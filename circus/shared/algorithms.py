@@ -937,15 +937,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
             all_snippets.append(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps))
 
-            if ref_elec not in all_noise:
-                times = clusters['noise_times_' + str(ref_elec)]
-                idx = len(times)
-                idx_i = numpy.random.permutation(idx)[:max_snippets]
-                times_i = times[idx_i]
-                labels_i = numpy.zeros(idx)
-                snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, auto_align=False)
-                nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-                all_noise[ref_elec] = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+            for elec in numpy.where(supports[i])[0]:
+                if elec not in all_noise:
+                    times = clusters['noise_times_' + str(elec)]
+                    idx = len(times)
+                    idx_i = numpy.random.permutation(idx)[:max_snippets]
+                    times_i = times[idx_i]
+                    labels_i = numpy.zeros(idx)
+                    snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
+                    nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
+                    all_noise[elec] = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
 
         # Then we compute the scalar products, the normalized scalar products and the amplitudes
         # between all the templates and the snippets ensemble.
@@ -968,7 +969,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 nsps[i, j] = sps[i, j] / norm
                 amplitudes[i, j] = sps[i, j] / norm_2
 
-            amplitudes[i, 'noise'].append(all_noise[ref_elec].dot(template) / norm_2)
+            amplitudes[i, 'noise'] = [numpy.zeros(0, dtype=numpy.float32)]
+
+            for elec in numpy.where(supports[i])[0]:
+                amplitudes[i, 'noise'].append(all_noise[elec].dot(template) / norm_2)
+
+            amplitudes[i, 'noise'] = numpy.concatenate(amplitudes[i, 'noise'])
 
         # And finally, we set a_min/a_max optimally for all the template.
 
