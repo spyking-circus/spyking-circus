@@ -772,86 +772,85 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     return [nb_temp, len(to_merge)]
 
 
-def optimize_amplitude_minimum(good_values, bad_values):
+# def optimize_amplitude_minimum(good_values, bad_values):
 
-    def a_min_error(a_min, good_values_, bad_values_, center):
+#     def a_min_error(a_min, good_values_, bad_values_, center):
 
-        a_min_ = a_min[0]
-        error = 0.0
+#         a_min_ = a_min[0]
+#         error = 0.0
 
-        selection = good_values_ < a_min_
-        error += numpy.sum((good_values_[selection] - a_min_)**2)
+#         selection = good_values_ < a_min_
+#         error += numpy.sum((good_values_[selection] - a_min_)**2)
         
-        selection = a_min_ <= bad_values_
-        error += numpy.sum((bad_values_[selection] - a_min_)**2)
+#         selection = a_min_ <= bad_values_
+#         error += numpy.sum((bad_values_[selection] - a_min_)**2)
 
-        error -= 1e-3*(a_min_ - center)**2
+#         error -= 1e-3*(a_min_ - center)**2
 
-        return error
+#         return error
 
-    center = 1
-    a_min_0 = center - 0.1
-    # args = (good_values, bad_values[bad_values < 1.0])
-    args = (good_values.astype(numpy.float), bad_values[bad_values < center].astype(numpy.float), center)
-    optimize_result = scipy.optimize.minimize(a_min_error, numpy.array([a_min_0]), bounds=[[0, 1]], args=args)
-    # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
-    # # Either "Desired error not necessarily achieved due to precision loss.",
-    # # or "Optimization terminated successfully.".
-    a_min_opt = optimize_result.x[0]
+#     center = 1
+#     a_min_0 = center - 0.1
+#     # args = (good_values, bad_values[bad_values < 1.0])
+#     args = (good_values.astype(numpy.float), bad_values[bad_values < center].astype(numpy.float), center)
+#     optimize_result = scipy.optimize.minimize(a_min_error, numpy.array([a_min_0]), bounds=[[0, 1]], args=args)
+#     # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+#     # # Either "Desired error not necessarily achieved due to precision loss.",
+#     # # or "Optimization terminated successfully.".
+#     a_min_opt = optimize_result.x[0]
 
-    return a_min_opt
+#     return a_min_opt
 
 
-def optimize_amplitude_maximum(good_values, bad_values):
+# def optimize_amplitude_maximum(good_values, bad_values):
 
-    def a_max_error(a_max, good_values_, bad_values_, center):
+#     def a_max_error(a_max, good_values_, bad_values_, center):
 
-        a_max_ = a_max[0]
-        error = 0.0
+#         a_max_ = a_max[0]
+#         error = 0.0
 
-        selection = a_max_ < good_values_
-        error += numpy.sum((good_values_[selection] - a_max_)**2)
+#         selection = a_max_ < good_values_
+#         error += numpy.sum((good_values_[selection] - a_max_)**2)
 
-        selection = bad_values_ <= a_max_
-        error += numpy.sum((bad_values_[selection] - a_max_)**2)
+#         selection = bad_values_ <= a_max_
+#         error += numpy.sum((bad_values_[selection] - a_max_)**2)
 
-        error -= 1e-3*(a_max_ - center)**2
+#         error -= 1e-3*(a_max_ - center)**2
 
-        return error
+#         return error
 
-    center = 1
-    a_max_0 = center + 0.1
+#     center = 1
+#     a_max_0 = center + 0.1
 
-    args = (good_values.astype(numpy.float), bad_values[bad_values > center].astype(numpy.float), center)
-    optimize_result = scipy.optimize.minimize(a_max_error, numpy.array([a_max_0]), bounds=[[1, 2]], args=args)
-    # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
-    # # Either "Desired error not necessarily achieved due to precision loss.",
-    # # or "Optimization terminated successfully.".
-    a_max_opt = optimize_result.x[0]
+#     args = (good_values.astype(numpy.float), bad_values[bad_values > center].astype(numpy.float), center)
+#     optimize_result = scipy.optimize.minimize(a_max_error, numpy.array([a_max_0]), bounds=[[1, 2]], args=args)
+#     # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
+#     # # Either "Desired error not necessarily achieved due to precision loss.",
+#     # # or "Optimization terminated successfully.".
+#     a_max_opt = optimize_result.x[0]
 
-    return a_max_opt
+#     return a_max_opt
 
 
 def compute_error(good_values, bad_values, bounds):
-    if len(good_values) > 0:
-        nb_false_negatives = numpy.sum((good_values < bounds[0]) | (good_values > bounds[1])) / float(len(good_values))
-    else:
-        nb_false_negatives = 0.0
 
-    if len(bad_values) > 0:
-        nb_false_positives = numpy.sum((bounds[0] <= bad_values) & (bad_values <= bounds[1])) / float(len(bad_values))
-    else:
-        nb_false_positives = 0.0
+    fn = numpy.sum((good_values < bounds[0]) | (good_values > bounds[1]))
+    fp = numpy.sum((bounds[0] <= bad_values) & (bad_values <= bounds[1]))
+    tp = numpy.sum((bounds[0] <= good_values) & (good_values <= bounds[1]))
+    tn = numpy.sum((bad_values < bounds[0]) | (bad_values > bounds[1]))
 
-    total_nb_points = len(good_values) + len(bad_values)
-    if total_nb_points > 0:
-        ratio_good = float(len(good_values)) / total_nb_points
-        ratio_bad = float(len(bad_values)) / total_nb_points
-    else:
-        ratio_good = 0
-        ratio_bad = 0
+    #precision = tp / (tp + fp)
+    #recall = tp / (tp + fp)
+    #f1_score = 1 - 2*(precision * recall)/(precision + recall)
 
-    return (ratio_good*nb_false_negatives + ratio_bad*nb_false_positives)
+    mcc = 1 - (tp*tn -fp*fn)/numpy.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
+
+    return mcc
+
+def score(x, good_values, bad_values):
+    # We want a minimal error, with the larger bounds that are possible
+    return compute_error(good_values, bad_values, x) + 1e-5/(x[1] - x[0])**2
+
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
 
@@ -969,12 +968,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 nsps[i, j] = sps[i, j] / norm
                 amplitudes[i, j] = sps[i, j] / norm_2
 
-            amplitudes[i, 'noise'] = [numpy.zeros(0, dtype=numpy.float32)]
-
-            for elec in numpy.where(supports[i])[0]:
-                amplitudes[i, 'noise'].append(all_noise[elec].dot(template) / norm_2)
-
-            amplitudes[i, 'noise'] = numpy.concatenate(amplitudes[i, 'noise'])
+            amplitudes[i, 'noise'].append(all_noise[ref_elec].dot(template) / norm_2)
 
         # And finally, we set a_min/a_max optimally for all the template.
 
@@ -1042,8 +1036,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             if fine_amplitude:
 
-                a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
-                a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
+                #a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
+                #a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
+
+                res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
+                a_min, a_max = res.x
+
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
                 # # If we have a large error, this is likely due to the fact that the dictionary is not clean. So we
@@ -1055,31 +1053,31 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 nb_merges = 0
                 indices = numpy.argsort(similarity[i])[::-1]
 
-                if error > 1:
+                # if error > 1:
 
-                    # This is rather ad-hoc, we need to improve this loop
-                    while similarity[i, indices[count]] > 0.85:
+                #     # This is rather ad-hoc, we need to improve this loop
+                #     while similarity[i, indices[count]] > 0.85:
 
-                        sub_bad_values = []
-                        sub_good_values = [very_good_values]
+                #         sub_bad_values = []
+                #         sub_good_values = [very_good_values]
 
-                        for key, value in bad_values.items():
-                            if key in indices[1:count+1]:
-                                sub_good_values.append(value)
-                                sub_bad_values.append(amplitudes[key, 'noise'])
-                            else:
-                                sub_bad_values.append(value)
+                #         for key, value in bad_values.items():
+                #             if key in indices[1:count+1]:
+                #                 sub_good_values.append(value)
+                #                 sub_bad_values.append(amplitudes[key, 'noise'])
+                #             else:
+                #                 sub_bad_values.append(value)
 
-                        sub_good_values = numpy.concatenate(sub_good_values)
-                        sub_bad_values = numpy.concatenate(sub_bad_values)
-                        a_min = optimize_amplitude_minimum(sub_good_values, sub_bad_values)
-                        a_max = optimize_amplitude_maximum(sub_good_values, sub_bad_values)
+                #         sub_good_values = numpy.concatenate(sub_good_values)
+                #         sub_bad_values = numpy.concatenate(sub_bad_values)
+                #         a_min = optimize_amplitude_minimum(sub_good_values, sub_bad_values)
+                #         a_max = optimize_amplitude_maximum(sub_good_values, sub_bad_values)
 
-                        error = compute_error(sub_good_values, sub_bad_values, [a_min, a_max])
-                        count += 1
-                        nb_merges += 1
-                        if error < 0.1:
-                            break
+                #         error = compute_error(sub_good_values, sub_bad_values, [a_min, a_max])
+                #         count += 1
+                #         nb_merges += 1
+                #         if error < 0.1:
+                #             break
 
             else:
                 a_min, a_max = a_min_0, a_max_0
