@@ -955,6 +955,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         nsps = {}  # i.e. all the normalized scalar products
         amplitudes = {}  # i.e. all the amplitudes
 
+        supports = load_data(params, 'supports')
         similarity = load_data(params, 'maxoverlap')
         similarity = similarity[:nb_temp, :nb_temp]/(N_e * N_t)
         similarity[range(nb_temp), range(nb_temp)] = 1
@@ -968,9 +969,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 nsps[i, j] = sps[i, j] / norm
                 amplitudes[i, j] = sps[i, j] / norm_2
 
-            sps[i, 'noise'] = all_noise[ref_elec].dot(template)
-            nsps[i, 'noise'] = sps[i, 'noise'] / norm
-            amplitudes[i, 'noise'] = sps[i, 'noise'] / norm_2
+            amplitudes[i, 'noise'] = [numpy.zeros(0, dtype=numpy.float32)]
+
+            for elec in numpy.where(supports[i])[0]:
+                amplitudes[i, 'noise'].append(all_noise[elec].dot(template) / norm_2)
+
+            amplitudes[i, 'noise'] = numpy.concatenate(amplitudes[i, 'noise'])
 
         # And finally, we set a_min/a_max optimally for all the template.
 
@@ -1051,7 +1055,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 nb_merges = 0
                 indices = numpy.argsort(similarity[i])[::-1]
 
-                if error > 0.1:
+                if error > 1:
 
                     # This is rather ad-hoc, we need to improve this loop
                     while similarity[i, indices[count]] > 0.85:
