@@ -1032,10 +1032,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             # Then we need to fix a_min and a_max to minimize the error
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
-            if fine_amplitude:
 
-                mask = nb_chances <= numpy.median(nb_chances)
-                very_good_values = good_values[mask]
+            mask = nb_chances <= numpy.median(nb_chances)
+            very_good_values = good_values[mask]
+
+            if fine_amplitude:
 
                 a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
                 a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
@@ -1045,7 +1046,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 # need to identify the templates that are duplicates, and somehow fuse their good_values. We do that
                 # iteratively, ordering template by similarity. As long as adding them decrease the total error, we keep
                 # doing so and try to use the amplitudes estimated on fused spikes
-                if error > 0.2:
+                if error > 0.1:
 
                     count = 1
                     indices = numpy.argsort(similarity[i])[::-1]
