@@ -934,6 +934,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     max_snippets = 250
     max_error = 0.25
+    max_nb_points = 10
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1080,23 +1081,32 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
             if fine_amplitude:
 
-                mask = nb_chances <= numpy.median(nb_chances)
-                very_good_values = good_values[mask]
+                # We launch the optimisation only if we have enough good data points
+                if len(good_values) >= max_nb_points:
+                    a_min = optimize_amplitude_minimum(good_values, all_bad_values)
+                    a_max = optimize_amplitude_maximum(good_values, all_bad_values)
 
-                a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
-                a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
+                    # And we try to compensate for the fact that maybe the dictionary was not perfect, so twice
+                    # the same template could be present. If this is the case, then we need to identify
+                    # this case as problematic (because of a high error rate), and prefer to use the default amplitudes
+                    # we used to have before
+                    error = compute_error(good_values, all_bad_values, [a_min, a_max])
 
-                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
+                    tmp = numpy.exp(-error/max_error)
+                    if a_min >= a_min_0:
+                        a_min = tmp*a_min + (1 - tmp)*a_min_0
+                    if a_max <= a_max_0:
+                        a_max = tmp*a_max + (1 - tmp)*a_max_0
+                else:
+                    a_min, a_max = a_min_0, a_max_0
 
                 # Then we have a trade-off between the empirical boundary and the optimized one, given the total
                 # number of data points collected
 
                 ## Decaying exponential
-                tmp = numpy.exp(-error/max_error)
-                if a_min >= a_min_0:
-                    a_min = tmp*a_min + (1 - tmp)*a_min_0
-                if a_max <= a_max_0:
-                    a_max = tmp*a_max + (1 - tmp)*a_max_0
+                #tmp = numpy.exp(-total_nb_points/max_nb_points)
+                #a_min = (1 - tmp)*a_min + tmp*a_min_0
+                #a_max = (1 - tmp)*a_max + tmp*a_max_0
 
                 ## Linear
                 #if a_min >= a_min_0:
@@ -1113,7 +1123,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             else:
                 a_min, a_max = a_min_0, a_max_0
 
-            error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
+            error = compute_error(good_values, all_bad_values, [a_min, a_max])
 
             hfile['limits'][i] = [a_min, a_max]
 
