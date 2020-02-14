@@ -13,6 +13,7 @@ Release 0.9.2
 * display the purity value in MATLAB
 * fix a (silent) bug in the supports introduced in 0.9.0, preventing mixture removal
 * nb_chances is automatically adapted during the fitting procedure
+* drifts are now automatically handled by the meta merging procedure
 
 =============
 Release 0.9.1

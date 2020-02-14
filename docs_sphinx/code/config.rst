@@ -166,7 +166,7 @@ The merging section is::
     sparsity_limit = 0.75       # Sparsity level (in percentage) for selecting templates as putative noise (in [0, 1])
     time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
     rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
-    merge_drifts   = False      # Try to automatically merge drifts, i.e. non overlapping spiking neurons
+    merge_drifts   = True       # Try to automatically merge drifts, i.e. non overlapping spiking neurons
     drift_limit    = 0.1        # Distance for drifts. The higher, the more non-overlapping the activities should be
 
 To know more about how those merges are performed and how to use this option, see :doc:`Automatic Merging <../code/merging>`. Parameters that are most likely to be changed:
