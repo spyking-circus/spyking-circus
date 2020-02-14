@@ -874,6 +874,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     max_snippets = 250
     max_error = 0.25
     max_nb_points = 10
+    sparse_snippets = False
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -934,8 +935,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             labels_i = labels[idx_i]
             snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
+            if sparse_snippets:
+                snippets[:, ~supports[i], :] = 0
+
             nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-            all_snippets.append(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps))
+            snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+
+            if sparse_snippets:
+                snippets = scipy.sparse.csr_matrix(snippets)
+
+            all_snippets.append(snippets)
 
             for elec in numpy.where(supports[i])[0]:
                 if elec not in all_noise:
@@ -945,8 +954,17 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     times_i = times[idx_i]
                     labels_i = numpy.zeros(idx)
                     snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
+
+                    if sparse_snippets:
+                        snippets[:, ~supports[i], :] = 0
+
                     nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-                    all_noise[elec] = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+                    snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+
+                    if sparse_snippets:
+                        snippets = scipy.sparse.csr_matrix(snippets)
+
+                    all_noise[elec] = snippets
 
         # Then we compute the scalar products, the normalized scalar products and the amplitudes
         # between all the templates and the snippets ensemble.
@@ -996,7 +1014,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             bad_values = {}
             neutral_values = {}
-            nb_chances = numpy.zeros(len(all_snippets[i]), dtype=numpy.int32)
+            nb_chances = numpy.zeros(all_snippets[i].shape[0], dtype=numpy.int32)
             for j in range(nb_temp):
                 # if (similarity[i, j] >= thr_similarity) and (i != j):
                 if i != j:
@@ -1035,8 +1053,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # Then we need to fix a_min and a_max to minimize the error
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
 
-            mask = nb_chances <= numpy.median(nb_chances)
-            very_good_values = good_values#[mask]
+            very_good_values = good_values
 
             if fine_amplitude:
 
@@ -1097,7 +1114,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             mask = (a_min <= good_values) & (good_values <= a_max)
             if numpy.sum(mask) > 0:
-                max_nb_chances[i] = numpy.max(nb_chances[mask])
+                max_nb_chances[i] = numpy.median(nb_chances[mask])
             else:
                 max_nb_chances[i] = numpy.nan
 
