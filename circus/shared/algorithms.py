@@ -849,7 +849,7 @@ def compute_error(good_values, bad_values, bounds):
 
 def score(x, good_values, bad_values):
     # We want a minimal error, with the larger bounds that are possible
-    return compute_error(good_values, bad_values, x) + 1e-5/(x[1] - x[0])**2
+    return compute_error(good_values, bad_values, x) + 1e-5*(2 - (x[1] - x[0]))**2
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
@@ -1099,9 +1099,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             mask = (a_min <= good_values) & (good_values <= a_max)
             if numpy.sum(mask) > 0:
-                max_nb_chances[i] = numpy.mean(nb_chances[mask])
+                max_nb_chances[i] = numpy.max(nb_chances[mask])
             else:
-                max_nb_chances[i] = numpy.inf
+                max_nb_chances[i] = numpy.nan
 
             if debug_plots not in ['None', '']:
                 fig, ax = plt.subplots(2)
