@@ -874,7 +874,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     max_snippets = 250
     max_error = 0.25
     max_nb_points = 10
-    sparse_snippets = True
+    sparse_snippets = False
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1053,8 +1053,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # Then we need to fix a_min and a_max to minimize the error
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
 
-            mask = nb_chances <= numpy.median(nb_chances)
-            very_good_values = good_values#[mask]
+            very_good_values = good_values
 
             if fine_amplitude:
 
@@ -1115,7 +1114,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             mask = (a_min <= good_values) & (good_values <= a_max)
             if numpy.sum(mask) > 0:
-                max_nb_chances[i] = numpy.max(nb_chances[mask])
+                max_nb_chances[i] = numpy.median(nb_chances[mask])
             else:
                 max_nb_chances[i] = numpy.nan
 
