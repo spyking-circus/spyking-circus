@@ -157,7 +157,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         has_purity = test_if_purity(params, extension)
         if has_purity:
             purity = io.load_data(params, 'purity', extension)
-            print purity
             f = open(os.path.join(output_path, 'cluster_purity.tsv'), 'w')
             f.write('cluster_id\tpurity\n')
             for i in range(N_tm):
