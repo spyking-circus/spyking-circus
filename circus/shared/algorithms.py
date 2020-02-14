@@ -13,7 +13,7 @@ import scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
-    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support
+    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array
@@ -419,6 +419,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
     n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     has_support = test_if_support(params, input_extension)
+    has_purity = test_if_purity(params, input_extension)
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
@@ -428,6 +429,10 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             old_supports = load_data(params, 'supports', extension=input_extension)
         else:
             old_supports = None  # default assignment
+        if has_purity:
+            old_purity = load_data(params, 'purity', extension=input_extension)
+        else:
+            old_purity = None  # default assignment
         _, n_tm = old_templates.shape
         norm_templates = load_data(params, 'norm-templates', extension=input_extension)
 
@@ -455,6 +460,11 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             supports = hfile.create_dataset('supports', shape=(len(to_keep), n_e), dtype=numpy.bool, chunks=True)
         else:
             supports = None  # default assignment
+
+        if has_purity:
+            purity = hfile.create_dataset('purity', shape=(len(to_keep), ), dtype=numpy.float32, chunks=True)
+        else:
+            purity = None
         # For each index to keep.
         for count, keep in zip(positions, local_keep):
             # Copy template.
@@ -465,9 +475,12 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             norms[count + len(to_keep)] = norm_templates[keep + n_tm // 2]
             if has_support:
                 supports[count] = old_supports[keep]
+
             # Copy limits.
             if len(to_merge) == 0:
                 new_limits = old_limits[keep]
+                if has_purity:
+                    new_purity = old_purity[keep]
             else:
                 subset = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
@@ -488,9 +501,15 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                         numpy.min(ratios * old_limits[idx][:, 0]),
                         numpy.max(ratios * old_limits[idx][:, 1])
                     ]
+                    if has_purity:
+                        new_purity = numpy.mean(old_purity[idx])
                 else:
                     new_limits = old_limits[keep]
+                    if has_purity:
+                        new_purity = old_purity[keep]
             limits[count] = new_limits
+            if has_purity:
+                purity[count] = new_purity
 
         # Copy templates to file.
         templates = templates.tocoo()
@@ -770,66 +789,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             os.remove(filename)
 
     return [nb_temp, len(to_merge)]
-
-
-# def optimize_amplitude_minimum(good_values, bad_values):
-
-#     def a_min_error(a_min, good_values_, bad_values_, center):
-
-#         a_min_ = a_min[0]
-#         error = 0.0
-
-#         selection = good_values_ < a_min_
-#         error += numpy.sum((good_values_[selection] - a_min_)**2)
-        
-#         selection = a_min_ <= bad_values_
-#         error += numpy.sum((bad_values_[selection] - a_min_)**2)
-
-#         error -= 1e-3*(a_min_ - center)**2
-
-#         return error
-
-#     center = 1
-#     a_min_0 = center - 0.1
-#     # args = (good_values, bad_values[bad_values < 1.0])
-#     args = (good_values.astype(numpy.float), bad_values[bad_values < center].astype(numpy.float), center)
-#     optimize_result = scipy.optimize.minimize(a_min_error, numpy.array([a_min_0]), bounds=[[0, 1]], args=args)
-#     # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
-#     # # Either "Desired error not necessarily achieved due to precision loss.",
-#     # # or "Optimization terminated successfully.".
-#     a_min_opt = optimize_result.x[0]
-
-#     return a_min_opt
-
-
-# def optimize_amplitude_maximum(good_values, bad_values):
-
-#     def a_max_error(a_max, good_values_, bad_values_, center):
-
-#         a_max_ = a_max[0]
-#         error = 0.0
-
-#         selection = a_max_ < good_values_
-#         error += numpy.sum((good_values_[selection] - a_max_)**2)
-
-#         selection = bad_values_ <= a_max_
-#         error += numpy.sum((bad_values_[selection] - a_max_)**2)
-
-#         error -= 1e-3*(a_max_ - center)**2
-
-#         return error
-
-#     center = 1
-#     a_max_0 = center + 0.1
-
-#     args = (good_values.astype(numpy.float), bad_values[bad_values > center].astype(numpy.float), center)
-#     optimize_result = scipy.optimize.minimize(a_max_error, numpy.array([a_max_0]), bounds=[[1, 2]], args=args)
-#     # print(optimize_result.message)  # TODO use the message to assert the validity of the optimisation.
-#     # # Either "Desired error not necessarily achieved due to precision loss.",
-#     # # or "Optimization terminated successfully.".
-#     a_max_opt = optimize_result.x[0]
-
-#     return a_max_opt
 
 
 def compute_error(good_values, bad_values, bounds):
