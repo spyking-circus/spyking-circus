@@ -1563,7 +1563,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if (fine_amplitude) or (debug_plots not in ['None', '']):
 
         if comm.rank == 0 and fine_amplitude:
-            print_and_log(["Optimizing the amplitudes..."], 'default', logger)
+            print_and_log(["Computing optimal amplitudes for the templates..."], 'default', logger)
         elif comm.rank == 0 and (debug_plots not in ['None', '']):
             print_and_log(["Plotting amplitudes snippets..."], 'default', logger)
 
