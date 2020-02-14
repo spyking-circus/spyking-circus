@@ -984,8 +984,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         purity_level = numpy.zeros(nb_temp, dtype=numpy.float32)
         max_nb_chances = numpy.zeros(nb_temp, dtype=numpy.float32)
 
-        import matplotlib.pyplot as plt  # TODO move elsewhere...
-
         for i in range(nb_temp):
 
             # First, we collect admissible snippets (according to their (normalized) scalar products).
@@ -1038,7 +1036,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
 
             mask = nb_chances <= numpy.median(nb_chances)
-            very_good_values = good_values[mask]
+            very_good_values = good_values#[mask]
 
             if fine_amplitude:
 
@@ -1104,6 +1102,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 max_nb_chances[i] = numpy.nan
 
             if debug_plots not in ['None', '']:
+
+                import matplotlib.pyplot as plt
+
                 fig, ax = plt.subplots(2)
                 s = 2 ** 2
                 # ...
