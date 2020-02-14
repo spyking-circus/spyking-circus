@@ -849,7 +849,7 @@ def compute_error(good_values, bad_values, bounds):
 
 def score(x, good_values, bad_values):
     # We want a minimal error, with the larger bounds that are possible
-    return compute_error(good_values, bad_values, x) + 1e-5*(2 - (x[1] - x[0]))**2
+    return compute_error(good_values, bad_values, x) + 1e-2*(2 - (x[1] - x[0]))**2
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
