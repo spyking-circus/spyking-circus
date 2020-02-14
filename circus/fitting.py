@@ -39,11 +39,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     auto_nb_chances = params.getboolean('fitting', 'auto_nb_chances')
     if auto_nb_chances:
         nb_chances = io.load_data(params, 'nb_chances')
-        total_nb_chances = numpy.percentile(nb_chances, 75)
+        total_nb_chances = numpy.nanmax(nb_chances)
         if comm.rank == 0:
-            print_and_log(['nb_chances set automatically to %d' %total_nb_chances], 'debug', logger)
+            print_and_log(['nb_chances set automatically to %g' %total_nb_chances], 'info', logger)
     else:
-        total_nb_chances = params.getint('fitting', 'nb_chances')
+        total_nb_chances = params.getfloat('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
     # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')

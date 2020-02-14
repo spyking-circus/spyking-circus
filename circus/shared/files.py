@@ -956,8 +956,8 @@ def load_data(params, data, extension=''):
                 return myfile['nb_chances'][:]
             else:
                 N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
-                nb_chances = params.getint('fitting', 'nb_chances')
-                return nb_chances * numpy.ones(nb_templates//2, dtype=numpy.int32)
+                nb_chances = params.getfloat('fitting', 'nb_chances')
+                return nb_chances * numpy.ones(nb_templates//2, dtype=numpy.float32)
         else:
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
