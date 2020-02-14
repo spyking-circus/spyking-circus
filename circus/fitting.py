@@ -41,7 +41,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_chances = io.load_data(params, 'nb_chances')
         total_nb_chances = max(1, numpy.nanmax(nb_chances))
         if comm.rank == 0:
-            print_and_log(['nb_chances set automatically to %g' %total_nb_chances], 'info', logger)
+            print_and_log(['nb_chances set automatically to %g' %total_nb_chances], 'debug', logger)
     else:
         total_nb_chances = params.getfloat('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
