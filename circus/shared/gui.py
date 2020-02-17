@@ -486,6 +486,25 @@ class MergeWindow(QMainWindow):
             else:
                 return 1.
 
+        def largest_nonzero_interval(vec):
+            '''
+            Find islands of non-zeros in the vector vec
+            '''
+
+            edges, = np.nonzero(np.diff((vec==0)*1))
+            edge_vec = [edges+1]
+            if vec[0] != 0:
+                edge_vec.insert(0, [0])
+            if vec[-1] != 0:
+                edge_vec.append([len(vec)])
+            edges = np.concatenate(edge_vec)
+
+            max_size = 0
+            for i, j in  zip(edges[::2], edges[1::2]):
+                if j - i > max_size:
+                    max_size = (j - i)
+            return max_size
+
         self.raw_lags = numpy.linspace(-self.max_delay * self.cc_bin, self.max_delay * self.cc_bin, 2 * self.max_delay + 1)
 
         self.mpi_wait = comm.bcast(self.mpi_wait, root=0)
@@ -534,7 +553,13 @@ class MergeWindow(QMainWindow):
                 self.raw_data = numpy.vstack((self.raw_data, a))
                 self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                 self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-                if (len(spikes1) > 2) and (len(spikes2) > 2):
+
+                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
+                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
+
+                max_size = largest_nonzero_interval(x1*x2)
+
+                if (max_size > 5):
                     dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
                 else:
                     dist = 0
