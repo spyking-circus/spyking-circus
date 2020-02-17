@@ -520,26 +520,29 @@ class MergeWindow(QMainWindow):
         for count, temp_id1 in enumerate(to_explore):
 
             temp_id1 = self.to_consider[temp_id1]
+            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]
+            count = 1
+            temp_id2 = self.to_consider[best_matches[count]]
 
-            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1][:10]
+            while self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
 
-            for temp_id2 in self.to_consider[best_matches]:
-                if self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
-                    spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
-                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
-                    if self.correct_lag:
-                        spikes2 += self.lag[temp_id1, temp_id2]
-                    a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
-                    self.raw_data = numpy.vstack((self.raw_data, a))
-                    self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
-                    self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-                    if (len(spikes1) > 2) and (len(spikes2) > 2):
-                        dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
-                    else:
-                        dist = 0
-                    self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
-                    self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
-                    self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
+                spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
+                spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
+                if self.correct_lag:
+                    spikes2 += self.lag[temp_id1, temp_id2]
+                a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
+                self.raw_data = numpy.vstack((self.raw_data, a))
+                self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
+                self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+                if (len(spikes1) > 2) and (len(spikes2) > 2):
+                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
+                else:
+                    dist = 0
+                self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
+                self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
+                self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
+                count += 1
+                temp_id2 = self.to_consider[best_matches[count]]
 
         sys.stderr.flush()
         self.pairs = gather_array(self.pairs, comm, 0, 1, dtype='int32')
