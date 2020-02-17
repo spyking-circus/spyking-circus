@@ -555,7 +555,7 @@ class MergeWindow(QMainWindow):
         data = self.raw_data[:, abs(self.raw_lags) <= lag]
         control = self.raw_control
         score = self.overlap[self.pairs[:, 0], self.pairs[:, 1]]
-        score2 = numpy.maximum(1 - data.mean(axis=1) / control, 0)
+        score2 = numpy.nan_to_num(numpy.maximum(1 - data.mean(axis=1) / control, 0))
         score3 = self.bhattas
         return score, score2, score3
 
