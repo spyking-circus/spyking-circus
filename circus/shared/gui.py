@@ -564,8 +564,9 @@ class MergeWindow(QMainWindow):
                 x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
 
                 max_size = largest_nonzero_interval(x1*x2)
+                enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
 
-                if (max_size > 5):
+                if (max_size > 5) and enough_spikes:
                     dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
                 else:
                     dist = 0
