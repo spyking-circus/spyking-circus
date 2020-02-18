@@ -364,9 +364,18 @@ class MergeWindow(QMainWindow):
 
             while perform_merges:
 
-                self.suggest_pairs(None)
                 if self.merge_drifts:
                     self.suggest_drifts(None)
+
+                self.add_to_selection(None)
+
+                if len(self.selected_points) == 0:
+                    perform_merges = False
+                else:
+                    self.do_merge(None)
+
+                self.suggest_pairs(None)
+
                 self.add_to_selection(None)
 
                 if len(self.selected_points) == 0:
