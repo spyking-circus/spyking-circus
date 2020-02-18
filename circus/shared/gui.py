@@ -540,10 +540,9 @@ class MergeWindow(QMainWindow):
 
             temp_id1 = self.to_consider[temp_id1]
             best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]
-            count = 1
-            temp_id2 = self.to_consider[best_matches[count]]
+            candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
 
-            while self.overlap[temp_id1, temp_id2] >= self.cc_overlap:
+            for temp_id2 in candidates:
 
                 spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
                 spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
@@ -566,8 +565,6 @@ class MergeWindow(QMainWindow):
                 self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
                 self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
                 self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
-                count += 1
-                temp_id2 = self.to_consider[best_matches[count]]
 
         sys.stderr.flush()
         self.pairs = gather_array(self.pairs, comm, 0, 1, dtype='int32')
