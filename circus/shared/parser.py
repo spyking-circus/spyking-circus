@@ -146,7 +146,7 @@ class CircusParser(object):
                           ['clustering', 'halo_rejection', 'float', 'inf'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
-                          ['merging', 'cc_overlap', 'float', '0.85'],
+                          ['merging', 'cc_overlap', 'float', '0.75'],
                           ['merging', 'cc_bin', 'float', '2'],
                           ['merging', 'correct_lag', 'bool', 'False'],
                           ['merging', 'auto_mode', 'float', '0'],
