@@ -63,7 +63,7 @@ ratio_thresh   = 0.9        # Ratio of the spike_threshold used while fitting [0
 
 [merging]
 erase_all      = True       # If False, a prompt will ask you to remerge if merged has already been done
-cc_overlap     = 0.85       # Only templates with CC higher than cc_overlap may be merged
+cc_overlap     = 0.75       # Only templates with CC higher than cc_overlap may be merged
 cc_bin         = 2          # Bin size for computing CC [in ms]
 default_lag    = 5          # Default length of the period to compute dip in the CC [ms]
 auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
@@ -72,7 +72,7 @@ noise_limit    = 0.75       # Amplitude at which templates are classified as noi
 sparsity_limit = 0          # Sparsity level (in percentage) for selecting templates as putative noise (in [0, 1])
 time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
 rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
-merge_drifts   = False      # Try to automatically merge drifts, i.e. non overlapping spiking neurons
+merge_drifts   = True       # Try to automatically merge drifts, i.e. non overlapping spiking neurons
 drift_limit    = 1          # Distance for drifts. The higher, the more non-overlapping the activities should be
 
 [converting]
