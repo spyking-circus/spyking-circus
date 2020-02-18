@@ -539,8 +539,8 @@ class MergeWindow(QMainWindow):
         for count, temp_id1 in enumerate(to_explore):
 
             temp_id1 = self.to_consider[temp_id1]
-            best_matches = numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]
-            candidates = best_matches[self.overlap[temp_id1, self.to_consider[best_matches]] >= self.cc_overlap]
+            best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
+            candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
 
             for temp_id2 in candidates:
 

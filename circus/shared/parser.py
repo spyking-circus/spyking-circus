@@ -158,7 +158,7 @@ class CircusParser(object):
                           ['merging', 'drift_limit', 'float', '0.5'],
                           ['merging', 'time_rpv', 'float', '5'],
                           ['merging', 'rpv_threshold', 'float', '0.02'],
-                          ['merging', 'min_spikes', 'int', '20'],
+                          ['merging', 'min_spikes', 'int', '100'],
                           ['converting', 'export_pcs', 'string', 'prompt'],
                           ['converting', 'erase_all', 'bool', 'True'],
                           ['converting', 'export_all', 'bool', 'False'],
