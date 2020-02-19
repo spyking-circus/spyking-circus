@@ -373,7 +373,10 @@ class DataFile(object):
         if numpy.any(self.gain != 1):
             data *= self.gain
 
-        return numpy.ascontiguousarray(data)
+        if not data.flags['C_CONTIGUOUS']:
+            data = numpy.ascontiguousarray(data)
+
+        return data
 
     def _unscale_data_from_float32(self, data):
         """
