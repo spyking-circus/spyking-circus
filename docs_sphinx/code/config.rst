@@ -10,7 +10,7 @@ The data section is::
 
     file_format    =          # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
     stream_mode    = None     # None by default. Can be multi-files, or anything depending to the file format
-    mapping        =          # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+    mapping        =          # Mapping of the electrode (see http://spyking-circus.rtfd.org)
     suffix         =          # Suffix to add to generated files
     overwrite      = True     # If you want to filter or remove artefacts on site. Data are duplicated otherwise
     output_dir     =          # By default, generated data are in the same folder as the data.
