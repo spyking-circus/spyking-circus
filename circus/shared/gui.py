@@ -356,7 +356,6 @@ class MergeWindow(QMainWindow):
             self.update_lag(self.default_lag)
             self.suggest_templates(None)
             self.remove_templates(None)
-            self.do_merge(None)
 
         if self.auto_mode > 0:
             perform_merges = True
@@ -370,6 +369,7 @@ class MergeWindow(QMainWindow):
             if self.merge_drifts:
                 self.suggest_drifts(None)
                 self.add_to_selection(None)
+
                 self.do_merge(None)
 
             self.finalize(None)
