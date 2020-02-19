@@ -40,6 +40,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if auto_nb_chances:
         nb_chances = io.load_data(params, 'nb_chances')
         total_nb_chances = max(1, numpy.nanmax(nb_chances))
+        total_nb_chances = min(total_nb_chances, 10)
         if comm.rank == 0:
             print_and_log(['nb_chances set automatically to %g' %total_nb_chances], 'debug', logger)
     else:
