@@ -160,6 +160,8 @@ class MergeWindow(QMainWindow):
         self.min_spikes = params.getint('merging', 'min_spikes')
 
         self.duration = io.load_data(params, 'duration')
+        self.nb_bhatta_bins = 100
+        self.bhattas_level = ((self.nb_bhatta_bins - 1)/self.duration)/self.nb_bhatta_bins
         self.has_support = test_if_support(params, self.ext_in)
         if self.has_support:
             self.supports = io.load_data(params, 'supports', self.ext_in)
@@ -528,6 +530,8 @@ class MergeWindow(QMainWindow):
 
         to_explore = range(comm.rank, len(self.to_consider), comm.size)
 
+        bins = numpy.linspace(0, self.duration, self.nb_bhatta_bins)
+
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
             to_explore = get_tqdm_progressbar(to_explore)
@@ -551,14 +555,14 @@ class MergeWindow(QMainWindow):
                 self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                 self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
 
-                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
-                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
+                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
+                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
 
                 max_size = largest_nonzero_interval(x1*x2)
                 enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
 
                 if (max_size > 5) and enough_spikes:
-                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
+                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
                 else:
                     dist = 0
                 self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
@@ -836,6 +840,7 @@ class MergeWindow(QMainWindow):
     def update_detail_2_plot(self):
         indices = self.inspect_points
         temp_indices = self.to_consider[list(self.inspect_templates)]
+        bins = numpy.linspace(0, self.duration, self.nb_bhatta_bins)
 
         if self.app is not None:
             self.detail_2_ax.clear()
@@ -851,15 +856,18 @@ class MergeWindow(QMainWindow):
                 spikes2 = spikes2 / self.sampling_rate
 
                 try:
-                    x, y = numpy.histogram(spikes1, bins=numpy.linspace(0, self.duration, 100), density=True)
+                    x1, y = numpy.histogram(spikes1, bins=bins, density=True)
                     cidx = numpy.where(temp_indices == n1)[0][0]
-                    data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
-                    x, y = numpy.histogram(spikes2, bins=numpy.linspace(0, self.duration, 100), density=True)
+                    data_line, = self.detail_2_ax.plot(y[1:], x1, lw=2, color=self.inspect_colors_templates[cidx])
+                    x2, y = numpy.histogram(spikes2, bins=bins, density=True)
                     cidx = numpy.where(temp_indices == n2)[0][0]
-                    data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+                    data_line, = self.detail_2_ax.plot(y[1:], x2, lw=2, color=self.inspect_colors_templates[cidx])
+                    #data_line, = self.detail_2_ax.plot(y[1:], (x1+x2)/2, lw=1, color='k')
                 except Exception:
                     pass
 
+
+            data_line, = self.detail_2_ax.plot(bins, self.bhattas_level*numpy.ones(self.nb_bhatta_bins), lw=1, color='k')
             self.detail_2_ax.set_xticks(numpy.linspace(0, self.duration, 5))
             self.detail_2_ax.set_xlabel('Time [s]')
             self.detail_2_ax.set_ylabel('Spike density')
