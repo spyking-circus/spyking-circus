@@ -34,6 +34,24 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.9.2
+=============
+
+* speeding up the algorithm
+* fixing a bug in the clustering while assigining labels
+* better detection of noise snippets discarded during clustering
+* cosmetic changes in the sanity plots (clusters)
+* better handling of overlapping chunks while filtering, removing filtering artefacts
+* templates are restricted within shanks
+* optimization of the amplitudes once all templates have been found
+* export of a purity value, for phy, to assess how good a cluster is (between 0 and 1)
+* display the purity value in MATLAB
+* fix a (silent) bug in the supports introduced in 0.9.0, preventing mixture removal
+* nb_chances is automatically adapted during the fitting procedure
+* drifts are now automatically handled by the meta merging procedure
+* enhancement in the automatic merging of drifts
+
+=============
 Release 0.9.1
 =============
 
