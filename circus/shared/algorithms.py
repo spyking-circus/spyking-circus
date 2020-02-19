@@ -803,6 +803,7 @@ def compute_error(good_values, bad_values, bounds):
     #f1_score = 1 - 2*(precision * recall)/(precision + recall)
 
     mcc = 1 - (tp*tn -fp*fn)/numpy.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
+    mcc = numpy.nan_to_num(mcc)
 
     return mcc
 
