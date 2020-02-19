@@ -1050,7 +1050,7 @@ def load_data(params, data, extension=''):
                 purity = myfile.get('purity')[:]
             else:
                 N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
-                purity = numpy.zeros(nb_templates/2, dtype=numpy.float32)
+                purity = numpy.zeros(nb_templates//2, dtype=numpy.float32)
             myfile.close()
             return purity
         else:
