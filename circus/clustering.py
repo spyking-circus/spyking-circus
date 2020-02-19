@@ -214,6 +214,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     elec_positions = {}
+    elec_ydata = {}
 
     for i in range(n_e):
         result['loc_times_' + str(i)] = numpy.zeros(0, dtype=numpy.uint32)
@@ -226,6 +227,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             result['pca_%s_' % p + str(i)] = None
         indices = nodes_indices[i]
         elec_positions[i] = numpy.where(indices == i)[0]
+        elec_ydata[i] = numpy.arange(len(indices))
 
     max_elts_elec //= comm.size
     nb_elts //= comm.size
@@ -508,6 +510,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         is_isolated = True
                         to_accept = False
+                        max_test = True
 
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
@@ -617,7 +620,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat = f(ddata).astype(numpy.float32).reshape(n_t, 1)
                                                 else:
                                                     idx = elec_positions[elec]
-                                                    ydata = numpy.arange(len(indices))
+                                                    ydata = elec_ydata[elec]
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(
                                                             xdata, sub_mat[:, idx], s=local_factor, k=3
@@ -638,12 +641,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     )
                                                     sub_mat = f(ddata, ydata).astype(numpy.float32)
 
-                                            if negative_peak:
-                                                max_test = \
-                                                    numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
-                                            else:
-                                                max_test = \
-                                                    numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
+                                            # if negative_peak:
+                                            #     max_test = \
+                                            #         numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
+                                            # else:
+                                            #     max_test = \
+                                            #         numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
 
                                             if max_test:
                                                 if gpass == 0:
