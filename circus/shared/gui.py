@@ -356,30 +356,21 @@ class MergeWindow(QMainWindow):
             self.update_lag(self.default_lag)
             self.suggest_templates(None)
             self.remove_templates(None)
+            self.do_merge(None)
 
         if self.auto_mode > 0:
             perform_merges = True
             self.update_lag(self.default_lag)
             self.current_order = 0
 
-            while perform_merges:
+            self.suggest_pairs(None)
+            self.add_to_selection(None)
+            self.do_merge(None)
 
-                self.suggest_pairs(None)
+            if self.merge_drifts:
+                self.suggest_drifts(None)
                 self.add_to_selection(None)
-
-                if len(self.selected_points) == 0:
-                    perform_merges = False
-                else:
-                    self.do_merge(None)
-
-                if self.merge_drifts:
-                    self.suggest_drifts(None)
-                    self.add_to_selection(None)
-
-                    if len(self.selected_points) == 0:
-                        perform_merges = False
-                    else:
-                        self.do_merge(None)
+                self.do_merge(None)
 
             self.finalize(None)
 
