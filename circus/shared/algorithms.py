@@ -1027,8 +1027,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             
             error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
             hfile['limits'][i] = [a_min, a_max]
-            
-            purity_level[i] = error
+
+            purity_level[i] = min(1, 1 - error)
 
             mask = (a_min <= good_values) & (good_values <= a_max)
             if numpy.sum(mask) > 0:
