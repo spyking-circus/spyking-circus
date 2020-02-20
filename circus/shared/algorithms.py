@@ -802,8 +802,12 @@ def compute_error(good_values, bad_values, bounds):
     #recall = tp / (tp + fp)
     #f1_score = 1 - 2*(precision * recall)/(precision + recall)
 
-    mcc = 1 - (tp*tn -fp*fn)/numpy.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))
-    mcc = numpy.nan_to_num(mcc)
+    denom = (tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)
+    
+    if denom > 0:
+        mcc = 1 - (tp*tn - fp*fn)/numpy.sqrt(denom)
+    else:
+        mcc = 0
 
     return mcc
 
