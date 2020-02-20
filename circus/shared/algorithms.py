@@ -807,7 +807,7 @@ def compute_error(good_values, bad_values, bounds):
     if denom > 0:
         mcc = 1 - (tp*tn - fp*fn)/numpy.sqrt(denom)
     else:
-        mcc = 0
+        mcc = 1
 
     return mcc
 
