@@ -937,11 +937,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         nsps = {}  # i.e. all the normalized scalar products
         amplitudes = {}  # i.e. all the amplitudes
 
-        supports = load_data(params, 'supports')
-        similarity = load_data(params, 'maxoverlap')
-        similarity = similarity[:nb_temp, :nb_temp]/(N_e * N_t)
-        similarity[range(nb_temp), range(nb_temp)] = 1
-
         for i, ref_elec in enumerate(best_elec):
             template = templates[:, i].toarray().ravel()
             norm = numpy.linalg.norm(template)
@@ -1027,47 +1022,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
                 a_min, a_max = res.x
 
-                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
-
-                # # If we have a large error, this is likely due to the fact that the dictionary is not clean. So we
-                # need to identify the templates that are duplicates, and somehow fuse their good_values. 
-                # Otherwise, this is likely to mess around with the boundaries. One way to do that is
-                # iteratively, ordering template by similarity. As long as adding them decrease the total error, we keep
-                # doing so and try to use the amplitudes estimated on fused spikes
-                count = 1
-                nb_merges = 0
-                indices = numpy.argsort(similarity[i])[::-1]
-
-                # if error > 1:
-
-                #     # This is rather ad-hoc, we need to improve this loop
-                #     while similarity[i, indices[count]] > 0.85:
-
-                #         sub_bad_values = []
-                #         sub_good_values = [very_good_values]
-
-                #         for key, value in bad_values.items():
-                #             if key in indices[1:count+1]:
-                #                 sub_good_values.append(value)
-                #                 sub_bad_values.append(amplitudes[key, 'noise'])
-                #             else:
-                #                 sub_bad_values.append(value)
-
-                #         sub_good_values = numpy.concatenate(sub_good_values)
-                #         sub_bad_values = numpy.concatenate(sub_bad_values)
-                #         a_min = optimize_amplitude_minimum(sub_good_values, sub_bad_values)
-                #         a_max = optimize_amplitude_maximum(sub_good_values, sub_bad_values)
-
-                #         error = compute_error(sub_good_values, sub_bad_values, [a_min, a_max])
-                #         count += 1
-                #         nb_merges += 1
-                #         if error < 0.1:
-                #             break
-
             else:
                 a_min, a_max = a_min_0, a_max_0
-                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
-
+            
+            error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
             hfile['limits'][i] = [a_min, a_max]
 
             # Then we quickly compute a purity level (for the sake of logging).
