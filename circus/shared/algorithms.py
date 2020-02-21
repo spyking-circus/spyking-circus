@@ -817,7 +817,7 @@ def score(x, good_values, bad_values):
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
-
+    
     data_file = params.data_file
     template_shift = params.getint('detection', 'template_shift')
     norm_templates = load_data(params, 'norm-templates')
@@ -851,6 +851,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     supports = load_data(params, 'supports')
     x, n_tm = templates.shape
     nb_temp = int(n_tm // 2)
+    norm_templates = load_data(params, 'norm-templates')[:nb_temp]
+    norm_templates *= numpy.sqrt(N_e * N_t)
+    norm_2 = norm_templates **2
 
     # For each electrode, get the local cluster labels.
     indices = {}
@@ -940,17 +943,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     for i, ref_elec in enumerate(best_elec):
         template = templates[:, i].toarray().ravel()
-        norm = numpy.linalg.norm(template)
-        norm_2 = norm ** 2
-        for j in range(all_temp):
+        for j in all_temp:
             sps[i, j] = all_snippets[j].dot(template)
-            nsps[i, j] = sps[i, j] / norm
-            amplitudes[i, j] = sps[i, j] / norm_2
+            nsps[i, j] = sps[i, j] / norm_templates[i]
+            amplitudes[i, j] = sps[i, j] / norm_2[i]
 
         amplitudes[i, 'noise'] = [numpy.zeros(0, dtype=numpy.float32)]
 
         for elec in numpy.where(supports[i])[0]:
-            amplitudes[i, 'noise'].append(all_noise[elec].dot(template) / norm_2)
+            amplitudes[i, 'noise'].append(all_noise[elec].dot(template) / norm_2[i])
 
         amplitudes[i, 'noise'] = numpy.concatenate(amplitudes[i, 'noise'])
 
@@ -961,19 +962,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     # We need to gather all amplitudes accross nodes
     for i in range(nb_temp):
         for j in range(nb_temp):
-            if normalization:
-                nsps[i, j] = all_gather_array(nsps[i, j], comm)
-            else:
-                sps[i, j] = all_gather_array(sps[i, j], comm)
-            amplitudes[i, j] = 
-
-
+            if (i,j) not in sps:
+                sps[i, j] = numpy.zeros(0, dtype=numpy.float32)
+            sps[i, j] = all_gather_array(sps[i, j], comm)
+            nsps[i, j] = sps[i, j] / norm_templates[i]
+            amplitudes[i, j] = nsps[i, j] / norm_2[i]
 
     # And finally, we set a_min/a_max optimally for all the template.
-    purity_level = numpy.zeros(nb_temp, dtype=numpy.float32)
-    max_nb_chances = numpy.zeros(nb_temp, dtype=numpy.float32)
+    purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
+    max_nb_chances = numpy.zeros(len(all_temp), dtype=numpy.float32)
+    if fine_amplitude:
+        bounds = numpy.zeros((len(all_temp), 2), dtype=numpy.float32)
 
-    for i in range(all_temp):
+    for count, i in enumerate(all_temp):
 
         # First, we collect admissible snippets (according to their (normalized) scalar products).
         good_values = amplitudes[i, i]
@@ -1019,34 +1020,24 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             for values in neutral_values.values()
         ])
 
-        a_min_0, a_max_0 = hfile['limits'][i]
-
-        # Then we need to fix a_min and a_max to minimize the error
-        # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
-
         very_good_values = good_values
 
         if fine_amplitude:
 
-            #a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
-            #a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
-
             res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
             a_min, a_max = res.x
-
-        else:
-            a_min, a_max = a_min_0, a_max_0
+            bounds[count] = [a_min, a_max]
         
         error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
-        #hfile['limits'][i] = [a_min, a_max]
 
-        purity_level[i] = min(1, 1 - error)
+        purity_level[count] = min(1, 1 - error)
+
 
         mask = (a_min <= good_values) & (good_values <= a_max)
         if numpy.sum(mask) > 0:
-            max_nb_chances[i] = numpy.median(nb_chances[mask])
+            max_nb_chances[count] = numpy.median(nb_chances[mask])
         else:
-            max_nb_chances[i] = numpy.nan
+            max_nb_chances[count] = numpy.nan
 
         if debug_plots not in ['None', '']:
 
@@ -1096,7 +1087,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             ax[0].set_ylabel("amplitude")
             # ax.set_xticklabels([])
             ax[0].set_xticks([])
-            ax[0].set_title('%g good / %g bad / %g error / %d merges' %(len(good_values), len(all_bad_values), error, nb_merges))
+            ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
             
             ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
             ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
@@ -1131,15 +1122,27 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             fig.savefig(output_path)
             plt.close(fig)
 
+        comm.Barrier()
 
-        if comm.rank == 0:
-            file_name = file_out_suff + '.templates.hdf5'
-            hfile = h5py.File(file_name, 'r+', libver='earliest')
+    if fine_amplitude:
+        bounds = gather_array(bounds, comm, shape=1)
+    
+    purity_level = gather_array(purity_level, comm)
+    max_nb_chances = gather_array(max_nb_chances, comm)
 
+    if comm.rank == 0:
+        file_name = file_out_suff + '.templates.hdf5'
+        hfile = h5py.File(file_name, 'r+', libver='earliest')
 
-            hfile['purity'] = purity_level
-            hfile['nb_chances'] = max_nb_chances
-            hfile.close()
+        indices = []
+        for idx in range(comm.size):
+            indices += list(numpy.arange(idx, nb_temp, comm.size)) 
+
+        if fine_amplitude:
+            hfile['limits'][:] = bounds[indices]
+        hfile['purity'] = purity_level[indices]
+        hfile['nb_chances'] = max_nb_chances[indices]
+        hfile.close()
 
     return
 
