@@ -164,6 +164,7 @@ class CircusParser(object):
                           ['converting', 'export_all', 'bool', 'False'],
                           ['converting', 'sparse_export', 'bool', 'False'],
                           ['converting', 'prelabelling', 'bool', 'False'],
+                          ['converting', 'rpv_threshold', 'float', '0.05'],
                           ['validating', 'nearest_elec', 'string', 'auto'],
                           ['validating', 'max_iter', 'int', '200'],
                           ['validating', 'learning_rate', 'float', '1.0e-3'],
