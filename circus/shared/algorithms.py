@@ -918,7 +918,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     for elec in all_elec:
         times = clusters['noise_times_' + str(elec)]
-
         shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
         sindices = inv_nodes[shank_nodes]
 
