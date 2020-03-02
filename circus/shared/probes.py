@@ -29,6 +29,10 @@ def read_probe(parser, radius_in_probe=True):
     The probe
     """
     probe = {}
+    if parser.get('data', 'mapping') == '':
+        if comm.rank == 0:
+            print_and_log(["The probe file is not specified"], 'error', logger)
+        sys.exit(0)
     filename = os.path.abspath(os.path.expanduser(parser.get('data', 'mapping')))
     if comm.rank == 0:
         print_and_log(["Reading the probe file %s" % filename], 'debug', logger)
