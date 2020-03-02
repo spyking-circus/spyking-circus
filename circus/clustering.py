@@ -15,7 +15,6 @@ from circus.shared.mpi import detect_memory
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
-    numpy.random.seed(520)
     parallel_hdf5 = get_parallel_hdf5_flag(params)
     _ = init_logging(params.logfile)
     logger = logging.getLogger('circus.clustering')
@@ -121,6 +120,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     for p in search_peaks:
         smart_searches[p] = numpy.ones(n_e, dtype=numpy.float32) * int(smart_search)
 
+    max_nb_rand_ss = 100000
     basis = {}
 
     if use_hanning:
@@ -267,6 +267,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if gpass == 1:
             sdata = all_gather_array(smart_searches[search_peaks[0]][comm.rank::comm.size], comm, 0)
+
+        for p in search_peaks:
+            if numpy.any(smart_searches[p] == 1):
+                random_numbers = numpy.random.rand(max_nb_rand_ss)
+                random_count = 0
+                break
 
         if comm.rank == 0:
             if gpass == 0:
@@ -665,7 +671,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                         )
                                                         idx = idx - 1
                                                         hist = result['hist_%s_' % loc_peak + str(elec)][idx]
-                                                        to_keep = hist < numpy.random.rand()
+                                                        to_keep = hist < random_numbers[random_count]
+
+                                                        if random_count == max_nb_rand_ss:
+                                                            random_numbers = numpy.random.rand(max_nb_rand_ss)
+                                                            random_count = 0
+                                                        else:
+                                                            random_count += 1
 
                                                         if to_keep:
                                                             to_accept = True
