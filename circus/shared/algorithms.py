@@ -917,30 +917,27 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         all_snippets[i] = snippets
         all_sizes[i] = all_snippets[i].shape[0]
 
-        tmp_indices = numpy.where(supports[i])[0]
+        for elec in all_elec:
+            times = clusters['noise_times_' + str(elec)]
+            shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
+            sindices = inv_nodes[shank_nodes]
 
-        for elec in all_elec[numpy.in1d(all_elec, tmp_indices)]:
-            if elec not in all_noise:
-                times = clusters['noise_times_' + str(elec)]
-                shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
-                sindices = inv_nodes[shank_nodes]
+            idx = len(times)
+            idx_i = numpy.random.permutation(idx)[:max_snippets]
+            times_i = times[idx_i]
+            labels_i = numpy.zeros(idx)
+            snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
-                idx = len(times)
-                idx_i = numpy.random.permutation(idx)[:max_snippets]
-                times_i = times[idx_i]
-                labels_i = numpy.zeros(idx)
-                snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
+            # if sparse_snippets:
+            #     snippets[:, ~supports[i], :] = 0
 
-                # if sparse_snippets:
-                #     snippets[:, ~supports[i], :] = 0
+            nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
+            snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
 
-                nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-                snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+            if sparse_snippets:
+                snippets = scipy.sparse.csr_matrix(snippets)
 
-                if sparse_snippets:
-                    snippets = scipy.sparse.csr_matrix(snippets)
-
-                all_noise[elec] = snippets
+            all_noise[elec] = snippets
 
     # Then we compute the scalar products, the normalized scalar products and the amplitudes
     # between all the templates and the snippets ensemble.
@@ -956,8 +953,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
 
-        indices = numpy.where(supports[i])[0]
-        for elec in all_elec[numpy.in1d(all_elec, indices)]:
+        for elec in all_elec:
             data = all_noise[elec].dot(template).astype(numpy.float32)
             amplitudes.append(data)
 
