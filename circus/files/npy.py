@@ -63,21 +63,21 @@ class NumpyFile(RawBinaryFile):
         if self.time_axis == 0:
             if not self.grid_ids:
                 if do_slice:
-                    local_chunk = self.data[t_start:t_stop, nodes].copy()
+                    local_chunk = self.data[t_start:t_stop, nodes]
                 else:
-                    local_chunk = self.data[t_start:t_stop, :].copy()
+                    local_chunk = self.data[t_start:t_stop, :]
             else:
-                local_chunk = self.data[t_start:t_stop, :, :].copy().reshape(t_stop-t_start, self.nb_channels)
+                local_chunk = self.data[t_start:t_stop, :, :].reshape(t_stop-t_start, self.nb_channels)
                 if do_slice:
                     local_chunk = numpy.take(local_chunk, nodes, axis=1)
         elif self.time_axis == 1:
             if not self.grid_ids:
                 if do_slice:
-                    local_chunk = self.data[nodes, t_start:t_stop].copy().T
+                    local_chunk = self.data[nodes, t_start:t_stop].T
                 else:
-                    local_chunk = self.data[:, t_start:t_stop].copy().T
+                    local_chunk = self.data[:, t_start:t_stop].T
             else:
-                local_chunk = self.data[:, :, t_start:t_stop].copy().reshape(self.nb_channels, t_stop-t_start).T
+                local_chunk = self.data[:, :, t_start:t_stop].reshape(self.nb_channels, t_stop-t_start).T
                 if do_slice:
                     local_chunk = numpy.take(local_chunk, nodes, axis=1)
         self._close()
@@ -99,7 +99,7 @@ class NumpyFile(RawBinaryFile):
                 self.data[:, :, time:time+len(data)] = data.reshape(len(data), self._shape[1], self._shape[2]).T
         self._close()
 
-    def _open(self, mode='r'):
+    def _open(self, mode='c'):
         self.data = open_memmap(self.file_name, mode=mode)
 
     def _close(self):

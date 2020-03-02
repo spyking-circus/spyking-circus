@@ -334,7 +334,7 @@ class RHDFile(DataFile):
 
         self._close()
 
-    def _open(self, mode='r'):
+    def _open(self, mode='c'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
 
     def _close(self):
