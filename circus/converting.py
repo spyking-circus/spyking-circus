@@ -111,11 +111,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                     median_amp = numpy.median(myamplitudes[:, 0])
                     std_amp = numpy.std(myamplitudes[:, 0])
                     if rpv <= rpv_threshold and numpy.abs(median_amp - 1) < 0.25:
-                        if numpy.std(myamplitudes[:, 0] < 0.1) and norm[tm_id] > 0.4:
-                            labels += [[temp_id, 'best']]
-                        else:
-                            labels += [[temp_id, 'good']]
-                    elif rpv > rpv_threshold:
+                        labels += [[temp_id, 'good']]
+                    else:
                         if median_amp < 0.5:
                             labels += [[temp_id, 'mua']]
                         elif norms[temp_id] < 0.1:

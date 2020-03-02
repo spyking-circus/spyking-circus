@@ -884,7 +884,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times = clusters['times_%d' % ref_elec]
         labels = clusters['clusters_%d' % ref_elec]
         peaks = clusters['peaks_%d' % ref_elec]
-        tgt_label = indices[ref_elec].pop(0)  # i.e. local cluster label (per electrode)
+        position = numpy.where(best_elec[:i] == ref_elec)[0]
+        tgt_label = indices[ref_elec][len(position)]  # i.e. local cluster label (per electrode)
         idx = numpy.where(labels == tgt_label)[0]
 
         clusters_info[i] = {
@@ -1183,7 +1184,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         indices = []
         for idx in range(comm.size):
-            indices += list(numpy.arange(idx, nb_temp, comm.size)) 
+            indices += list(numpy.arange(idx, nb_temp, comm.size))
+
+        indices = numpy.argsort(indices)
 
         indices = numpy.argsort(indices)
 

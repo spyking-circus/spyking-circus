@@ -1046,7 +1046,7 @@ def load_data(params, data, extension=''):
     elif data == 'purity':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
-            if myfile.has_key('purity'):
+            if 'purity' in myfile.keys():
                 purity = myfile.get('purity')[:]
             else:
                 N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
