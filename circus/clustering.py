@@ -120,7 +120,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     for p in search_peaks:
         smart_searches[p] = numpy.ones(n_e, dtype=numpy.float32) * int(smart_search)
 
-    max_nb_rand_ss = 100000
+    max_nb_rand_ss = 10000
     basis = {}
 
     if use_hanning:
@@ -268,11 +268,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if gpass == 1:
             sdata = all_gather_array(smart_searches[search_peaks[0]][comm.rank::comm.size], comm, 0)
 
-        for p in search_peaks:
-            if numpy.any(smart_searches[p] == 1):
-                random_numbers = numpy.random.rand(max_nb_rand_ss)
-                random_count = 0
-                break
+            for p in search_peaks:
+                if numpy.any(smart_searches[p] == 1):
+                    max_nb_rand_ss *= len(numpy.where(smart_searches[p] == 1)[0])
+                    random_numbers = numpy.random.rand(max_nb_rand_ss)
+                    random_count = 0
+                    break
 
         if comm.rank == 0:
             if gpass == 0:
