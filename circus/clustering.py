@@ -95,8 +95,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     data_file.open()
     #################################################################
 
+    mads = io.load_data(params, 'mads')
+    stds = io.load_data(params, 'stds')
+
     if rejection_threshold > 0:
         reject_noise = True
+        noise_levels = stds * 2 * noise_window
     else:
         reject_noise = False
 
@@ -142,6 +146,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         #     weights_pos = smoothing_factor/io.load_data(params, 'weights-pos')
         m_size = (2 * template_shift_2 + 1)
         align_factor = m_size
+        local_factors = align_factor*((smoothing_factor*mads)**2)
     else:
         cdata = None  # default assignment (for PyCharm code inspection)
         xdata = None  # default assignment (for PyCharm code inspection)
@@ -155,8 +160,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         basis['proj_pos'], basis['rec_pos'] = io.load_data(params, 'basis-pos')
 
     thresholds = io.load_data(params, 'thresholds')
-    mads = io.load_data(params, 'mads')
-    stds = io.load_data(params, 'stds')
     n_scalar = n_e * n_t
     if do_spatial_whitening:
         spatial_whitening = io.load_data(params, 'spatial_whitening')
@@ -566,7 +569,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     if reject_noise:
                                         slice_window = sub_mat[duration - noise_window: duration + noise_window]
                                         values = \
-                                            numpy.linalg.norm(slice_window, axis=0) / (stds[indices] * 2 * noise_window)
+                                            numpy.linalg.norm(slice_window, axis=0) / noise_levels[indices]
                                         is_noise = numpy.all(
                                             values < rejection_threshold
                                         )
@@ -597,13 +600,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                             if alignment:
 
-                                                local_factor = align_factor * ((smoothing_factor * mads[elec]) ** 2)
-
                                                 if len(indices) == 1:
                                                     smoothed = True
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(
-                                                            xdata, sub_mat, s=local_factor, k=3
+                                                            xdata, sub_mat, s=local_factors[elec], k=3
                                                         )
                                                     except Exception:
                                                         smoothed = False
@@ -623,7 +624,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     ydata = elec_ydata[elec]
                                                     try:
                                                         f = scipy.interpolate.UnivariateSpline(
-                                                            xdata, sub_mat[:, idx], s=local_factor, k=3
+                                                            xdata, sub_mat[:, idx], s=local_factors[elec], k=3
                                                         )
                                                     except Exception:
                                                         f = scipy.interpolate.UnivariateSpline(

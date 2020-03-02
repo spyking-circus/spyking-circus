@@ -118,6 +118,7 @@ def get_stas(
         # elif pos == 'pos':
         #     weights = smoothing_factor / load_data(params, 'weights-pos')
         align_factor = duration
+        local_factor = align_factor*((smoothing_factor*mads[src])**2)
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
@@ -139,7 +140,6 @@ def get_stas(
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
-            local_factor = align_factor*((smoothing_factor*mads[src])**2)
             if len(ydata) == 1:
                 smoothed = True
                 try:
