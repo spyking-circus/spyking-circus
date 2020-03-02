@@ -817,7 +817,7 @@ def score(x, good_values, bad_values):
 
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
-
+    
     data_file = params.data_file
     template_shift = params.getint('detection', 'template_shift')
     norm_templates = load_data(params, 'norm-templates')
@@ -830,14 +830,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     clusters = load_data(params, 'clusters-nodata')
     file_out_suff = params.get('data', 'file_out_suff')
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
-
+    tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
     max_snippets = 250
-    max_error = 0.25
-    max_nb_points = 10
     sparse_snippets = False
     # thr_similarity = 0.25
 
@@ -851,6 +849,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     supports = load_data(params, 'supports')
     x, n_tm = templates.shape
     nb_temp = int(n_tm // 2)
+    norm_templates = load_data(params, 'norm-templates')[:nb_temp]
+    norm_templates *= numpy.sqrt(N_e * N_t)
+    norm_2 = norm_templates ** 2
 
     # For each electrode, get the local cluster labels.
     indices = {}
@@ -859,268 +860,338 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels = labels[labels > -1]
         indices[i] = list(labels)
 
-    all_snippets = []
+    all_snippets = {}
+    all_sizes = {}
     all_noise = {}
+    all_temp = numpy.arange(comm.rank, nb_temp, comm.size)
+    all_elec = numpy.arange(comm.rank, N_e, comm.size)
 
     if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(all_temp)
+    else:
+        to_explore = all_temp
 
-        to_explore = get_tqdm_progressbar(range(nb_temp))
+    # First we gather all the snippets for the final templates.
 
-        # First we gather all the snippets for the final templates.
+    clusters_info = {}
 
-        clusters_info = {}
+    for i in to_explore:  # for each cluster...
 
-        for i in to_explore:  # for each cluster...
+        ref_elec = best_elec[i]  # i.e. electrode of the cluster
+        shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ref_elec])
+        sindices = inv_nodes[shank_nodes]
 
-            ref_elec = best_elec[i]  # i.e. electrode of the cluster
-            shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ref_elec])
-            sindices = inv_nodes[shank_nodes]
+        times = clusters['times_%d' % ref_elec]
+        labels = clusters['clusters_%d' % ref_elec]
+        peaks = clusters['peaks_%d' % ref_elec]
+        position = numpy.where(best_elec[:i] == ref_elec)[0]
+        tgt_label = indices[ref_elec][len(position)]  # i.e. local cluster label (per electrode)
+        idx = numpy.where(labels == tgt_label)[0]
 
-            times = clusters['times_%d' % ref_elec]
-            labels = clusters['clusters_%d' % ref_elec]
-            peaks = clusters['peaks_%d' % ref_elec]
-            tgt_label = indices[ref_elec].pop(0)  # i.e. local cluster label (per electrode)
-            idx = numpy.where(labels == tgt_label)[0]
+        clusters_info[i] = {
+            'electrode_nb': ref_elec,
+            'local_cluster_nb': tgt_label,
+        }
 
-            clusters_info[i] = {
-                'electrode_nb': ref_elec,
-                'local_cluster_nb': tgt_label,
-            }
+        if peaks[idx][0] == 0:
+            p = 'pos'
+        elif peaks[idx][0] == 1:
+            p = 'neg'
+        else:
+            raise ValueError("unexpected value {}".format(peaks[idx][0]))
 
-            if peaks[idx][0] == 0:
-                p = 'pos'
-            elif peaks[idx][0] == 1:
-                p = 'neg'
-            else:
-                raise ValueError("unexpected value {}".format(peaks[idx][0]))
+        idx_i = numpy.random.permutation(idx)[:max_snippets]
+        times_i = times[idx_i]
+        labels_i = labels[idx_i]
+        snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-            idx_i = numpy.random.permutation(idx)[:max_snippets]
-            times_i = times[idx_i]
-            labels_i = labels[idx_i]
-            snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
+        if sparse_snippets:
+            snippets[:, ~supports[i], :] = 0
 
-            if sparse_snippets:
-                snippets[:, ~supports[i], :] = 0
+        nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
+        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
 
-            nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-            snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+        if sparse_snippets:
+            snippets = scipy.sparse.csr_matrix(snippets)
 
-            if sparse_snippets:
-                snippets = scipy.sparse.csr_matrix(snippets)
+        all_snippets[i] = snippets
+        all_sizes[i] = all_snippets[i].shape[0]
 
-            all_snippets.append(snippets)
+        tmp_indices = numpy.where(supports[i])[0]
 
-            for elec in numpy.where(supports[i])[0]:
-                if elec not in all_noise:
-                    times = clusters['noise_times_' + str(elec)]
-                    idx = len(times)
-                    idx_i = numpy.random.permutation(idx)[:max_snippets]
-                    times_i = times[idx_i]
-                    labels_i = numpy.zeros(idx)
-                    snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
+        for elec in all_elec[numpy.in1d(all_elec, tmp_indices)]:
+            if elec not in all_noise:
+                times = clusters['noise_times_' + str(elec)]
+                shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
+                sindices = inv_nodes[shank_nodes]
 
-                    if sparse_snippets:
-                        snippets[:, ~supports[i], :] = 0
+                idx = len(times)
+                idx_i = numpy.random.permutation(idx)[:max_snippets]
+                times_i = times[idx_i]
+                labels_i = numpy.zeros(idx)
+                snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
-                    nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-                    snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+                # if sparse_snippets:
+                #     snippets[:, ~supports[i], :] = 0
 
-                    if sparse_snippets:
-                        snippets = scipy.sparse.csr_matrix(snippets)
+                nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
+                snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
 
-                    all_noise[elec] = snippets
+                if sparse_snippets:
+                    snippets = scipy.sparse.csr_matrix(snippets)
 
-        # Then we compute the scalar products, the normalized scalar products and the amplitudes
-        # between all the templates and the snippets ensemble.
+                all_noise[elec] = snippets
 
-        sps = {}  # i.e. all the scalar products
-        nsps = {}  # i.e. all the normalized scalar products
-        amplitudes = {}  # i.e. all the amplitudes
+    # Then we compute the scalar products, the normalized scalar products and the amplitudes
+    # between all the templates and the snippets ensemble.
 
-        for i, ref_elec in enumerate(best_elec):
-            template = templates[:, i].toarray().ravel()
-            norm = numpy.linalg.norm(template)
-            norm_2 = norm ** 2
+    tmp_file = os.path.join(tmp_path_loc, 'amplitudes_%d.hdf5' %comm.rank)
+    local_amplitudes = h5py.File(tmp_file, 'w')
+
+    for i in range(nb_temp):
+        template = templates[:, i].toarray().ravel()
+        for j in all_temp:
+            data = all_snippets[j].dot(template).astype(numpy.float32)
+            local_amplitudes.create_dataset(str((i,j)), data=data, chunks=True)
+
+        amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
+
+        indices = numpy.where(supports[i])[0]
+        for elec in all_elec[numpy.in1d(all_elec, indices)]:
+            data = all_noise[elec].dot(template).astype(numpy.float32)
+            amplitudes.append(data)
+
+        amplitudes = numpy.concatenate(amplitudes)
+        local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes, chunks=True)
+
+    local_amplitudes.close()
+    ## We can delete snippets from memory at this point
+    del all_snippets, all_noise
+
+    # Now we need to gather all the scalar products into a single file
+    comm.Barrier()
+    if comm.rank == 0:
+        all_files = [os.path.join(tmp_path_loc, 'amplitudes_%d.hdf5' %i) for i in range(comm.size)]
+        all_h5 = [h5py.File(i, 'r') for i in all_files]
+        final_file = h5py.File(os.path.join(tmp_path_loc, 'amplitudes.hdf5'), 'w')
+        for i in range(nb_temp):
             for j in range(nb_temp):
-                sps[i, j] = all_snippets[j].dot(template)
-                nsps[i, j] = sps[i, j] / norm
-                amplitudes[i, j] = sps[i, j] / norm_2
+                key = str((i, j))
+                file_id = j % comm.size
+                final_file.create_dataset(key, data=all_h5[file_id][key][:], chunks=True)
 
-            amplitudes[i, 'noise'] = [numpy.zeros(0, dtype=numpy.float32)]
+            amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
+            key = str((i, 'noise'))
 
-            for elec in numpy.where(supports[i])[0]:
-                amplitudes[i, 'noise'].append(all_noise[elec].dot(template) / norm_2)
+            for file in all_h5:
+                if key in file.keys():
+                    amplitudes.append(file[key][:])
 
-            amplitudes[i, 'noise'] = numpy.concatenate(amplitudes[i, 'noise'])
+            amplitudes = numpy.concatenate(amplitudes)
+            final_file.create_dataset(key, data=amplitudes, chunks=True)
 
-        # And finally, we set a_min/a_max optimally for all the template.
+        final_file.close()
 
+    comm.Barrier()
+    os.remove(tmp_file)
+    h5_amplitudes = h5py.File(os.path.join(tmp_path_loc, 'amplitudes.hdf5'), 'r')
+
+    sps = {}  # i.e. all the scalar products
+    nsps = {}  # i.e. all the normalized scalar products
+    amplitudes = {}  # i.e. all the amplitudes
+
+    # We need to gather all amplitudes accross nodes
+    for i in range(nb_temp):
+        for j in range(nb_temp):
+            sps[i, j] = h5_amplitudes[str((i, j))][:]
+            nsps[i, j] = sps[i, j] / norm_templates[i]
+            amplitudes[i, j] = sps[i, j] / norm_2[i]
+
+        amplitudes[i, 'noise'] = h5_amplitudes[str((i, 'noise'))][:] / norm_2[i]
+
+    h5_amplitudes.close()
+    comm.Barrier()
+    if comm.rank == 0:
+        os.remove(os.path.join(tmp_path_loc, 'amplitudes.hdf5'))
+
+    # And finally, we set a_min/a_max optimally for all the template.
+    purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
+    max_nb_chances = numpy.zeros(len(all_temp), dtype=numpy.float32)
+    if fine_amplitude:
+        bounds = numpy.zeros((len(all_temp), 2), dtype=numpy.float32)
+
+    for count, i in enumerate(all_temp):
+
+        # First, we collect admissible snippets (according to their (normalized) scalar products).
+        good_values = amplitudes[i, i]
+        center = 1 #numpy.median(good_values)
+        if normalization:
+            tgt_values = nsps[i, i]
+        else:
+            tgt_values = sps[i, i]
+
+        bad_values = {}
+        neutral_values = {}
+        nb_chances = numpy.zeros(all_sizes[i], dtype=numpy.int32)
+        for j in range(nb_temp):
+            # if (similarity[i, j] >= thr_similarity) and (i != j):
+            if i != j:
+                if normalization:
+                    # Use the normalized scalar products.
+                    ref_values = nsps[j, j]  # i.e. snippets of j projected on template i
+                    values = nsps[i, j]  # i.e. snippets of j projected on template i
+                    ref2_values = nsps[j, i]  # i.e. snippets of i projected on template j
+                else:
+                    # Use the scalar products (not normalized).
+                    ref_values = sps[j, j]  # i.e. snippets of j projected on template i
+                    values = sps[i, j]  # i.e. snippets of j projected on template i
+                    ref2_values = sps[j, i]  # i.e. snippets of i projected on template j
+
+                selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
+                bad_values[j] = amplitudes[i, j][selection]
+                selection = ref_values > values   # i.e. snippets of j on which a fit with template i is tried *after* a fit with template j
+                neutral_values[j] = amplitudes[i, j][selection]
+
+                selection = tgt_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
+                nb_chances[selection] += 1
+
+        bad_values['noise'] = amplitudes[i, 'noise']
+
+        all_bad_values = numpy.concatenate([
+            values
+            for values in bad_values.values()
+        ])
+        all_neutral_values = numpy.concatenate([
+            values
+            for values in neutral_values.values()
+        ])
+
+        # Then we need to fix a_min and a_max to minimize the error
+
+        very_good_values = good_values
+
+        if fine_amplitude:
+            res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
+            a_min, a_max = res.x
+            bounds[count] = [a_min, a_max]
+        else:
+            a_min, a_max = limits[i]
+
+        error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
+
+        purity_level[count] = min(1, 1 - error)
+
+        mask = (a_min <= good_values) & (good_values <= a_max)
+        if numpy.sum(mask) > 0:
+            max_nb_chances[count] = numpy.median(nb_chances[mask])
+        else:
+            max_nb_chances[count] = numpy.nan
+
+        if debug_plots not in ['None', '']:
+
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots(2)
+            s = 2 ** 2
+            # ...
+            linewidth = 0.3
+            ax[0].axhline(y=0.0, color='gray', linewidth=linewidth)
+            ax[0].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+            ax[0].axhline(y=center, color='gray', linewidth=linewidth)
+            ax[0].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+            # Plot neutral amplitudes.
+            x = numpy.random.uniform(size=all_neutral_values.size)
+            y = all_neutral_values
+            color = 'gray'
+            ax[0].scatter(x, y, s=s, color=color, alpha=0.1)
+            # Plot good amplitudes.
+            x1 = numpy.random.uniform(size=good_values.size)
+            y = good_values
+            color = 'tab:green'
+            ax[0].scatter(x1, y, s=s, color=color)
+            # ...
+            color = 'tab:green'
+            for x_, y_ in zip(x1, y):
+                if y_ > a_max:
+                    ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                if y_ < a_min:
+                    ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+            # ...
+            x2 = numpy.random.uniform(size=all_bad_values.size)
+            y = all_bad_values
+            color = 'tab:red'
+            ax[0].scatter(x2, y, s=s, color=color)
+            # ...
+            color = 'tab:red'
+            for x_, y_ in zip(x2, y):
+                if center < y_ < a_max:
+                    ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                if a_min < y_ < center:
+                    ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+            # Hide the right and top spines
+            ax[0].spines['right'].set_visible(False)
+            ax[0].spines['top'].set_visible(False)
+            # ...
+            ax[0].set_ylabel("amplitude")
+            # ax.set_xticklabels([])
+            ax[0].set_xticks([])
+            ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
+            
+            ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
+            ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+            ax[1].axhline(y=center, color='gray', linewidth=linewidth)
+            ax[1].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+            
+            # Plot good amplitudes.
+            y = good_values
+            r = ax[1].scatter(x1, y, s=s, c=nb_chances)
+            fig.colorbar(r, ax=ax[1])
+
+            # Hide the right and top spines
+            ax[1].spines['right'].set_visible(False)
+            ax[1].spines['top'].set_visible(False)
+            ax[1].set_title('Average nb_chances %g' %numpy.mean(nb_chances))
+            # ...
+            ax[1].set_ylabel("amplitude")
+            # ax.set_xticklabels([])
+            ax[1].set_xticks([])
+
+            plt.tight_layout()
+            # Save and close figure.
+            output_path = os.path.join(
+                plot_path,
+                "amplitude_interval_t{}_e{}_c{}.{}".format(
+                    i,
+                    clusters_info[i]['electrode_nb'],
+                    clusters_info[i]['local_cluster_nb'],
+                    debug_plots
+                )
+            )
+            fig.savefig(output_path)
+            plt.close(fig)
+
+    comm.Barrier()
+
+    if fine_amplitude:
+        bounds = gather_array(bounds, comm, shape=1)
+    
+    purity_level = gather_array(purity_level, comm)
+    max_nb_chances = gather_array(max_nb_chances, comm)
+
+    if comm.rank == 0:
         file_name = file_out_suff + '.templates.hdf5'
         hfile = h5py.File(file_name, 'r+', libver='earliest')
 
-        purity_level = numpy.zeros(nb_temp, dtype=numpy.float32)
-        max_nb_chances = numpy.zeros(nb_temp, dtype=numpy.float32)
+        indices = []
+        for idx in range(comm.size):
+            indices += list(numpy.arange(idx, nb_temp, comm.size))
 
-        for i in range(nb_temp):
+        indices = numpy.argsort(indices)
 
-            # First, we collect admissible snippets (according to their (normalized) scalar products).
-            good_values = amplitudes[i, i]
-            center = 1 #numpy.median(good_values)
-            if normalization:
-                tgt_values = nsps[i, i]
-            else:
-                tgt_values = sps[i, i]
-
-            bad_values = {}
-            neutral_values = {}
-            nb_chances = numpy.zeros(all_snippets[i].shape[0], dtype=numpy.int32)
-            for j in range(nb_temp):
-                # if (similarity[i, j] >= thr_similarity) and (i != j):
-                if i != j:
-                    if normalization:
-                        # Use the normalized scalar products.
-                        ref_values = nsps[j, j]  # i.e. snippets of j projected on template i
-                        values = nsps[i, j]  # i.e. snippets of j projected on template i
-                        ref2_values = nsps[j, i]  # i.e. snippets of i projected on template j
-                    else:
-                        # Use the scalar products (not normalized).
-                        ref_values = sps[j, j]  # i.e. snippets of j projected on template i
-                        values = sps[i, j]  # i.e. snippets of j projected on template i
-                        ref2_values = sps[j, i]  # i.e. snippets of i projected on template j
-
-                    selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
-                    bad_values[j] = amplitudes[i, j][selection]
-                    selection = ref_values > values   # i.e. snippets of j on which a fit with template i is tried *after* a fit with template j
-                    neutral_values[j] = amplitudes[i, j][selection]
-
-                    selection = tgt_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
-                    nb_chances[selection] += 1
-
-            bad_values['noise'] = amplitudes[i, 'noise']
-
-            all_bad_values = numpy.concatenate([
-                values
-                for values in bad_values.values()
-            ])
-            all_neutral_values = numpy.concatenate([
-                values
-                for values in neutral_values.values()
-            ])
-
-            a_min_0, a_max_0 = hfile['limits'][i]
-
-            # Then we need to fix a_min and a_max to minimize the error
-            # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
-
-            very_good_values = good_values
-
-            if fine_amplitude:
-
-                #a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
-                #a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
-
-                res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
-                a_min, a_max = res.x
-
-            else:
-                a_min, a_max = a_min_0, a_max_0
-            
-            error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
-            hfile['limits'][i] = [a_min, a_max]
-
-            purity_level[i] = min(1, 1 - error)
-
-            mask = (a_min <= good_values) & (good_values <= a_max)
-            if numpy.sum(mask) > 0:
-                max_nb_chances[i] = numpy.median(nb_chances[mask])
-            else:
-                max_nb_chances[i] = numpy.nan
-
-            if debug_plots not in ['None', '']:
-
-                import matplotlib.pyplot as plt
-
-                fig, ax = plt.subplots(2)
-                s = 2 ** 2
-                # ...
-                linewidth = 0.3
-                ax[0].axhline(y=0.0, color='gray', linewidth=linewidth)
-                ax[0].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-                ax[0].axhline(y=center, color='gray', linewidth=linewidth)
-                ax[0].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
-                # Plot neutral amplitudes.
-                x = numpy.random.uniform(size=all_neutral_values.size)
-                y = all_neutral_values
-                color = 'gray'
-                ax[0].scatter(x, y, s=s, color=color, alpha=0.1)
-                # Plot good amplitudes.
-                x1 = numpy.random.uniform(size=good_values.size)
-                y = good_values
-                color = 'tab:green'
-                ax[0].scatter(x1, y, s=s, color=color)
-                # ...
-                color = 'tab:green'
-                for x_, y_ in zip(x1, y):
-                    if y_ > a_max:
-                        ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
-                    if y_ < a_min:
-                        ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
-                # ...
-                x2 = numpy.random.uniform(size=all_bad_values.size)
-                y = all_bad_values
-                color = 'tab:red'
-                ax[0].scatter(x2, y, s=s, color=color)
-                # ...
-                color = 'tab:red'
-                for x_, y_ in zip(x2, y):
-                    if center < y_ < a_max:
-                        ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
-                    if a_min < y_ < center:
-                        ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
-                # Hide the right and top spines
-                ax[0].spines['right'].set_visible(False)
-                ax[0].spines['top'].set_visible(False)
-                # ...
-                ax[0].set_ylabel("amplitude")
-                # ax.set_xticklabels([])
-                ax[0].set_xticks([])
-                ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
-                
-                ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
-                ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-                ax[1].axhline(y=center, color='gray', linewidth=linewidth)
-                ax[1].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
-                
-                # Plot good amplitudes.
-                y = good_values
-                r = ax[1].scatter(x1, y, s=s, c=nb_chances)
-                fig.colorbar(r, ax=ax[1])
-
-                # Hide the right and top spines
-                ax[1].spines['right'].set_visible(False)
-                ax[1].spines['top'].set_visible(False)
-                ax[1].set_title('Average nb_chances %g' %numpy.mean(nb_chances))
-                # ...
-                ax[1].set_ylabel("amplitude")
-                # ax.set_xticklabels([])
-                ax[1].set_xticks([])
-
-                plt.tight_layout()
-                # Save and close figure.
-                output_path = os.path.join(
-                    plot_path,
-                    "amplitude_interval_t{}_e{}_c{}.{}".format(
-                        i,
-                        clusters_info[i]['electrode_nb'],
-                        clusters_info[i]['local_cluster_nb'],
-                        debug_plots
-                    )
-                )
-                fig.savefig(output_path)
-                plt.close(fig)
-
-        hfile['purity'] = purity_level
-        hfile['nb_chances'] = max_nb_chances
+        if fine_amplitude:
+            hfile['limits'][:] = bounds[indices]
+        hfile.create_dataset('purity', data=purity_level[indices])
+        hfile.create_dataset('nb_chances', data=max_nb_chances[indices])
         hfile.close()
 
     return
