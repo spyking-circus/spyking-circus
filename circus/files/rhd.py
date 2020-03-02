@@ -298,7 +298,7 @@ class RHDFile(DataFile):
         local_chunk = numpy.zeros((self.nb_channels, local_shape), dtype=self.data_dtype)
         data_slice = self._get_slice_(t_start, t_stop)
 
-        self._open()
+        #self._open()
         count = 0
 
         for s in data_slice:
@@ -307,7 +307,7 @@ class RHDFile(DataFile):
             count += t_slice
 
         local_chunk = local_chunk.T
-        self._close()
+        #self._close()
 
         if do_slice:
             local_chunk = numpy.take(local_chunk, nodes, axis=1)
@@ -325,16 +325,16 @@ class RHDFile(DataFile):
         data = self._unscale_data_from_float32(data)
         data_slice = self._get_slice_(t_start, t_stop)
 
-        self._open(mode='r+')
+        #self._open(mode='r+')
         count = 0
         for s in data_slice:
             t_slice = len(s)//self.nb_channels
             self.data[s] = data[count:count + t_slice, :].T.ravel()
             count += t_slice
 
-        self._close()
+        #self._close()
 
-    def _open(self, mode='r'):
+    def _open(self, mode='c'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
 
     def _close(self):
