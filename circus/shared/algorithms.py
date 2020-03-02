@@ -830,7 +830,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     clusters = load_data(params, 'clusters-nodata')
     file_out_suff = params.get('data', 'file_out_suff')
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
-
+    tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
@@ -851,7 +851,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     nb_temp = int(n_tm // 2)
     norm_templates = load_data(params, 'norm-templates')[:nb_temp]
     norm_templates *= numpy.sqrt(N_e * N_t)
-    norm_2 = norm_templates **2
+    norm_2 = norm_templates ** 2
 
     # For each electrode, get the local cluster labels.
     indices = {}
@@ -916,56 +916,63 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         all_snippets[i] = snippets
         all_sizes[i] = all_snippets[i].shape[0]
 
-    for elec in all_elec:
-        times = clusters['noise_times_' + str(elec)]
-        shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
-        sindices = inv_nodes[shank_nodes]
+        tmp_indices = numpy.where(supports[i])[0]
 
-        idx = len(times)
-        idx_i = numpy.random.permutation(idx)[:max_snippets]
-        times_i = times[idx_i]
-        labels_i = numpy.zeros(idx)
-        snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
+        for elec in all_elec[numpy.in1d(all_elec, tmp_indices)]:
+            if elec not in all_noise:
+                times = clusters['noise_times_' + str(elec)]
+                shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
+                sindices = inv_nodes[shank_nodes]
 
-        # if sparse_snippets:
-        #     snippets[:, ~supports[i], :] = 0
+                idx = len(times)
+                idx_i = numpy.random.permutation(idx)[:max_snippets]
+                times_i = times[idx_i]
+                labels_i = numpy.zeros(idx)
+                snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
-        nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
+                # if sparse_snippets:
+                #     snippets[:, ~supports[i], :] = 0
 
-        if sparse_snippets:
-            snippets = scipy.sparse.csr_matrix(snippets)
+                nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
+                snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
 
-        all_noise[elec] = snippets
+                if sparse_snippets:
+                    snippets = scipy.sparse.csr_matrix(snippets)
+
+                all_noise[elec] = snippets
 
     # Then we compute the scalar products, the normalized scalar products and the amplitudes
     # between all the templates and the snippets ensemble.
 
-    tmp_file = os.path.join(file_out_suff, 'amplitudes_%d.hdf5' %comm.rank)
+    tmp_file = os.path.join(tmp_path_loc, 'amplitudes_%d.hdf5' %comm.rank)
     local_amplitudes = h5py.File(tmp_file, 'w')
 
     for i in range(nb_temp):
         template = templates[:, i].toarray().ravel()
         for j in all_temp:
-            local_amplitudes.create_dataset(str((i,j)), data=all_snippets[j].dot(template).astype(numpy.float32), chunks=True)
+            data = all_snippets[j].dot(template).astype(numpy.float32)
+            local_amplitudes.create_dataset(str((i,j)), data=data, chunks=True)
 
         amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
-        for elec in all_elec:
-            amplitudes.append(all_noise[elec].dot(template))
+
+        indices = numpy.where(supports[i])[0]
+        for elec in all_elec[numpy.in1d(all_elec, indices)]:
+            data = all_noise[elec].dot(template).astype(numpy.float32)
+            amplitudes.append(data)
 
         amplitudes = numpy.concatenate(amplitudes)
-        local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes.astype(numpy.float32))
+        local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes, chunks=True)
 
     local_amplitudes.close()
     ## We can delete snippets from memory at this point
-    del snippets, all_noise
+    del all_snippets, all_noise
 
     # Now we need to gather all the scalar products into a single file
     comm.Barrier()
     if comm.rank == 0:
-        all_files = [os.path.join(file_out_suff, 'amplitudes_%d.hdf5' %i) for i in range(comm.size)]
+        all_files = [os.path.join(tmp_path_loc, 'amplitudes_%d.hdf5' %i) for i in range(comm.size)]
         all_h5 = [h5py.File(i, 'r') for i in all_files]
-        final_file = h5py.File(os.path.join(file_out_suff, 'amplitudes.hdf5'), 'w')
+        final_file = h5py.File(os.path.join(tmp_path_loc, 'amplitudes.hdf5'), 'w')
         for i in range(nb_temp):
             for j in range(nb_temp):
                 key = str((i, j))
@@ -974,9 +981,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
             key = str((i, 'noise'))
-            for elec in range(N_e):
-                file_id = elec % comm.size
-                amplitudes.append(all_h5[file_id][key][:])
+
+            for file in all_h5:
+                if key in file.keys():
+                    amplitudes.append(file[key][:])
 
             amplitudes = numpy.concatenate(amplitudes)
             final_file.create_dataset(key, data=amplitudes, chunks=True)
@@ -985,7 +993,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     comm.Barrier()
     os.remove(tmp_file)
-    h5_amplitudes = h5py.File(os.path.join(file_out_suff, 'amplitudes.hdf5'), 'r')
+    h5_amplitudes = h5py.File(os.path.join(tmp_path_loc, 'amplitudes.hdf5'), 'r')
 
     sps = {}  # i.e. all the scalar products
     nsps = {}  # i.e. all the normalized scalar products
@@ -1003,7 +1011,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     h5_amplitudes.close()
     comm.Barrier()
     if comm.rank == 0:
-        os.remove(os.path.join(file_out_suff, 'amplitudes.hdf5'))
+        os.remove(os.path.join(tmp_path_loc, 'amplitudes.hdf5'))
 
     # And finally, we set a_min/a_max optimally for all the template.
     purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
@@ -1058,23 +1066,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         ])
 
         # Then we need to fix a_min and a_max to minimize the error
-        # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
 
         very_good_values = good_values
 
         if fine_amplitude:
-
-            #a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
-            #a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
-
             res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
             a_min, a_max = res.x
             bounds[count] = [a_min, a_max]
-        
+        else:
+            a_min, a_max = limits[i]
+
         error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
         purity_level[count] = min(1, 1 - error)
-
 
         mask = (a_min <= good_values) & (good_values <= a_max)
         if numpy.sum(mask) > 0:
