@@ -947,18 +947,20 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     for i in range(nb_temp):
         template = templates[:, i].toarray().ravel()
         for j in all_temp:
-            local_amplitudes.create_dataset(str((i,j)), data=all_snippets[j].dot(template), chunks=True)
+            data = all_snippets[j].dot(template).astype(numpy.float32)
+            local_amplitudes.create_dataset(str((i,j)), data=data, chunks=True)
 
         amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
         for elec in all_elec:
-            amplitudes.append(all_noise[elec].dot(template))
+            data = all_noise[elec].dot(template).astype(numpy.float32)
+            amplitudes.append(data)
 
         amplitudes = numpy.concatenate(amplitudes)
         local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes, chunks=True)
 
     local_amplitudes.close()
     ## We can delete snippets from memory at this point
-    del snippets, all_noise
+    del all_snippets, all_noise
 
     # Now we need to gather all the scalar products into a single file
     comm.Barrier()
@@ -1058,23 +1060,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         ])
 
         # Then we need to fix a_min and a_max to minimize the error
-        # a_min, a_max = optimize_amplitude_interval_extremities(good_values, all_bad_values)  # TODO remove ?
 
         very_good_values = good_values
 
         if fine_amplitude:
-
-            #a_min = optimize_amplitude_minimum(very_good_values, all_bad_values)
-            #a_max = optimize_amplitude_maximum(very_good_values, all_bad_values)
-
             res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, 2)], args=(very_good_values, all_bad_values))
             a_min, a_max = res.x
             bounds[count] = [a_min, a_max]
-        
+        else:
+            a_min, a_max = limits[i]
+
         error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
 
         purity_level[count] = min(1, 1 - error)
-
 
         mask = (a_min <= good_values) & (good_values <= a_max)
         if numpy.sum(mask) > 0:
