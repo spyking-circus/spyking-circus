@@ -1183,7 +1183,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         indices = []
         for idx in range(comm.size):
-            indices += list(numpy.arange(idx, nb_temp, comm.size)) 
+            indices += list(numpy.arange(idx, nb_temp, comm.size))
+
+        indices = numpy.argsort(indices)
 
         if fine_amplitude:
             hfile['limits'][:] = bounds[indices]
