@@ -415,16 +415,10 @@ class DataFile(object):
 
     def _get_t_start_t_stop(self, idx, chunk_size, padding=(0, 0)):
 
-        t_start = idx * numpy.int64(chunk_size) + padding[0]
-        t_stop = (idx + 1) * numpy.int64(chunk_size) + padding[1]
+        t_start = max(0, idx * numpy.int64(chunk_size) + padding[0])
+        t_stop = min(self.duration, (idx + 1) * numpy.int64(chunk_size) + padding[1])
 
-        if t_stop > self.duration:
-            t_stop = self.duration
-
-        if t_start < 0:
-            t_start = 0
-
-        return numpy.int64(t_start), numpy.int64(t_stop)
+        return t_start, t_stop
 
     def _get_streams_index_by_time(self, local_time):
         if self.is_stream:
