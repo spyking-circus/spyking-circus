@@ -947,14 +947,14 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     for i in range(nb_temp):
         template = templates[:, i].toarray().ravel()
         for j in all_temp:
-            local_amplitudes.create_dataset(str((i,j)), data=all_snippets[j].dot(template), chunks=True)
+            local_amplitudes.create_dataset(str((i,j)), data=all_snippets[j].dot(template).astype(numpy.float32), chunks=True)
 
         amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
         for elec in all_elec:
             amplitudes.append(all_noise[elec].dot(template))
 
         amplitudes = numpy.concatenate(amplitudes)
-        local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes, chunks=True)
+        local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes.astype(numpy.float32))
 
     local_amplitudes.close()
     ## We can delete snippets from memory at this point
@@ -1183,8 +1183,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         if fine_amplitude:
             hfile['limits'][:] = bounds[indices]
-        hfile.create_dataset('purity', data=purity_level[indices])
-        hfile.create_dataset('nb_chances', data=max_nb_chances[indices])
+        if 'purity' not in hfile.keys():
+            hfile.create_dataset('purity', data=purity_level[indices])
+            hfile.create_dataset('nb_chances', data=max_nb_chances[indices])
+        else:
+            hfile['purity'][:] = purity_level[indices]
+            hfile['nb_chances'][:] = max_nb_chances[indices]
         hfile.close()
 
     return
