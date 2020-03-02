@@ -55,7 +55,7 @@ class NumpyFile(RawBinaryFile):
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
-        #self._open()
+        self._open()
 
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
         do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
@@ -80,12 +80,12 @@ class NumpyFile(RawBinaryFile):
                 local_chunk = self.data[:, :, t_start:t_stop].reshape(self.nb_channels, t_stop-t_start).T
                 if do_slice:
                     local_chunk = numpy.take(local_chunk, nodes, axis=1)
-        #self._close()
+        self._close()
 
         return self._scale_data_to_float32(local_chunk)
 
     def write_chunk(self, time, data):
-        #self._open(mode='r+')
+        self._open(mode='r+')
         data = self._unscale_data_from_float32(data)
         if self.time_axis == 0:
             if not self.grid_ids:
@@ -97,7 +97,7 @@ class NumpyFile(RawBinaryFile):
                 self.data[:, time:time+len(data)] = data.T
             else:
                 self.data[:, :, time:time+len(data)] = data.reshape(len(data), self._shape[1], self._shape[2]).T
-        #self._close()
+        self._close()
 
     def _open(self, mode='c'):
         self.data = open_memmap(self.file_name, mode=mode)
