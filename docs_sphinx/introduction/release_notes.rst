@@ -34,6 +34,14 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.9.4
+=============
+
+* speeding up the optimization of the amplitudes with MPI
+* speeding up the processing of numpy datafiles (SpikeInterface)
+* speeding up the smart search step (pre-generation of random numbers)
+
+=============
 Release 0.9.2
 =============
 
