@@ -187,7 +187,7 @@ class OpenEphysFile(DataFile):
             self.data[i][data_slice] = data[:, i]
         self._close()
 
-    def _open(self, mode='c'):
+    def _open(self, mode='r'):
         self.data = [
             numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode)
             for i in range(self.nb_channels)

@@ -68,7 +68,7 @@ class RawBinaryFile(DataFile):
         self.data[self.nb_channels*time:self.nb_channels*time+len(data)] = data
         self._close()
 
-    def _open(self, mode='c'):
+    def _open(self, mode='r'):
         self.data = numpy.memmap(self.file_name, offset=self.data_offset, dtype=self.data_dtype, mode=mode)
 
     def _close(self):

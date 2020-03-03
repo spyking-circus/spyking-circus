@@ -1,5 +1,5 @@
 =============
-Release 0.9.3
+Release 0.9.4
 =============
 
 * speeding up the optimization of the amplitudes with MPI

@@ -115,7 +115,7 @@ class NumpyFile(RawBinaryFile):
                 self.data[:, :, time:time+len(data)] = data.reshape(len(data), self._shape[1], self._shape[2]).T
         self._close()
 
-    def _open(self, mode='c'):
+    def _open(self, mode='r'):
         self.data = open_memmap(self.file_name, mode=mode)
 
     def _close(self):
