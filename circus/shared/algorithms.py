@@ -875,6 +875,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     clusters_info = {}
 
+    tmp_file = os.path.join(tmp_path_loc, 'amplitudes_%d.hdf5' %comm.rank)
+    local_amplitudes = h5py.File(tmp_file, 'w')
+
     for i in to_explore:  # for each cluster...
 
         ref_elec = best_elec[i]  # i.e. electrode of the cluster
@@ -914,8 +917,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         if sparse_snippets:
             snippets = scipy.sparse.csr_matrix(snippets)
 
-        all_snippets[i] = snippets
-        all_sizes[i] = all_snippets[i].shape[0]
+        for j in range(nb_temp):
+            template = templates[:, j].toarray().ravel()
+            data = snippets.dot(template).astype(numpy.float32)
+            local_amplitudes.create_dataset(str((j, i)), data=data, chunks=True)
+
+        all_sizes[i] = snippets.shape[0]
+
+    noise_amplitudes = {}
+    for i in range(nb_temp):
+        noise_amplitudes[i] = [numpy.zeros(0, dtype=numpy.float32)]
 
     for elec in all_elec:
         times = clusters['noise_times_' + str(elec)]
@@ -928,41 +939,22 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels_i = numpy.zeros(idx)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
-        # if sparse_snippets:
-        #     snippets[:, ~supports[i], :] = 0
-
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
         snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
 
         if sparse_snippets:
             snippets = scipy.sparse.csr_matrix(snippets)
 
-        all_noise[elec] = snippets
-
-    # Then we compute the scalar products, the normalized scalar products and the amplitudes
-    # between all the templates and the snippets ensemble.
-
-    tmp_file = os.path.join(tmp_path_loc, 'amplitudes_%d.hdf5' %comm.rank)
-    local_amplitudes = h5py.File(tmp_file, 'w')
+        for j in range(nb_temp):
+            template = templates[:, j].toarray().ravel()
+            data = snippets.dot(template).astype(numpy.float32)
+            noise_amplitudes[j].append(data)
 
     for i in range(nb_temp):
-        template = templates[:, i].toarray().ravel()
-        for j in all_temp:
-            data = all_snippets[j].dot(template).astype(numpy.float32)
-            local_amplitudes.create_dataset(str((i,j)), data=data, chunks=True)
-
-        amplitudes = [numpy.zeros(0, dtype=numpy.float32)]
-
-        for elec in all_elec:
-            data = all_noise[elec].dot(template).astype(numpy.float32)
-            amplitudes.append(data)
-
-        amplitudes = numpy.concatenate(amplitudes)
+        amplitudes = numpy.concatenate(noise_amplitudes.pop(i))
         local_amplitudes.create_dataset(str((i, 'noise')), data=amplitudes, chunks=True)
 
     local_amplitudes.close()
-    ## We can delete snippets from memory at this point
-    del all_snippets, all_noise
 
     # Now we need to gather all the scalar products into a single file
     comm.Barrier()
