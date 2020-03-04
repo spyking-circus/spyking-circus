@@ -5,6 +5,7 @@ Release 0.9.5
 * speeding up the optimization of the amplitudes with MPI
 * speeding up the processing of numpy datafiles (SpikeInterface)
 * speeding up the smart search step (pre-generation of random numbers)
+* speeding up the clustering step
 
 =============
 Release 0.9.2
