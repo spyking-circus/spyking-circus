@@ -4,7 +4,7 @@ from circus.shared.files import get_dead_times
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
-
+import time
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -395,21 +395,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             else:
                 c_local_chunk = None  # default assignment (for PyCharm code inspection)
 
-            local_chunk = local_chunk.T.ravel()
-            sub_mat = numpy.zeros((size_window, nb_local_peak_times), dtype=numpy.float32)
-
-            if len_chunk != last_chunk_size:
-                slice_indices = [numpy.zeros(0, dtype=numpy.int32)]
-                for idx in range(0, n_e):
-                    slice_indices.append(len_chunk * idx + temp_window)
-                slice_indices = numpy.concatenate(slice_indices)
-                last_chunk_size = len_chunk
-
-            for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
+            sub_mat = local_chunk[local_peaktimes[:, None] + temp_window]
+            sub_mat = sub_mat.transpose(2, 1, 0).reshape(size_window, nb_local_peak_times)
 
             del local_chunk
 
+            #time_start = time.time()
             if use_gpu:
                 sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b = cmt.sparse_dot(templates, sub_mat)
@@ -417,6 +408,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 b = templates.dot(sub_mat)
 
             del sub_mat
+            #print "Dot product", time.time() - time_start
 
             local_restriction = (t_offset, t_offset + chunk_size)
             all_spikes = local_peaktimes + g_offset
@@ -449,6 +441,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_min_times = None  # default assignment (for PyCharm code inspection)
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
+            #time_start = time.time()
             iteration_nb = 0
             while numpy.mean(failure) < total_nb_chances:
 
@@ -571,6 +564,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 iteration_nb += 1
 
+            #print "Looping", time.time() - time_start
             spikes_to_write = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
             templates_to_write = numpy.array(result['templates'], dtype=numpy.uint32)
