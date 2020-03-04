@@ -1276,7 +1276,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
 
                     if fine_amplitude:
-                        labels_i = numpy.argsort(results['rho_%s_' % p + str(ielec)][myslice])[::-1][:nb_snippets]
+                        labels_i = numpy.argsort(result['rho_%s_' % p + str(ielec)][myslice])[::-1][:nb_snippets]
                     else:
                         labels_i = numpy.random.permutation(myslice)[:nb_snippets]
                     times_i = numpy.take(loc_times, labels_i)
