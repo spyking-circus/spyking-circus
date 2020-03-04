@@ -86,6 +86,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     template_shift_2 = template_shift + jitter_range
     nb_ss_bins = params.getint('clustering', 'nb_ss_bins')
     max_nb_rand_ss = params.getint('clustering', 'nb_ss_rand')
+    nb_snippets = params.getint('clustering', 'nb_snippets')
     use_hanning = params.getboolean('detection', 'hanning')
     use_savgol = params.getboolean('clustering', 'savgol')
     templates_normalization = params.getboolean('clustering', 'templates_normalization')
@@ -1130,7 +1131,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ]
                         if not debug: 
                             keys += [
-                                'rho_%s_' % p + str(ielec),
                                 'delta_%s_' % p + str(ielec),
                             ]
 
@@ -1274,16 +1274,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for group in numpy.unique(loc_clusters):
                     electrodes[g_count] = ielec
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
-                    
+
+                    if fine_amplitude:
+                        labels_i = numpy.argsort(results['rho_%s_' % p + str(ielec)][myslice])[::-1][:nb_snippets]
+                    else:
+                        labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+                    times_i = numpy.take(loc_times, labels_i)
+                    sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+
                     if extraction == 'median-raw':
-                        labels_i = numpy.random.permutation(myslice)[:250]
-                        times_i = numpy.take(loc_times, labels_i)
-                        sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component = numpy.median(sub_data_raw, 0)
                     elif extraction == 'mean-raw':                
-                        labels_i = numpy.random.permutation(myslice)[:250]
-                        times_i = numpy.take(loc_times, labels_i)
-                        sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                         first_component = numpy.mean(sub_data_raw, 0)
                     else:
                         raise ValueError("unexpected value %s" % extraction)
