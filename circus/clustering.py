@@ -85,6 +85,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     jitter_range = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
     nb_ss_bins = params.getint('clustering', 'nb_ss_bins')
+    max_nb_rand_ss = params.getint('clustering', 'nb_ss_rand')
     use_hanning = params.getboolean('detection', 'hanning')
     use_savgol = params.getboolean('clustering', 'savgol')
     templates_normalization = params.getboolean('clustering', 'templates_normalization')
@@ -120,7 +121,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     for p in search_peaks:
         smart_searches[p] = numpy.ones(n_e, dtype=numpy.float32) * int(smart_search)
 
-    max_nb_rand_ss = 10000
+
     basis = {}
 
     if use_hanning:
