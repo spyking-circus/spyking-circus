@@ -1275,10 +1275,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     electrodes[g_count] = ielec
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
 
-                    if fine_amplitude:
-                        labels_i = numpy.argsort(result['rho_%s_' % p + str(ielec)][myslice])[::-1][:nb_snippets]
-                    else:
-                        labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+                    labels_i = numpy.random.permutation(myslice)[:nb_snippets]
                     times_i = numpy.take(loc_times, labels_i)
                     sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
 
