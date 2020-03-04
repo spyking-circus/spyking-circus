@@ -835,6 +835,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
+    if comm.rank == 0:
+        if not os.path.exists(tmp_path_loc):
+            os.makedirs(tmp_path_loc)
+
     max_snippets = 250
     sparse_snippets = False
     # thr_similarity = 0.25
