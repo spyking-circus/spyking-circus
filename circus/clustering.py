@@ -324,7 +324,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
                             result['bounds_%s_' % p + str(i)] = \
                                 comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
-
+                            result['bin_size_%s_' % p + str(i)] = \
+                                result['bounds_%s_' % p + str(i)][2] - result['bounds_%s_' % p + str(i)][1]
             if gpass == 2:
                 for p in search_peaks:
                     result['pca_%s_' % p + str(i)] = \
@@ -672,13 +673,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                                 if smart_searches[loc_peak][elec] > 0:
 
-                                                    ext_amp = sub_mat[template_shift, elec_positions[elec]]
-                                                    idx = numpy.searchsorted(
-                                                        result['bounds_%s_' % loc_peak + str(elec)], ext_amp,
-                                                        side='right'
-                                                    )
-                                                    idx = idx - 1
-                                                    hist = result['hist_%s_' % loc_peak + str(elec)][idx]
+                                                    # ext_amp = sub_mat[template_shift, elec_positions[elec]]
+                                                    # idx = numpy.searchsorted(
+                                                    #     result['bounds_%s_' % loc_peak + str(elec)], ext_amp,
+                                                    #     side='right'
+                                                    # )
+                                                    # idx = idx - 1
+
+                                                    if ext_amp < result['bounds_%s_' % loc_peak + str(elec)][1]:
+                                                        idx_2 = 0
+                                                    elif ext_amp > result['bounds_%s_' % loc_peak + str(elec)][-2]:
+                                                        idx_2 = nb_ss_bins - 1
+                                                    else:
+                                                        tmp = (ext_amp - result['bounds_%s_' % loc_peak + str(elec)][1]) \
+                                                            /result['bin_size_%s_' % loc_peak + str(elec)]
+                                                        idx_2 = int(tmp) + 1
+
+                                                    #assert idx == idx_2, "%s %s %s" %(ext_amp, idx, idx_2)
+
+                                                    hist = result['hist_%s_' % loc_peak + str(elec)][idx_2]
                                                     to_keep = hist < random_numbers[random_count]
 
                                                     if random_count == max_nb_rand_ss:
@@ -731,9 +744,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         elt_count += 1
                                         result['count_%s_' % loc_peak + str(elec)] += 1
                                         if gpass >= 1:
-                                            result['loc_times_' + str(elec)].append([int(peak + local_offset)])
+                                            result['loc_times_' + str(elec)].append([peak + local_offset])
                                         if gpass == 1:
-                                            result['peaks_' + str(elec)].append([int(negative_peak)])
+                                            result['peaks_' + str(elec)].append([negative_peak])
                                         if safety_space:
                                             all_times[indices, min_times[midx]:max_times[midx]] = True
                                         else:
