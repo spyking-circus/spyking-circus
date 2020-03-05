@@ -427,7 +427,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 _ = cmt.empty(mask.shape)
                 patch_gpu = b.shape[1] == 1
             else:
-                #mask = numpy.ones((n_tm, nb_local_peak_times), dtype=numpy.bool)
                 patch_gpu = None
 
             if collect_all:
@@ -441,10 +440,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_min_times = None  # default assignment (for PyCharm code inspection)
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
-            #time_start_global = time.time()
-            #t0 = 0
-            #t1 = 0
-            #t2 = 0
             iteration_nb = 0
             while numpy.mean(failure) < total_nb_chances:
 
@@ -454,14 +449,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
-                #time_start = time.time()
                 data = b[:n_tm, :] #* mask
-                #t0 += time.time() - time_start
-
-                #time_start = time.time()
                 best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
-                #t1 += time.time() - time_start
-
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
@@ -514,7 +503,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
                     indices[idx_neighbor, np.arange(nb_neighbors)] = 1
 
-                    #time_start = time.time()
                     if full_gpu:
                         indices = cmt.CUDAMatrix(indices, copy_on_host=False)
                         if patch_gpu:
@@ -529,7 +517,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
                         tmp2 = c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
-                    #t2 += time.time() - time_start
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
@@ -548,7 +535,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
                         result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                         result_debug['peak_scalar_products'] += [peak_scalar_product]
-                        result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
+                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [True]
                 else:
@@ -570,13 +557,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
                         result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                         result_debug['peak_scalar_products'] += [peak_scalar_product]
-                        result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
+                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [False]
 
                 iteration_nb += 1
 
-            #print "Looping", time.time() - time_start_global, t0, t1, t2
             spikes_to_write = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
             templates_to_write = numpy.array(result['templates'], dtype=numpy.uint32)
