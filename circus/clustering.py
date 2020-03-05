@@ -1619,10 +1619,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
 
-    io.get_overlaps(
-        params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
-    )
-
     if (fine_amplitude) or (debug_plots not in ['None', '']):
 
         if comm.rank == 0 and fine_amplitude:
@@ -1630,11 +1626,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elif comm.rank == 0 and (debug_plots not in ['None', '']):
             print_and_log(["Plotting amplitudes snippets..."], 'default', logger)
 
-
         algo.refine_amplitudes(
             params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu,
             normalization=templates_normalization, debug_plots=debug_plots
         )
+
+    sys.stderr.flush()
+    io.get_overlaps(
+        params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
+    )
 
     comm.Barrier()
     sys.stderr.flush()
