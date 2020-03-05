@@ -494,7 +494,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_peaktimes = numpy.sort(local_peaktimes)
 
                 if gpass == 0:
-                    for i in range(comm.rank, n_e, comm.size):
+                    for i in range(n_e):
                         for p in search_peaks:
                             if result['count_%s_' % p + str(i)] < loop_max_elts_elec:
                                 result['nb_chunks_%s_' % p + str(i)] += 1
