@@ -272,12 +272,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_first = data_file.is_first_chunk(gidx, nb_chunks)
         is_last = data_file.is_last_chunk(gidx, nb_chunks)
 
-        if is_last:
-            padding = (-temp_3_shift, 0)
-        elif is_first:
-            padding = (0, temp_3_shift)
+        if nb_chunks > 1:
+            if is_last:
+                padding = (-temp_3_shift, 0)
+            elif is_first:
+                padding = (0, temp_3_shift)
+            else:
+                padding = (-temp_3_shift, temp_3_shift)
         else:
-            padding = (-temp_3_shift, temp_3_shift)
+            padding = (0, 0)
 
         result = {
             'spiketimes': [],

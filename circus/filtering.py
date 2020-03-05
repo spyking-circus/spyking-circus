@@ -156,12 +156,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_first = data_file_in.is_first_chunk(gidx, nb_chunks)
             is_last = data_file_in.is_last_chunk(gidx, nb_chunks)
 
-            if is_first:
-                padding = (0, duration)
-            elif is_last:
-                padding = (-duration, 0)
+            if nb_chunks > 1:
+                if is_first:
+                    padding = (0, duration)
+                elif is_last:
+                    padding = (-duration, 0)
+                else:
+                    padding = (-duration, duration)
             else:
-                padding = (-duration, duration)
+                padding = (0, 0)
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
 

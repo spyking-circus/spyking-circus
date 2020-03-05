@@ -390,12 +390,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_first = data_file.is_first_chunk(gidx, nb_chunks)
             is_last = data_file.is_last_chunk(gidx, nb_chunks)
 
-            if is_last:
-                padding = (-duration, 0)
-            elif is_first:
-                padding = (0, duration)
+            if nb_chunks > 1:
+                if is_last:
+                    padding = (-duration, 0)
+                elif is_first:
+                    padding = (0, duration)
+                else:
+                    padding = (-duration, duration)
             else:
-                padding = (-duration, duration)
+                padding = (0, 0)
 
             if elt_count < loop_nb_elts:
                 # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
