@@ -190,7 +190,7 @@ class CircusParser(object):
                         ['fitting', 'chunk_size', 'int', '1'],
                         ['fitting', 'debug', 'bool', 'False'],
                         ['fitting', 'max_nb_chances', 'int', '10'],
-                        ['fitting', 'percent_nb_chances', 'float', '95'],
+                        ['fitting', 'percent_nb_chances', 'float', '99'],
                         ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'debug', 'bool', 'False'],
