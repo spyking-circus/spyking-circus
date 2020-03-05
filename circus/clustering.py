@@ -1629,6 +1629,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             normalization=templates_normalization, debug_plots=debug_plots
         )
 
+    sys.stderr.flush()
     io.get_overlaps(
         params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
     )
