@@ -444,7 +444,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             local_max = 0
-            nb_argmax = min(10, n_tm * nb_local_peak_times)
+            numerous_argmax = False
+            nb_argmax = max(1, (n_tm * nb_local_peak_times) // 100)
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             while numpy.mean(failure) < total_nb_chances:
@@ -457,10 +458,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 data = b[:n_tm, :]
 
-                if len(best_indices) == 0 or has_been_modified:
-                    best_indices = largest_indices(data, nb_argmax)
+                if numerous_argmax:
+                    if len(best_indices) == 0:
+                        best_indices = largest_indices(data, nb_argmax)
+                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)  
+                else:
+                    best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
 
-                best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
@@ -528,7 +532,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
 
-                    has_been_modified = True
+                    numerous_argmax = False
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
@@ -552,6 +556,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['success_flags'] += [True]
                 else:
                     # Reject the matching.
+                    numerous_argmax = True
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
@@ -564,7 +569,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         b[best_template_index, peak_index] = -numpy.inf
                         index = best_template_index * nb_local_peak_times + peak_index
                     
-                    best_indices = best_indices[~numpy.in1d(best_indices, index)]
+                    if numerous_argmax:
+                        best_indices = best_indices[~numpy.in1d(best_indices, index)]
 
                     # Save debug data.
                     if debug:
