@@ -932,7 +932,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     for i in range(nb_temp):
         noise_amplitudes[i] = [numpy.zeros(0, dtype=numpy.float32)]
 
-    for elec in all_elec:
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(all_elec)
+    else:
+        to_explore = all_elec
+
+    for elec in to_explore:
         times = clusters['noise_times_' + str(elec)]
         shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
         sindices = inv_nodes[shank_nodes]
