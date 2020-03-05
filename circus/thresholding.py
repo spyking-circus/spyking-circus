@@ -110,12 +110,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_first = data_file.is_first_chunk(gidx, nb_chunks)
         is_last = data_file.is_last_chunk(gidx, nb_chunks)
 
-        if is_last:
-            padding = (-dist_peaks, 0)
-        elif is_first:
-            padding = (0, dist_peaks)
+        if nb_chunks > 1:
+            if is_last:
+                padding = (-dist_peaks, 0)
+            elif is_first:
+                padding = (0, dist_peaks)
+            else:
+                padding = (-dist_peaks, dist_peaks)
         else:
-            padding = (-dist_peaks, dist_peaks)
+            padding = (0, 0)
 
         result = {'spiketimes': [], 'amplitudes': [], 'templates': []}
 
