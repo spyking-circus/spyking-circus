@@ -400,7 +400,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del local_chunk
 
-            #time_start = time.time()
             if use_gpu:
                 sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
                 b = cmt.sparse_dot(templates, sub_mat)
@@ -408,7 +407,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 b = templates.dot(sub_mat)
 
             del sub_mat
-            #print "Dot product", time.time() - time_start
 
             local_restriction = (t_offset, t_offset + chunk_size)
             all_spikes = local_peaktimes + g_offset
@@ -449,7 +447,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
-                data = b[:n_tm, :] #* mask
+                data = b[:n_tm, :]
                 best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
@@ -493,7 +491,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if (a_min <= best_amp_n) & (best_amp_n <= a_max):
                     # Keep the matching.
-                    time_start = time.time()
                     peak_time_step = local_peaktimes[peak_index]
 
                     peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
