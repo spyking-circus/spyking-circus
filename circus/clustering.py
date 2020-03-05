@@ -233,8 +233,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elec_positions[i] = numpy.where(indices == i)[0]
         elec_ydata[i] = numpy.arange(len(indices))
 
-    max_elts_elec //= comm.size
-    nb_elts //= comm.size
     few_elts = False
     nb_chunks, _ = data_file.analyze(chunk_size)
 
@@ -355,11 +353,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # # This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes
         # # should search spikes for a subset of electrodes, to avoid too many communications.
         if gpass == 0 or not smart_search:
-            nb_elecs = n_e #numpy.sum(comm.rank == numpy.mod(numpy.arange(n_e), comm.size))
-            loop_max_elts_elec = params.getint('clustering', 'max_elts')
-            if sign_peaks == 'both':
-                loop_max_elts_elec *= 2
-            loop_nb_elts = numpy.int64(params.getfloat('clustering', 'nb_elts') * nb_elecs * loop_max_elts_elec)
+            loop_max_elts_elec = max_elts_elec
+            loop_nb_elts = nb_elts
         elif gpass == 1:
             if elt_count < loop_nb_elts - 1:
                 lines = [
