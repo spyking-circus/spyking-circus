@@ -233,6 +233,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         elec_positions[i] = numpy.where(indices == i)[0]
         elec_ydata[i] = numpy.arange(len(indices))
 
+    max_elts_elec //= comm.size
+    nb_elts //= comm.size
     few_elts = False
     nb_chunks, _ = data_file.analyze(chunk_size)
 
@@ -782,7 +784,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         gdata2 = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))
         nb_rejected = numpy.int64(numpy.sum(gdata2))
-        nb_total = numpy.int64(nb_elts * comm.size)
+        nb_total = numpy.int64(nb_elts*comm.size)
 
         if ((smart_search and (gpass == 0)) or (not smart_search and (gpass == 1))) and nb_elements == 0:
             if comm.rank == 0:
