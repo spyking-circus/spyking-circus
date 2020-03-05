@@ -1281,19 +1281,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         candidates = {}
         for t1 in range(nb_temp):
             candidates[t1] = []
-            for t2 in range(t1, nb_temp):
-                if has_support:
-                    s = numpy.where(supports[t1] | supports[t2])[0]
-                else:
-                    s1 = supports[best_elec[t1]][0]
-                    s2 = supports[best_elec[t2]][0]
-                    s = numpy.union1d(s1, s2)
-
-                is_candidate = numpy.all(numpy.in1d(electrodes, s))
-
-                if is_candidate and t1 != k and t2 != k:
-                    candidates[t1] += [t2]
-            print comm.rank, t1, len(candidates[t1])
+            masks = numpy.logical_or(supports[t1], supports[t1:])
+            masks = numpy.all(masks[:, electrodes], 1)
+            if t1 != k:
+                for count, t2 in enumerate(range(t1, nb_temp)):
+                    is_candidate = masks[count]
+                    if is_candidate and t2 != k:
+                        candidates[t1] += [t2]
 
         been_found = False
         t_k = None
