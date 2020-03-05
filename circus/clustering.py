@@ -371,6 +371,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         
         to_explore = range(comm.rank, nb_chunks, comm.size)
 
+        local_nb_chunks = len(to_explore)
         rejected = 0
         elt_count = 0
         nb_noise = 0
@@ -907,7 +908,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' % p + str(ielec)]) > 1:
 
                         # Need to estimate the number of spikes.
-                        ratio = nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
+                        ratio = local_nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
                         if p == 'pos':
