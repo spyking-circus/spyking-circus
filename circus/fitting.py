@@ -443,6 +443,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
+            local_max = 0
+            nb_argmax = 100
+            has_been_modified = True
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -452,7 +456,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     b_array = None
 
                 data = b[:n_tm, :]
-                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+
+                if local_max == nb_argmax or has_been_modified:
+                    best_indices = largest_indices(data, nb_argmax)
+                    local_max = 0
+                    has_been_modified = False
+
+                best_template_index, peak_index = numpy.unravel_index(best_indices[local_max], data.shape)
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
@@ -519,6 +529,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if abs(best_amp2) > min_second_component:
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
+
+                    has_been_modified = True
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
