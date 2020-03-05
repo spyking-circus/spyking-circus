@@ -4,7 +4,7 @@ from circus.shared.files import get_dead_times
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
-
+import time
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
@@ -40,7 +40,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if auto_nb_chances:
         nb_chances = io.load_data(params, 'nb_chances')
         max_nb_chances = params.getint('fitting', 'max_nb_chances')
-        total_nb_chances = max(1, numpy.nanmax(nb_chances))
+        percent_nb_chances = params.getfloat('fitting', 'percent_nb_chances')
+        total_nb_chances = max(1, numpy.nanpercentile(nb_chances, percent_nb_chances))
         total_nb_chances = min(total_nb_chances, max_nb_chances)
         if comm.rank == 0:
             print_and_log(['nb_chances set automatically to %g' %total_nb_chances], 'debug', logger)
@@ -49,6 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk = params.getfloat('fitting', 'max_chunk')
     # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')
+    min_second_component = params.getfloat('fitting', 'min_second_component')
     debug = params.getboolean('fitting', 'debug')
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
@@ -270,12 +272,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_first = data_file.is_first_chunk(gidx, nb_chunks)
         is_last = data_file.is_last_chunk(gidx, nb_chunks)
 
-        if is_last:
-            padding = (-temp_3_shift, 0)
-        elif is_first:
-            padding = (0, temp_3_shift)
+        if nb_chunks > 1:
+            if is_last:
+                padding = (-temp_3_shift, 0)
+            elif is_first:
+                padding = (0, temp_3_shift)
+            else:
+                padding = (-temp_3_shift, temp_3_shift)
         else:
-            padding = (-temp_3_shift, temp_3_shift)
+            padding = (0, 0)
 
         result = {
             'spiketimes': [],
@@ -394,18 +399,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             else:
                 c_local_chunk = None  # default assignment (for PyCharm code inspection)
 
-            local_chunk = local_chunk.T.ravel()
-            sub_mat = numpy.zeros((size_window, nb_local_peak_times), dtype=numpy.float32)
-
-            if len_chunk != last_chunk_size:
-                slice_indices = [numpy.zeros(0, dtype=numpy.int32)]
-                for idx in range(0, n_e):
-                    slice_indices.append(len_chunk * idx + temp_window)
-                slice_indices = numpy.concatenate(slice_indices)
-                last_chunk_size = len_chunk
-
-            for count, idx in enumerate(local_peaktimes):
-                sub_mat[:, count] = numpy.take(local_chunk, slice_indices + idx)
+            sub_mat = local_chunk[local_peaktimes[:, None] + temp_window]
+            sub_mat = sub_mat.transpose(2, 1, 0).reshape(size_window, nb_local_peak_times)
 
             del local_chunk
 
@@ -434,7 +429,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 _ = cmt.empty(mask.shape)
                 patch_gpu = b.shape[1] == 1
             else:
-                mask = numpy.ones((n_tm, nb_local_peak_times), dtype=numpy.bool)
                 patch_gpu = None
 
             if collect_all:
@@ -457,7 +451,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
-                data = b[:n_tm, :] * mask
+                data = b[:n_tm, :]
                 best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
@@ -522,8 +516,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del tmp1, tmp2
                     else:
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        tmp2 = c_overs[best_template2_index].multiply(-best_amp2)
-                        b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
+                        if abs(best_amp2) > min_second_component:
+                            tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
+                        b[:, is_neighbor] += tmp1.dot(indices)
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
@@ -533,7 +528,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         result['templates'] += [best_template_index]
                     # Mark current matching as tried.
-                    mask[best_template_index, peak_index] = False
+                    b[best_template_index, peak_index] = -numpy.inf
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -542,7 +537,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
                         result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                         result_debug['peak_scalar_products'] += [peak_scalar_product]
-                        result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
+                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [True]
                 else:
@@ -552,10 +547,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if failure[peak_index] >= total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
-                        mask[:, peak_index] = False
+                        b[:, peak_index] = -numpy.inf
                     else:
                         # Mark current matching as tried.
-                        mask[best_template_index, peak_index] = False
+                        b[best_template_index, peak_index] = -numpy.inf
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -564,7 +559,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
                         result_debug['peak_time_steps'] += [all_spikes[peak_index]]
                         result_debug['peak_scalar_products'] += [peak_scalar_product]
-                        result_debug['peak_solved_flags'] += [mask[best_template_index, peak_index]]
+                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [False]
 

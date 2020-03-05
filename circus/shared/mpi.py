@@ -157,9 +157,9 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=Fals
         mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
     else:
         data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
-        data = mpi_comm.gather(data, root=0)
+        data = mpi_comm.gather(data, root=root)
         gdata = [numpy.empty(0, dtype=np_type)]
-        if comm.rank == 0:
+        if comm.rank == root:
             for blosc_data in data:
                 gdata.append(numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type))
         gdata = numpy.concatenate(gdata)
