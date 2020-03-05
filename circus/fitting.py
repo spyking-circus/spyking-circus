@@ -445,7 +445,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             iteration_nb = 0
             local_max = 0
             numerous_argmax = False
-            nb_argmax = max(1, (n_tm * nb_local_peak_times) // 100)
+            nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             while numpy.mean(failure) < total_nb_chances:
