@@ -50,6 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     max_chunk = params.getfloat('fitting', 'max_chunk')
     # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')
+    min_second_component = params.getfloat('fitting', 'min_second_component')
     debug = params.getboolean('fitting', 'debug')
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
@@ -512,8 +513,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del tmp1, tmp2
                     else:
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        tmp2 = c_overs[best_template2_index].multiply(-best_amp2)
-                        b[:, is_neighbor] += (tmp1 + tmp2).dot(indices)
+                        if abs(best_amp2) > min_second_component:
+                            tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
+                        b[:, is_neighbor] += tmp1.dot(indices)
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
