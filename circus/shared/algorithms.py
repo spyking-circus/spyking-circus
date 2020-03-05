@@ -1272,23 +1272,39 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
         k = sorted_temp[k]
         overlap_k = c_overs[k]
+
         if has_support:
             electrodes = numpy.where(supports[k])[0]
-            all_idx = [numpy.any(numpy.in1d(numpy.where(supports[t])[0], electrodes)) for t in range(nb_temp)]
         else:
             electrodes = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
-            all_idx = [numpy.any(numpy.in1d(supports[best_elec[t]], electrodes)) for t in range(nb_temp)]
-        all_idx = numpy.arange(nb_temp)[all_idx]
+
+        candidates = {}
+        for t1 in range(nb_temp):
+            candidates[t1] = []
+            for t2 in range(t1, nb_temp):
+                if has_support:
+                    s = numpy.where(supports[t1] | supports[t2])[0]
+                else:
+                    s1 = supports[best_elec[t1]][0]
+                    s2 = supports[best_elec[t2]][0]
+                    s = numpy.union1d(s1, s2)
+
+                is_candidate = numpy.all(numpy.in1d(electrodes, s))
+
+                if is_candidate and t1 != k and t2 != k:
+                    candidates[t1] += [t2]
+            print comm.rank, t1, len(candidates[t1])
+
         been_found = False
         t_k = None
 
-        for n, i in enumerate(all_idx):
+        for i in candidates.keys():
             t_i = None
-            if not been_found:
+            if not been_found and len(candidates[i]) > 0:
                 overlap_i = c_overs[i]
                 M[0, 0] = overlap_0[i]
                 V[0, 0] = overlap_k[i, distances[k, i]]
-                for j in all_idx[n+1:]:
+                for j in candidates[i]:
                     t_j = None
                     M[1, 1] = overlap_0[j]
                     M[1, 0] = overlap_i[j, distances[k, i] - distances[k, j]]
