@@ -908,7 +908,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if len(result['tmp_%s_' % p + str(ielec)]) > 1:
 
                         # Need to estimate the number of spikes.
-                        ratio = local_nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
+                        ratio = nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
                         if p == 'pos':
