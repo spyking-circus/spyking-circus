@@ -444,7 +444,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             local_max = 0
-            nb_argmax = min(100, n_tm * nb_local_peak_times)
+            nb_argmax = min(10, n_tm * nb_local_peak_times)
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             while numpy.mean(failure) < total_nb_chances:
@@ -457,10 +457,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 data = b[:n_tm, :]
 
-                if len(best_indices) == 0:
+                if len(best_indices) == 0 or has_been_modified:
                     best_indices = largest_indices(data, nb_argmax)
 
-                best_template_index, peak_index = numpy.unravel_index(best_indices[local_max], data.shape)
+                best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
@@ -528,7 +528,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
 
-                    #modified_indices = 
+                    has_been_modified = True
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
@@ -564,7 +564,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         b[best_template_index, peak_index] = -numpy.inf
                         index = best_template_index * nb_local_peak_times + peak_index
                     
-                    best_indices = best_indices[~numpy.numpy.in1d(best_indices, index)]
+                    best_indices = best_indices[~numpy.in1d(best_indices, index)]
 
                     # Save debug data.
                     if debug:
