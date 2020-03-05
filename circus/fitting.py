@@ -443,6 +443,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
+            local_max = 0
+            numerous_argmax = False
+            nb_argmax = n_tm
+            best_indices = numpy.zeros(0, dtype=numpy.int32)
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -452,7 +457,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     b_array = None
 
                 data = b[:n_tm, :]
-                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+
+                if numerous_argmax:
+                    if len(best_indices) == 0:
+                        best_indices = largest_indices(data, nb_argmax)
+                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)  
+                else:
+                    best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
@@ -520,6 +532,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
 
+                    numerous_argmax = False
+
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
 
@@ -542,15 +556,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['success_flags'] += [True]
                 else:
                     # Reject the matching.
+                    numerous_argmax = True
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if failure[peak_index] >= total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
                         b[:, peak_index] = -numpy.inf
+                        index = numpy.arange(n_tm) * nb_local_peak_times + peak_index
                     else:
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
+                        index = best_template_index * nb_local_peak_times + peak_index
+                    
+                    if numerous_argmax:
+                        best_indices = best_indices[~numpy.in1d(best_indices, index)]
+
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
