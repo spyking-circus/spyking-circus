@@ -290,7 +290,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             if gpass == 0:
-                print_and_log(["Searching random spikes to sample amplitudes..."], 'default', logger)
+                if isolation:
+                    print_and_log(["Searching isolated random spikes to sample amplitudes..."], 'default', logger)
+                else:
+                    print_and_log(["Searching random spikes to sample amplitudes..."], 'default', logger)
             elif gpass == 1:
                 if not numpy.all(sdata > 0):
                     lines = ["Smart Search disabled on %d electrodes" % (numpy.sum(sdata == 0))]
