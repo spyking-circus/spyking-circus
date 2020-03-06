@@ -830,14 +830,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     clusters = load_data(params, 'clusters-nodata')
     file_out_suff = params.get('data', 'file_out_suff')
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
-    tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-
-    if comm.rank == 0:
-        if not os.path.exists(tmp_path_loc):
-            os.makedirs(tmp_path_loc)
 
     max_snippets = 250
     sparse_snippets = False
