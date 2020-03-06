@@ -613,18 +613,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
                                         vicinity_peaks = all_peaktimes[nearby_peaks]
                                         vicinity_extremas = all_extremas[nearby_peaks]
-                                        extremas = local_chunk[vicinity_peaks, vicinity_extremas]
 
                                         nearby = numpy.in1d(vicinity_extremas, indices)
-                                        to_consider = extremas[nearby]
+                                        vicinity_peaks = vicinity_peaks[nearby]
+                                        vicinity_extremas = vicinity_extremas[nearby]
 
-                                        if len(to_consider) > 0:
-                                            if negative_peak:
-                                                if numpy.any(to_consider < local_chunk[peak, elec]):
-                                                    is_isolated = False
-                                            else:
-                                                if numpy.any(to_consider > local_chunk[peak, elec]):
-                                                    is_isolated = False
+                                        to_consider = local_chunk[vicinity_peaks, vicinity_extremas]
+
+                                        if negative_peak:
+                                            if numpy.any(to_consider < local_chunk[peak, elec]):
+                                                is_isolated = False
+                                        else:
+                                            if numpy.any(to_consider > local_chunk[peak, elec]):
+                                                is_isolated = False
 
                                     if is_isolated:
 
