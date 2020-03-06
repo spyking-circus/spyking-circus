@@ -267,14 +267,26 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         if gpass == 1:
-            sdata = all_gather_array(smart_searches[search_peaks[0]][comm.rank::comm.size], comm, 0)
-
             for p in search_peaks:
+
+                smart_searches[p] = all_gather_array(smart_searches[p][comm.rank::comm.size], comm, 0).astype(numpy.bool)
+                indices = []
+                for idx in range(comm.size):
+                    indices += list(numpy.arange(idx, n_e, comm.size))
+                indices = numpy.argsort(indices)
+                smart_searches[p] = smart_searches[p][indices]
+
                 if numpy.any(smart_searches[p] == 1):
                     max_nb_rand_ss *= len(numpy.where(smart_searches[p] == 1)[0])
                     random_numbers = numpy.random.rand(max_nb_rand_ss)
                     random_count = 0
                     break
+            if search_peaks == ['neg']:
+                sdata = smart_searches[p]
+            elif search_peaks == ['pos']:
+                sdata = smart_searches['pos']
+            elif search_peaks == ['neg', 'pos']:
+                sdata = numpy.logical_or(smart_searches['pos'], smart_searches['neg'])
 
         if comm.rank == 0:
             if gpass == 0:
@@ -319,12 +331,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ]
                     result['count_%s_' % p + str(i)] = 0
 
-                    if smart_search:
-                        for i in range(n_e):
-                            result['hist_%s_' % p + str(i)] = \
-                                comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
-                            result['bounds_%s_' % p + str(i)] = \
-                                comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                    for i in range(n_e):
+                        result['hist_%s_' % p + str(i)] = \
+                            comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                        result['bounds_%s_' % p + str(i)] = \
+                            comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+
+                        if smart_searches[p][i]:
                             result['bin_size_%s_' % p + str(i)] = \
                                 result['bounds_%s_' % p + str(i)][2] - result['bounds_%s_' % p + str(i)][1]
             if gpass == 2:
@@ -595,7 +608,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                 if not is_noise:
 
-                                    if isolation and gpass == 1:
+                                    if isolation and gpass <= 1:
 
                                         nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
                                         vicinity_peaks = all_peaktimes[nearby_peaks]
