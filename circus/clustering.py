@@ -334,15 +334,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ]
                     result['count_%s_' % p + str(i)] = 0
 
-                    for i in range(n_e):
-                        result['hist_%s_' % p + str(i)] = \
-                            comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
-                        result['bounds_%s_' % p + str(i)] = \
-                            comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                    result['hist_%s_' % p + str(i)] = \
+                        comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                    result['bounds_%s_' % p + str(i)] = \
+                        comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
 
-                        if smart_searches[p][i]:
-                            result['bin_size_%s_' % p + str(i)] = \
-                                result['bounds_%s_' % p + str(i)][2] - result['bounds_%s_' % p + str(i)][1]
+                    if smart_searches[p][i]:
+                        result['bin_size_%s_' % p + str(i)] = \
+                            result['bounds_%s_' % p + str(i)][2] - result['bounds_%s_' % p + str(i)][1]
+
             if gpass == 2:
                 for p in search_peaks:
                     result['pca_%s_' % p + str(i)] = \
@@ -713,7 +713,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     hist = result['hist_%s_' % loc_peak + str(elec)][idx_2]
                                                     to_keep = hist < random_numbers[random_count]
 
-                                                    if random_count == max_nb_rand_ss:
+                                                    if random_count == max_nb_rand_ss - 1:
                                                         random_numbers = numpy.random.rand(max_nb_rand_ss)
                                                         random_count = 0
                                                     else:
