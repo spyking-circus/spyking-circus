@@ -934,8 +934,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
                         if nb_ss_bins == 'auto':
-                            nb_ss_bins = int(numpy.abs(ampmin - ampmax)/0.1*stds[ielec])
-                            print nb_ss_bins
+                            nb_ss_bins = int(numpy.abs(ampmin - ampmax)/(0.1*stds[ielec]))
                         if p == 'pos':
                             if matched_filter:
                                 bound = matched_thresholds_pos[ielec]
