@@ -3,6 +3,7 @@ Release 0.9.6
 =============
 
 * fixes in the smart search (not all rare cases were covered in 0.9.5)
+* fix a bug if multi file is activated with very small chunks
 
 
 =============
