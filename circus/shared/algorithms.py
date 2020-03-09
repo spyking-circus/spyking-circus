@@ -836,6 +836,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     max_snippets = 250
     sparse_snippets = False
+    max_noise_snippets = 10000 // N_e
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -934,7 +935,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         sindices = inv_nodes[shank_nodes]
 
         idx = len(times)
-        idx_i = numpy.random.permutation(idx)[:max_snippets]
+        idx_i = numpy.random.permutation(idx)[:max_noise_snippets]
         times_i = times[idx_i]
         labels_i = numpy.zeros(idx)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
