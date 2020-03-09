@@ -935,17 +935,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
                         if nb_ss_bins == 'auto':
-                            nb_ss_bins = max(10, int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])))
+                            local_nb_bin = max(10, int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])))
+                        else:
+                            local_nb_bin = nb_ss_bins
                         if p == 'pos':
                             if matched_filter:
                                 bound = matched_thresholds_pos[ielec]
                             else:
                                 bound = thresholds[ielec]
                             if bound < ampmax:
-                                bins = list(numpy.linspace(bound, 1.5 * ampmax, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(bound, 1.5 * ampmax, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                             else:
-                                bins = list(numpy.linspace(bound, bound * 10, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(bound, bound * 10, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                         elif p == 'neg':
                             if matched_filter:
@@ -953,10 +955,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = -thresholds[ielec]
                             if ampmin < bound:
-                                bins = list(numpy.linspace(1.5 * ampmin, bound, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(1.5 * ampmin, bound, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                             else:
-                                bins = list(numpy.linspace(10 * bound, bound, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(10 * bound, bound, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                         else:
                             raise ValueError("Unexpected value %s" % p)
@@ -980,8 +982,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b
-                        if nb_ss_bins == 'auto':
-                            result['nb_ss_bins_%s_' % p + str(ielec)] = nb_ss_bins
+                        result['nb_ss_bins_%s_' % p + str(ielec)] = local_nb_bin
 
                         if debug_plots not in ['None', '']:
                             save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
