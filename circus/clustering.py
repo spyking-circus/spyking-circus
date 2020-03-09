@@ -404,7 +404,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_first = data_file.is_first_chunk(gidx, nb_chunks)
             is_last = data_file.is_last_chunk(gidx, nb_chunks)
 
-            if nb_chunks > 1:
+            if not is_first and is_last:
                 if is_last:
                     padding = (-duration, 0)
                 elif is_first:
@@ -492,6 +492,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 # print "Removing the useless borders..."
                 local_borders = (duration, local_shape - duration)
+                print is_first, is_last, padding, local_borders
 
                 idx = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes = numpy.compress(idx, all_peaktimes)

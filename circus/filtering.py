@@ -156,7 +156,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_first = data_file_in.is_first_chunk(gidx, nb_chunks)
             is_last = data_file_in.is_last_chunk(gidx, nb_chunks)
 
-            if nb_chunks > 1:
+            if not is_first and is_last:
                 if is_first:
                     padding = (0, duration)
                 elif is_last:
