@@ -492,7 +492,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 # print "Removing the useless borders..."
                 local_borders = (duration, local_shape - duration)
-                print is_first, is_last, padding, local_borders
 
                 idx = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
                 all_peaktimes = numpy.compress(idx, all_peaktimes)
