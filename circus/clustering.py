@@ -409,7 +409,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_first = data_file.is_first_chunk(gidx, nb_chunks)
             is_last = data_file.is_last_chunk(gidx, nb_chunks)
 
-            if not is_first and is_last:
+            if not (is_first and is_last):
                 if is_last:
                     padding = (-duration, 0)
                 elif is_first:
