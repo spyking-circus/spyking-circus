@@ -1150,6 +1150,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if not debug: 
                             keys += [
                                 'delta_%s_' % p + str(ielec),
+                                'rho_%s_' % p + str(ielec),
                             ]
 
                         for key in keys:

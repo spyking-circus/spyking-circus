@@ -1214,9 +1214,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         supports = load_data(params, 'supports')
     else:
         supports = {}
-        for t in range(n_e):
-            elecs = numpy.take(inv_nodes, edges[nodes[t]])
-            supports[t] = elecs
+        supports = numpy.zeros((nb_temp, n_e), dtype=numpy.bool)
+        for t in range(nb_temp):
+            elecs = numpy.take(inv_nodes, edges[nodes[best_elec[t]]])
+            supports[t, elecs] = True
 
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
@@ -1240,12 +1241,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
         k = sorted_temp[k]
         overlap_k = c_overs[k]
-
-        if has_support:
-            electrodes = numpy.where(supports[k])[0]
-        else:
-            electrodes = numpy.take(inv_nodes, edges[nodes[best_elec[k]]])
-
+        electrodes = numpy.where(supports[k])[0]
         candidates = {}
         for t1 in range(nb_temp):
             candidates[t1] = []
