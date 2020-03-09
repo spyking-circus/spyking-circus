@@ -5,6 +5,8 @@ Release 0.9.6
 * fixes in the smart search (not all rare cases were covered in 0.9.5)
 * fix a bug if multi file is activated with very small chunks
 * speeding up the estimation of the templates: less snippets, closer to centroids
+* speeding up the estimation of the amplitudes: less noise snippets
+* number of bins is adapted during the smart search as function of noise levels
 
 =============
 Release 0.9.5
