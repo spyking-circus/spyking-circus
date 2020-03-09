@@ -84,7 +84,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
-    nb_ss_bins = params.getint('clustering', 'nb_ss_bins')
+    nb_ss_bins = params.get('clustering', 'nb_ss_bins')
+    if nb_ss_bins != 'auto':
+        nb_ss_bins = int(nb_ss_bins)
     max_nb_rand_ss = params.getint('clustering', 'nb_ss_rand')
     nb_snippets = params.getint('clustering', 'nb_snippets')
     use_hanning = params.getboolean('detection', 'hanning')
@@ -323,8 +325,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_%s_' % p + str(i)] = [numpy.zeros(0, dtype=numpy.float32)]
                     result['nb_chunks_%s_' % p + str(i)] = numpy.zeros(1, dtype=numpy.int32)
                     result['count_%s_' % p + str(i)] = 0
-                    result['hist_%s_' % p + str(i)] = numpy.zeros(nb_ss_bins, dtype=numpy.float32)
+                    result['hist_%s_' % p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
                     result['bounds_%s_' % p + str(i)] = numpy.zeros(2, dtype=numpy.float32)
+                    result['nb_ss_bins_%s_' % p + str(i)] = numpy.zeros(1, dtype=numpy.int32)
            
             if gpass == 1:
                 n_neighb = len(edges[nodes[i]])
@@ -338,6 +341,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
                     result['bounds_%s_' % p + str(i)] = \
                         comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                    result['nb_ss_bins_%s_' % p + str(i)] = \
+                        comm.bcast(result['nb_ss_bins_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
 
                     if smart_searches[p][i]:
                         result['bin_size_%s_' % p + str(i)] = \
@@ -702,7 +707,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     if ext_amp < result['bounds_%s_' % loc_peak + str(elec)][1]:
                                                         idx_2 = 0
                                                     elif ext_amp > result['bounds_%s_' % loc_peak + str(elec)][-2]:
-                                                        idx_2 = nb_ss_bins - 1
+                                                        idx_2 = result['nb_ss_bins_%s_' % loc_peak + str(elec)] - 1
                                                     else:
                                                         tmp = (ext_amp - result['bounds_%s_' % loc_peak + str(elec)][1]) \
                                                             /result['bin_size_%s_' % loc_peak + str(elec)]
@@ -928,6 +933,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ratio = nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
+                        if nb_ss_bins == 'auto':
+                            nb_ss_bins = int(numpy.abs(ampmin - ampmax)/0.1*stds[ielec])
+                            print nb_ss_bins
                         if p == 'pos':
                             if matched_filter:
                                 bound = matched_thresholds_pos[ielec]
@@ -972,6 +980,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b
+                        if nb_ss_bins == 'auto':
+                            result['nb_ss_bins_%s_' % p + str(ielec)] = nb_ss_bins
 
                         if debug_plots not in ['None', '']:
                             save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
