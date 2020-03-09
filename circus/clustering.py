@@ -337,12 +337,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ]
                     result['count_%s_' % p + str(i)] = 0
 
-                    result['hist_%s_' % p + str(i)] = \
-                        comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
-                    result['bounds_%s_' % p + str(i)] = \
-                        comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
-                    result['nb_ss_bins_%s_' % p + str(i)] = \
-                        comm.bcast(result['nb_ss_bins_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                    if smart_search:
+                        result['hist_%s_' % p + str(i)] = \
+                            comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                        result['bounds_%s_' % p + str(i)] = \
+                            comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                        result['nb_ss_bins_%s_' % p + str(i)] = \
+                            comm.bcast(result['nb_ss_bins_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
 
                     if smart_searches[p][i]:
                         result['bin_size_%s_' % p + str(i)] = \
@@ -1303,7 +1304,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     electrodes[g_count] = ielec
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
 
-                    labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+                    if fine_amplitude:
+                        data = result['sub_%s_' % p + str(ielec)][myslice]
+                        centroid = numpy.median(data, 0)
+                        centroid = centroid.reshape(1, len(centroid))
+                        distances = \
+                            scipy.spatial.distance.cdist(data, centroid, 'euclidean').flatten()
+                        labels_i = myslice[numpy.argsort(distances)[:nb_snippets]]
+                    else:
+                        labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+
                     times_i = numpy.take(loc_times, labels_i)
                     sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
 
