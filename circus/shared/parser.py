@@ -100,6 +100,7 @@ class CircusParser(object):
                           ['data', 'blosc_compress', 'bool', 'False'],
                           ['data', 'is_cluster', 'bool', 'False'],
                           ['data', 'shared_memory', 'bool', 'True'],
+                          ['data', 'status_bars', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '10'],

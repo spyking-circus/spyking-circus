@@ -7,6 +7,7 @@ Release 0.9.6
 * speeding up the estimation of the templates: less snippets, closer to centroids
 * speeding up the estimation of the amplitudes: less noise snippets
 * number of bins is adapted during the smart search as function of noise levels
+* add the possibility to hide the status bars (for SpikeInterface logs)
 
 =============
 Release 0.9.5

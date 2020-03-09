@@ -149,7 +149,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         data_file_in.open(mode='r+')
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         for count, gidx in enumerate(to_explore):
 
@@ -257,7 +257,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(to_write, 'default', logger)
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
-            local_labels = get_tqdm_progressbar(local_labels)
+            local_labels = get_tqdm_progressbar(params, local_labels)
 
         comm.Barrier()
         # First we need to get the average artefacts
@@ -340,7 +340,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_write = ["Removing artefacts from %d stimuli" % nb_stimuli]
             print_and_log(to_write, 'default', logger)
-            all_times = get_tqdm_progressbar(all_times)
+            all_times = get_tqdm_progressbar(params, all_times)
 
         comm.Barrier()
 

@@ -4,7 +4,7 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
-from circus.shared.probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_gand_edges
 from circus.shared.parser import CircusParser
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.mpi import detect_memory
@@ -353,7 +353,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
 
     # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     # Open the file for collective I/O.
     # g = myfile.Open(comm, file_name, MPI.MODE_RDWR)

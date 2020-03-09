@@ -399,7 +399,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_noise = 0
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         comm.Barrier()
         # # Random selection of spikes
@@ -920,7 +920,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if (comm.rank == 0) and gpass == nb_repeats:
             print_and_log(["Running density-based clustering..."], 'default', logger)
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         for ielec in to_explore:
 
@@ -1270,7 +1270,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_explore = range(comm.rank, n_e, comm.size)
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         for ielec in to_explore:
 

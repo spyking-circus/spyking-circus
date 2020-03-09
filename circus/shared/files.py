@@ -1492,7 +1492,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     to_explore = range(nb_threads)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     # For each thread/process collect data.
     for count, node in enumerate(to_explore):
@@ -1716,7 +1716,7 @@ def collect_mua(nb_threads, params, erase=False):
     to_explore = range(nb_threads)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     # For each thread/process collect data.
     for count, node in enumerate(to_explore):
@@ -1911,7 +1911,7 @@ def get_overlaps(
     if comm.rank == 0:
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" % cuda_string], 'default', logger)
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(parms, to_explore)
 
     over_x = [numpy.zeros(0, dtype=numpy.uint32)]
     over_y = [numpy.zeros(0, dtype=numpy.uint32)]

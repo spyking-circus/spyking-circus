@@ -291,7 +291,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         to_explore = range(comm.rank, nb_templates, comm.size)
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_explore):

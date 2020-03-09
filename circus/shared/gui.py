@@ -534,7 +534,7 @@ class MergeWindow(QMainWindow):
 
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(self.params, to_explore)
             if self.app is not None:
                 self.ui.label_nb_templates.setText("# templates: %d" % len(self.to_consider))
 
