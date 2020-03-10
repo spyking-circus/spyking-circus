@@ -613,9 +613,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if not is_noise:
 
                                     if isolation and gpass <= 1:
-
+                                        
                                         time_slice = numpy.arange(min_times[midx], max_times[midx])
-                                        vicinity_extremas, vicinity_peaks = numpy.where(test_extremas[indices, time_slice])
+                                        vicinity_extremas, vicinity_peaks = numpy.where(test_extremas[indices, min_times[midx]:max_times[midx]])
                                         vicinity_extremas = indices[vicinity_extremas]
                                         vicinity_peaks = time_slice[vicinity_peaks]
 
