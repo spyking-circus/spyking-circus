@@ -836,7 +836,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     max_snippets = 250
     sparse_snippets = False
-    max_noise_snippets = 10000 // N_e
+    max_noise_snippets = min(max_snippets, 10000 // N_e)
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
