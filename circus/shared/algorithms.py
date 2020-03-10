@@ -836,6 +836,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     max_snippets = 250
     sparse_snippets = False
+    max_noise_snippets = min(max_snippets, 10000 // N_e)
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -864,7 +865,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     all_elec = numpy.arange(comm.rank, N_e, comm.size)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(all_temp)
+        to_explore = get_tqdm_progressbar(params, all_temp)
     else:
         to_explore = all_temp
 
@@ -924,7 +925,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         noise_amplitudes[i] = [numpy.zeros(0, dtype=numpy.float32)]
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(all_elec)
+        to_explore = get_tqdm_progressbar(params, all_elec)
     else:
         to_explore = all_elec
 
@@ -934,7 +935,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         sindices = inv_nodes[shank_nodes]
 
         idx = len(times)
-        idx_i = numpy.random.permutation(idx)[:max_snippets]
+        idx_i = numpy.random.permutation(idx)[:max_noise_snippets]
         times_i = times[idx_i]
         labels_i = numpy.zeros(idx)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
@@ -1235,7 +1236,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     to_explore = range(comm.rank, nb_temp, comm.size)
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     for count, k in enumerate(to_explore):
 

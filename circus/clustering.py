@@ -84,7 +84,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
-    nb_ss_bins = params.getint('clustering', 'nb_ss_bins')
+    nb_ss_bins = params.get('clustering', 'nb_ss_bins')
+    if nb_ss_bins != 'auto':
+        nb_ss_bins = int(nb_ss_bins)
     max_nb_rand_ss = params.getint('clustering', 'nb_ss_rand')
     nb_snippets = params.getint('clustering', 'nb_snippets')
     use_hanning = params.getboolean('detection', 'hanning')
@@ -323,8 +325,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     result['tmp_%s_' % p + str(i)] = [numpy.zeros(0, dtype=numpy.float32)]
                     result['nb_chunks_%s_' % p + str(i)] = numpy.zeros(1, dtype=numpy.int32)
                     result['count_%s_' % p + str(i)] = 0
-                    result['hist_%s_' % p + str(i)] = numpy.zeros(nb_ss_bins, dtype=numpy.float32)
+                    result['hist_%s_' % p + str(i)] = numpy.zeros(0, dtype=numpy.float32)
                     result['bounds_%s_' % p + str(i)] = numpy.zeros(2, dtype=numpy.float32)
+                    result['nb_ss_bins_%s_' % p + str(i)] = numpy.zeros(1, dtype=numpy.int32)
            
             if gpass == 1:
                 n_neighb = len(edges[nodes[i]])
@@ -334,10 +337,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ]
                     result['count_%s_' % p + str(i)] = 0
 
-                    result['hist_%s_' % p + str(i)] = \
-                        comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
-                    result['bounds_%s_' % p + str(i)] = \
-                        comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                    if smart_search:
+                        result['hist_%s_' % p + str(i)] = \
+                            comm.bcast(result['hist_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                        result['bounds_%s_' % p + str(i)] = \
+                            comm.bcast(result['bounds_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
+                        result['nb_ss_bins_%s_' % p + str(i)] = \
+                            comm.bcast(result['nb_ss_bins_%s_' % p + str(i)], root=numpy.mod(i, comm.size))
 
                     if smart_searches[p][i]:
                         result['bin_size_%s_' % p + str(i)] = \
@@ -393,7 +399,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_noise = 0
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         comm.Barrier()
         # # Random selection of spikes
@@ -430,8 +436,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     )
 
                 # Extracting the peaks.
-                all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
-                all_extremas = [numpy.empty(0, dtype=numpy.uint32)]
+                found_peaktimes = []
+
+                # print "Removing the useless borders..."
+                local_borders = (duration, local_shape - duration)
 
                 if matched_filter:
 
@@ -445,9 +453,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
-                            all_peaktimes.append(peaktimes)
-                            extremas = i * numpy.ones(len(peaktimes), dtype=numpy.uint32)
-                            all_extremas.append(extremas)
+
+                            idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                            found_peaktimes.append(peaktimes[idx])
 
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(
@@ -459,10 +467,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
-                            all_peaktimes.append(peaktimes)
-                            extremas = i * numpy.ones(len(peaktimes), dtype=numpy.uint32)
-                            all_extremas.append(extremas)
 
+                            idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                            found_peaktimes.append(peaktimes[idx])
                 else:
 
                     for i in range(n_e):
@@ -482,20 +489,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             )[0]
                         else:
                             peaktimes = numpy.empty(0, dtype=numpy.uint32)
-                        peaktimes.astype(numpy.uint32)
-                        all_peaktimes.append(peaktimes)
-                        extremas = i * numpy.ones(len(peaktimes), dtype=numpy.uint32)
-                        all_extremas.append(extremas)
+                        peaktimes = peaktimes.astype(numpy.uint32)
 
-                all_peaktimes = numpy.concatenate(all_peaktimes)  # i.e. concatenate once for efficiency
-                all_extremas = numpy.concatenate(all_extremas)  # i.e. concatenate once for efficiency
+                        idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                        found_peaktimes.append(peaktimes[idx])
 
-                # print "Removing the useless borders..."
-                local_borders = (duration, local_shape - duration)
-
-                idx = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
-                all_peaktimes = numpy.compress(idx, all_peaktimes)
-                all_extremas = numpy.compress(idx, all_extremas)
+                all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset = t_offset + padding[0]
@@ -518,10 +517,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if len(local_peaktimes) > 0:
 
-                    diff_times = local_peaktimes[-1]-local_peaktimes[0]
+                    diff_times = local_peaktimes[-1] - local_peaktimes[0]
                     all_times = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
                     min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
                     max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
+
+                    if isolation:
+                        test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                        for i in range(n_e):
+                            test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
                     n_times = len(local_peaktimes)
                     argmax_peak = numpy.random.permutation(numpy.arange(n_times))
@@ -594,13 +598,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             if not myslice.any():
 
-                                sub_mat = numpy.take(
-                                    local_chunk[peak - duration:peak + duration + 1], indices, axis=1
-                                )
-
                                 # # test if the sample is pure Gaussian noise
                                 if reject_noise:
-                                    slice_window = sub_mat[duration - noise_window: duration + noise_window]
+
+                                    slice_window = local_chunk[peak - noise_window: peak + noise_window, indices]
                                     values = \
                                         numpy.linalg.norm(slice_window, axis=0) / noise_levels[indices]
                                     is_noise = numpy.all(
@@ -612,14 +613,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if not is_noise:
 
                                     if isolation and gpass <= 1:
-
-                                        nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
-                                        vicinity_peaks = all_peaktimes[nearby_peaks]
-                                        vicinity_extremas = all_extremas[nearby_peaks]
-
-                                        nearby = numpy.in1d(vicinity_extremas, indices)
-                                        vicinity_peaks = vicinity_peaks[nearby]
-                                        vicinity_extremas = vicinity_extremas[nearby]
+                                        
+                                        time_slice = numpy.arange(min_times[midx], max_times[midx])
+                                        vicinity_extremas, vicinity_peaks = numpy.where(test_extremas[indices, min_times[midx]:max_times[midx]])
+                                        vicinity_extremas = indices[vicinity_extremas]
+                                        vicinity_peaks = local_peaktimes[0] + time_slice[vicinity_peaks]
 
                                         to_consider = local_chunk[vicinity_peaks, vicinity_extremas]
 
@@ -631,6 +629,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 is_isolated = False
 
                                     if is_isolated:
+
+                                        sub_mat = numpy.take(
+                                            local_chunk[peak - duration:peak + duration + 1], indices, axis=1
+                                        )
 
                                         if alignment:
 
@@ -702,7 +704,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     if ext_amp < result['bounds_%s_' % loc_peak + str(elec)][1]:
                                                         idx_2 = 0
                                                     elif ext_amp > result['bounds_%s_' % loc_peak + str(elec)][-2]:
-                                                        idx_2 = nb_ss_bins - 1
+                                                        idx_2 = result['nb_ss_bins_%s_' % loc_peak + str(elec)] - 1
                                                     else:
                                                         tmp = (ext_amp - result['bounds_%s_' % loc_peak + str(elec)][1]) \
                                                             /result['bin_size_%s_' % loc_peak + str(elec)]
@@ -733,8 +735,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                         sub_mat *= hanning_filter
 
                                                     sub_mat = numpy.dot(basis['rec_%s' % loc_peak], sub_mat)
-                                                    nx, ny = sub_mat.shape
-                                                    sub_mat = sub_mat.reshape((1, nx * ny))
+                                                    sub_mat = sub_mat.reshape((1, result['data_%s_' % loc_peak + str(elec)][0].shape[1]))
                                                     # result['data_%s_' % loc_peak + str(elec)] = numpy.vstack((
                                                     #     result['data_%s_' % loc_peak + str(elec)],
                                                     #     sub_mat
@@ -747,8 +748,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat *= hanning_filter
 
                                                 sub_mat = numpy.dot(basis['rec_%s' % loc_peak], sub_mat)
-                                                nx, ny = sub_mat.shape
-                                                sub_mat = sub_mat.reshape((1, nx * ny))
+                                                sub_mat = sub_mat.reshape((1, result['pca_%s_' % loc_peak + str(elec)].shape[0]))
                                                 sub_mat = numpy.dot(
                                                     sub_mat, result['pca_%s_' % loc_peak + str(elec)]
                                                 )
@@ -914,7 +914,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if (comm.rank == 0) and gpass == nb_repeats:
             print_and_log(["Running density-based clustering..."], 'default', logger)
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         for ielec in to_explore:
 
@@ -928,16 +928,23 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ratio = nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
+                        if nb_ss_bins == 'auto':
+                            try:
+                                local_nb_bin = max(50, int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])))
+                            except Exception:
+                                local_nb_bin = 50
+                        else:
+                            local_nb_bin = nb_ss_bins
                         if p == 'pos':
                             if matched_filter:
                                 bound = matched_thresholds_pos[ielec]
                             else:
                                 bound = thresholds[ielec]
                             if bound < ampmax:
-                                bins = list(numpy.linspace(bound, 1.5 * ampmax, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(bound, 1.5 * ampmax, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                             else:
-                                bins = list(numpy.linspace(bound, bound * 10, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(bound, bound * 10, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                         elif p == 'neg':
                             if matched_filter:
@@ -945,10 +952,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 bound = -thresholds[ielec]
                             if ampmin < bound:
-                                bins = list(numpy.linspace(1.5 * ampmin, bound, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(1.5 * ampmin, bound, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                             else:
-                                bins = list(numpy.linspace(10 * bound, bound, nb_ss_bins - 1))
+                                bins = list(numpy.linspace(10 * bound, bound, local_nb_bin - 1))
                                 bins = [-numpy.inf] + bins + [numpy.inf]
                         else:
                             raise ValueError("Unexpected value %s" % p)
@@ -972,6 +979,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b
+                        result['nb_ss_bins_%s_' % p + str(ielec)] = local_nb_bin
 
                         if debug_plots not in ['None', '']:
                             save     = [plot_path, '%s_%d.%s' %(p, ielec, make_plots)]
@@ -1259,7 +1267,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_explore = range(comm.rank, n_e, comm.size)
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         for ielec in to_explore:
 
@@ -1294,7 +1302,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     electrodes[g_count] = ielec
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
 
-                    labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+                    if fine_amplitude:
+                        data = result['sub_%s_' % p + str(ielec)][myslice]
+                        centroid = numpy.median(data, 0)
+                        centroid = centroid.reshape(1, len(centroid))
+                        distances = \
+                            scipy.spatial.distance.cdist(data, centroid, 'euclidean').flatten()
+                        labels_i = myslice[numpy.argsort(distances)[:nb_snippets]]
+                    else:
+                        labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+
                     times_i = numpy.take(loc_times, labels_i)
                     sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
 

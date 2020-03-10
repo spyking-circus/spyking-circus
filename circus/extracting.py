@@ -87,7 +87,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     to_explore = all_chunks
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     for gidx in all_chunks:
 
@@ -212,7 +212,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     to_explore = range(comm.rank, N_clusters, comm.size)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     for temp in to_explore:
         n_data = len(result['data_tmp_' + str(temp)])

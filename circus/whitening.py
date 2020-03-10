@@ -372,7 +372,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     upper_bounds = max_elts_elec
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     for gcount, gidx in enumerate(to_explore):
 
