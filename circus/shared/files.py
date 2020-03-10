@@ -1881,8 +1881,6 @@ def get_overlaps(
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
-    cuda_string = 'using %d CPU...' % comm.size
-
     if use_gpu:
         import cudamat as cmt
         if parallel_hdf5:
@@ -1896,9 +1894,6 @@ def get_overlaps(
         cmt.init()
         cmt.cuda_sync_threads()
 
-    if use_gpu:
-        cuda_string = 'using %d GPU...' % comm.size
-
     all_delays = numpy.arange(1, N_t + 1)
 
     if half:
@@ -1910,7 +1905,7 @@ def get_overlaps(
 
     if comm.rank == 0:
         if verbose:
-            print_and_log(["Pre-computing the overlaps of templates %s" % cuda_string], 'default', logger)
+            print_and_log(["Pre-computing the overlaps of templates..."], 'default', logger)
         to_explore = get_tqdm_progressbar(params, to_explore)
 
     over_x = [numpy.zeros(0, dtype=numpy.uint32)]
