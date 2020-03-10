@@ -34,6 +34,29 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.9.6
+=============
+
+* fixes in the smart search (not all rare cases were covered in 0.9.5)
+* fix a bug if multi file is activated with very small chunks
+* speeding up the estimation of the templates: less snippets, closer to centroids
+* speeding up the estimation of the amplitudes: less noise snippets
+* speeding up isolation step during the smart search
+* number of bins is adapted during the smart search as function of noise levels
+* add the possibility to hide the status bars (for SpikeInterface logs)
+
+=============
+Release 0.9.5
+=============
+
+* speeding up the optimization of the amplitudes with MPI
+* speeding up the processing of numpy datafiles (SpikeInterface)
+* speeding up the smart search step (pre-generation of random numbers)
+* speeding up the clustering step
+* fix a bug while filtering in the preview mode introduced in 0.9.2
+* speeding up the fitting step
+
+=============
 Release 0.9.4
 =============
 
