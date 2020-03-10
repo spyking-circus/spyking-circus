@@ -600,13 +600,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             if not myslice.any():
 
-                                sub_mat = numpy.take(
-                                    local_chunk[peak - duration:peak + duration + 1], indices, axis=1
-                                )
-
                                 # # test if the sample is pure Gaussian noise
                                 if reject_noise:
-                                    slice_window = sub_mat[duration - noise_window: duration + noise_window]
+
+                                    slice_window = local_chunk[peak - noise_window: peak + noise_window, indices]
                                     values = \
                                         numpy.linalg.norm(slice_window, axis=0) / noise_levels[indices]
                                     is_noise = numpy.all(
@@ -637,6 +634,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 is_isolated = False
 
                                     if is_isolated:
+
+                                        sub_mat = numpy.take(
+                                            local_chunk[peak - duration:peak + duration + 1], indices, axis=1
+                                        )
 
                                         if alignment:
 
