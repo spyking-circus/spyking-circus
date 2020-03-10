@@ -740,8 +740,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                         sub_mat *= hanning_filter
 
                                                     sub_mat = numpy.dot(basis['rec_%s' % loc_peak], sub_mat)
-                                                    nx, ny = sub_mat.shape
-                                                    sub_mat = sub_mat.reshape((1, nx * ny))
+                                                    sub_mat = sub_mat.reshape((1, result['data_%s_' % loc_peak + str(elec)][0].shape[1]))
                                                     # result['data_%s_' % loc_peak + str(elec)] = numpy.vstack((
                                                     #     result['data_%s_' % loc_peak + str(elec)],
                                                     #     sub_mat
@@ -754,8 +753,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat *= hanning_filter
 
                                                 sub_mat = numpy.dot(basis['rec_%s' % loc_peak], sub_mat)
-                                                nx, ny = sub_mat.shape
-                                                sub_mat = sub_mat.reshape((1, nx * ny))
+                                                sub_mat = sub_mat.reshape((1, result['pca_%s_' % loc_peak + str(elec)].shape[0]))
                                                 sub_mat = numpy.dot(
                                                     sub_mat, result['pca_%s_' % loc_peak + str(elec)]
                                                 )
