@@ -436,8 +436,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     )
 
                 # Extracting the peaks.
-                all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
-                all_extremas = [numpy.empty(0, dtype=numpy.uint32)]
+                found_peaktimes = []
+
+                # print "Removing the useless borders..."
+                local_borders = (duration, local_shape - duration)
 
                 if matched_filter:
 
@@ -451,9 +453,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
-                            all_peaktimes.append(peaktimes)
-                            extremas = i * numpy.ones(len(peaktimes), dtype=numpy.uint32)
-                            all_extremas.append(extremas)
+
+                            idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                            found_peaktimes.append(peaktimes[idx])
 
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(
@@ -465,10 +467,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
-                            all_peaktimes.append(peaktimes)
-                            extremas = i * numpy.ones(len(peaktimes), dtype=numpy.uint32)
-                            all_extremas.append(extremas)
 
+                            idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                            found_peaktimes.append(peaktimes[idx])
                 else:
 
                     for i in range(n_e):
@@ -488,20 +489,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             )[0]
                         else:
                             peaktimes = numpy.empty(0, dtype=numpy.uint32)
-                        peaktimes.astype(numpy.uint32)
-                        all_peaktimes.append(peaktimes)
-                        extremas = i * numpy.ones(len(peaktimes), dtype=numpy.uint32)
-                        all_extremas.append(extremas)
+                        peaktimes = peaktimes.astype(numpy.uint32)
 
-                all_peaktimes = numpy.concatenate(all_peaktimes)  # i.e. concatenate once for efficiency
-                all_extremas = numpy.concatenate(all_extremas)  # i.e. concatenate once for efficiency
+                        idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                        found_peaktimes.append(peaktimes[idx])
 
-                # print "Removing the useless borders..."
-                local_borders = (duration, local_shape - duration)
-
-                idx = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
-                all_peaktimes = numpy.compress(idx, all_peaktimes)
-                all_extremas = numpy.compress(idx, all_extremas)
+                all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset = t_offset + padding[0]
@@ -524,10 +517,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if len(local_peaktimes) > 0:
 
-                    diff_times = local_peaktimes[-1]-local_peaktimes[0]
+                    diff_times = local_peaktimes[-1] - local_peaktimes[0]
                     all_times = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
                     min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
                     max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
+
+                    if isolation:
+                        test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                        for i in range(n_e):
+                            test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
                     n_times = len(local_peaktimes)
                     argmax_peak = numpy.random.permutation(numpy.arange(n_times))
@@ -616,13 +614,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                     if isolation and gpass <= 1:
 
-                                        nearby_peaks = numpy.abs(all_peaktimes - peak) < safety_time
-                                        vicinity_peaks = all_peaktimes[nearby_peaks]
-                                        vicinity_extremas = all_extremas[nearby_peaks]
-
-                                        nearby = numpy.in1d(vicinity_extremas, indices)
-                                        vicinity_peaks = vicinity_peaks[nearby]
-                                        vicinity_extremas = vicinity_extremas[nearby]
+                                        time_slice = numpy.arange(min_times[midx], max_times[midx])
+                                        vicinity_extremas, vicinity_peaks = numpy.where(test_extremas[indices, time_slice])
+                                        vicinity_extremas = indices[vicinity_extremas]
+                                        vicinity_peaks = time_slice[vicinity_peaks]
 
                                         to_consider = local_chunk[vicinity_peaks, vicinity_extremas]
 
