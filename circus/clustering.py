@@ -617,7 +617,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                         time_slice = numpy.arange(min_times[midx], max_times[midx])
                                         vicinity_extremas, vicinity_peaks = numpy.where(test_extremas[indices, min_times[midx]:max_times[midx]])
                                         vicinity_extremas = indices[vicinity_extremas]
-                                        vicinity_peaks = time_slice[vicinity_peaks]
+                                        vicinity_peaks = local_peaktimes[0] + time_slice[vicinity_peaks]
 
                                         to_consider = local_chunk[vicinity_peaks, vicinity_extremas]
 
