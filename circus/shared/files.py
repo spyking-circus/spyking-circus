@@ -1911,7 +1911,7 @@ def get_overlaps(
     if comm.rank == 0:
         if verbose:
             print_and_log(["Pre-computing the overlaps of templates %s" % cuda_string], 'default', logger)
-        to_explore = get_tqdm_progressbar(parms, to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     over_x = [numpy.zeros(0, dtype=numpy.uint32)]
     over_y = [numpy.zeros(0, dtype=numpy.uint32)]
