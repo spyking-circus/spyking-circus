@@ -1182,12 +1182,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-    decimation = params.getboolean('clustering', 'decimation')
     has_support = test_if_support(params, '')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
-        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation
+        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=False
     )
     overlap.close()
 
@@ -1266,8 +1265,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                 V[0, 0] = overlap_k[i, distances[k, i]]
                 for j in candidates[i]:
                     t_j = None
-                    value = offset + (distances[k, i] - distances[k, j])
-                    value = numpy.clip(value, 0, 2*offset)
+                    value = (distances[k, i] - distances[k, j])//2 + offset
                     M[1, 1] = overlap_0[j]
                     M[1, 0] = overlap_i[j, value]
                     M[0, 1] = M[1, 0]
