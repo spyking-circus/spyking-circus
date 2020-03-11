@@ -1290,7 +1290,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         new_template = (a1 * t_i + a2 * t_j)
                         similarity = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
-                        if similarity > cc_merge:
+                        if similarity > cc_merge and local_overlap < 0.5:
                             if k not in mixtures:
                                 mixtures += [k]
                                 been_found = True
