@@ -9,7 +9,7 @@ import re
 
 requires = [
     'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
-    'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn'
+    'psutil', 'tqdm', 'blosc', 'statsmodels', 'scikit-learn', 'cmake', 'scikit-build'
 ]
 
 
