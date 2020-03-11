@@ -1251,7 +1251,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
             if t1 != k:
                 for count, t2 in enumerate(range(t1, nb_temp)):
                     is_candidate = masks[count]
-                    if is_candidate and t2 != k:
+                    if is_candidate and t2 != k and t2 != t1:
                         candidates[t1] += [t2]
 
         been_found = False
@@ -1265,8 +1265,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                 V[0, 0] = overlap_k[i, distances[k, i]]
                 for j in candidates[i]:
                     t_j = None
+                    value = offset + (distances[k, i] - distances[k, j])
+                    value = numpy.clip(value, 0, 2*offset)
                     M[1, 1] = overlap_0[j]
-                    M[1, 0] = overlap_i[j, distances[k, i] - distances[k, j]]
+                    M[1, 0] = overlap_i[j, value]
                     M[0, 1] = M[1, 0]
                     V[1, 0] = overlap_k[j, distances[k, j]]
                     try:
