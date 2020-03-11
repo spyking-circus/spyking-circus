@@ -120,8 +120,10 @@ class DistanceMatrix(object):
             nearest_index = numpy.argmin(higher_rho_distances)
             nearest_higher_rho_indices[index] = higher_rho_indices[nearest_index]
             nearest_higher_rho_distances[index] = higher_rho_distances[nearest_index]
+
         if len(indices) > 1:
             nearest_higher_rho_distances[indices[0]] = numpy.max(nearest_higher_rho_distances[indices[1:]])
+            nearest_higher_rho_distances[numpy.isinf(nearest_higher_rho_distances)] = 0
 
         return nearest_higher_rho_distances, nearest_higher_rho_indices
 
