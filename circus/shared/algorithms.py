@@ -422,6 +422,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
     template_shift = params.getint('detection', 'template_shift')
     has_support = test_if_support(params, input_extension)
     has_purity = test_if_purity(params, input_extension)
+    fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
@@ -509,7 +510,8 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                     new_limits = old_limits[keep]
                     if has_purity:
                         new_purity = old_purity[keep]
-            limits[count] = new_limits
+            if not fine_amplitude:
+                limits[count] = new_limits
             if has_purity:
                 purity[count] = new_purity
 
