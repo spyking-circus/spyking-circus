@@ -1209,6 +1209,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     x, n_tm = templates.shape
     nb_temp = int(n_tm // 2)
+    offset = n_t - 1
     # merged = [nb_temp, 0]  # TODO remove (not used)?
 
     if has_support:
