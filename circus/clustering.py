@@ -1385,14 +1385,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         supports[g_count, to_keep] = True
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
-                        distance = \
-                        min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
-                        noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
-                        amp_min = center - min([dispersion[0] * variation, noise_limit])
-
                         if fine_amplitude:
+                            amp_min = center - dispersion[1] * variation
                             amp_max = center + dispersion[1] * variation
                         else:
+                            distance = \
+                            min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
+                            noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
+                            amp_min = center - min([dispersion[0] * variation, noise_limit])
                             amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
 
                         amps_lims[g_count] = [amp_min, amp_max]
