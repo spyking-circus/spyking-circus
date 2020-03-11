@@ -1369,8 +1369,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         if fine_amplitude:
-                            amp_min = 0.5
-                            amp_max = 1.5
+                            amp_min = 0.25
+                            amp_max = 1.75
                         else:
                             distance = \
                             min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])

@@ -422,6 +422,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
     template_shift = params.getint('detection', 'template_shift')
     has_support = test_if_support(params, input_extension)
     has_purity = test_if_purity(params, input_extension)
+    fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
@@ -509,7 +510,8 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                     new_limits = old_limits[keep]
                     if has_purity:
                         new_purity = old_purity[keep]
-            limits[count] = new_limits
+            if not fine_amplitude:
+                limits[count] = new_limits
             if has_purity:
                 purity[count] = new_purity
 
@@ -763,14 +765,18 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_x = over_x[idx] - (i * nb_temp + i + 1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i + 1:] = numpy.max(data, 1) / norm
+            distances[i, i + 1:] = numpy.max(data, 1)
             distances[i + 1:, i] = distances[i, i + 1:]
+
+        distances /= norm
 
         # Now we need to sync everything across nodes.
         distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
         if comm.rank == 0:
             distances = distances.reshape(comm.size, nb_temp, nb_temp)
             distances = numpy.sum(distances, 0)
+
+        comm.Barrier()
 
         if comm.rank == 0:
             result = load_data(params, 'clusters')
@@ -1173,7 +1179,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     n_total = params.nb_channels
     n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
-    cc_merge = params.getfloat('clustering', 'cc_mixtures')
+    cc_merge = params.getfloat('clustering', 'cc_merge')
     mixtures = []
     # to_remove = []  # TODO remove (not used)?
 
