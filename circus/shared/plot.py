@@ -233,22 +233,27 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
     ax.set_ylabel("dim. 1")
     ax.set_title(r"$\delta$")
 
-    # Preliminary computations.
-    x = sm.add_constant(rho)
-    model = sm.RLM(delta, x)
-    results = model.fit()
-    difference = delta - results.fittedvalues
-    factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
-    upper = results.fittedvalues + alpha * factor * (1 + results.fittedvalues)
-    z_score = difference - alpha * factor * (1 + results.fittedvalues)
-
     # Putative centroids plot.
     ax = fig.add_subplot(245)
     # # Plot points.
     ax.scatter(rho, delta, s=marker_size, c='k', linewidths=0)
-    # # Plot excluded region.
-    idx = numpy.argsort(rho)
-    ax.fill_between(rho[idx], results.fittedvalues[idx], y2=upper[idx], alpha=0.5, color='r')
+
+    # Preliminary computations.
+    z_score = None
+    try:
+        x = sm.add_constant(rho)
+        model = sm.RLM(delta, x)
+        results = model.fit()
+        difference = delta - results.fittedvalues
+        factor = numpy.median(numpy.abs(difference - numpy.median(difference)))
+        upper = results.fittedvalues + alpha * factor * (1 + results.fittedvalues)
+        z_score = difference - alpha * factor * (1 + results.fittedvalues)
+        # # Plot excluded region.
+        idx = numpy.argsort(rho)
+        ax.fill_between(rho[idx], results.fittedvalues[idx], y2=upper[idx], alpha=0.5, color='r')
+    except Exception:
+        pass
+
     # TODO remove the following commented block (deprecated)?
     # # # Highlight the centroids.
     # m_centers = numpy.where(z_score >= 0)[0]
@@ -271,18 +276,19 @@ def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, al
 
     # Putative centroids plot.
     ax = fig.add_subplot(246)
-    ax.scatter(rho, z_score, s=marker_size, c='k', linewidths=0)
-    # # Highlight the centroids.
-    for i in centers:
-        if halo[i] > -1:
-            color_val = scalar_map.to_rgba(halo[i])
-            ax.scatter([rho[i]], [z_score[i]], s=marker_size, c=color_val, linewidths=0)
-    # # Adjust axis.
-    ax.set_xlim(rho_min, rho_max)
-    # # Add labels.
-    ax.set_xlabel(r"$\rho$")
-    ax.set_ylabel(r"$\epsilon$")
-    ax.set_title("Putative centroids")
+    if z_score is not None:
+        ax.scatter(rho, z_score, s=marker_size, c='k', linewidths=0)
+        # # Highlight the centroids.
+        for i in centers:
+            if halo[i] > -1:
+                color_val = scalar_map.to_rgba(halo[i])
+                ax.scatter([rho[i]], [z_score[i]], s=marker_size, c=color_val, linewidths=0)
+        # # Adjust axis.
+        ax.set_xlim(rho_min, rho_max)
+        # # Add labels.
+        ax.set_xlabel(r"$\rho$")
+        ax.set_ylabel(r"$\epsilon$")
+        ax.set_title("Putative centroids")
 
     try:
         pylab.tight_layout()
