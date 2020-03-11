@@ -1171,7 +1171,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     n_total = params.nb_channels
     n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
-    cc_merge = params.getfloat('clustering', 'cc_merge')
+    cc_merge = params.getfloat('clustering', 'cc_mixtures')
     mixtures = []
     # to_remove = []  # TODO remove (not used)?
 
