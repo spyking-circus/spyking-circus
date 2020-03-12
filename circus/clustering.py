@@ -678,12 +678,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 )
                                                 sub_mat = f(ddata, ydata).astype(numpy.float32)
 
-                                        # if negative_peak:
-                                        #     max_test = \
-                                        #         numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
-                                        # else:
-                                        #     max_test = \
-                                        #         numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
+                                        if negative_peak:
+                                            good_time, good_elec = numpy.unravel_index(numpy.argmin(sub_mat), sub_mat.shape)
+                                        else:
+                                            good_time, good_elec = numpy.unravel_index(numpy.argmax(sub_mat), sub_mat.shape)
+
+                                        shift = template_shift - good_time
+                                        is_centered = np.abs(shift) < (template_shift / 4)
+                                        max_test = (good_elec == elec_positions[elec][0]) and is_centered
 
                                         if max_test:
                                             if gpass == 0:
@@ -694,13 +696,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                                 if smart_searches[loc_peak][elec] > 0:
 
-                                                    # ext_amp = sub_mat[template_shift, elec_positions[elec]]
-                                                    # idx = numpy.searchsorted(
-                                                    #     result['bounds_%s_' % loc_peak + str(elec)], ext_amp,
-                                                    #     side='right'
-                                                    # )
-                                                    # idx = idx - 1
-
                                                     if ext_amp < result['bounds_%s_' % loc_peak + str(elec)][1]:
                                                         idx_2 = 0
                                                     elif ext_amp > result['bounds_%s_' % loc_peak + str(elec)][-2]:
@@ -709,8 +704,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                         tmp = (ext_amp - result['bounds_%s_' % loc_peak + str(elec)][1]) \
                                                             /result['bin_size_%s_' % loc_peak + str(elec)]
                                                         idx_2 = int(tmp) + 1
-
-                                                    #assert idx == idx_2, "%s %s %s" %(ext_amp, idx, idx_2)
 
                                                     hist = result['hist_%s_' % loc_peak + str(elec)][idx_2]
                                                     to_keep = hist < random_numbers[random_count]
@@ -736,10 +729,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                                     sub_mat = numpy.dot(basis['rec_%s' % loc_peak], sub_mat)
                                                     sub_mat = sub_mat.reshape((1, result['data_%s_' % loc_peak + str(elec)][0].shape[1]))
-                                                    # result['data_%s_' % loc_peak + str(elec)] = numpy.vstack((
-                                                    #     result['data_%s_' % loc_peak + str(elec)],
-                                                    #     sub_mat
-                                                    # ))
                                                     result['data_%s_' % loc_peak + str(elec)].append(sub_mat)
 
                                             else:
@@ -753,11 +742,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                     sub_mat, result['pca_%s_' % loc_peak + str(elec)]
                                                 )
                                                 to_accept = True
-                                                # result['tmp_%s_' % loc_peak + str(elec)] = numpy.vstack((
-                                                #     result['tmp_%s_' % loc_peak + str(elec)],
-                                                #     sub_mat
-                                                # ))
                                                 result['tmp_%s_' % loc_peak + str(elec)].append(sub_mat)
+                                        #else:
+                                        #    print "Good test failed", test_extremas[good_elec, midx]
 
                                     if to_accept:
                                         elt_count += 1
@@ -1385,14 +1372,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         supports[g_count, to_keep] = True
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
-                        distance = \
-                        min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
-                        noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
-                        amp_min = center - min([dispersion[0] * variation, noise_limit])
-
                         if fine_amplitude:
-                            amp_max = center + dispersion[1] * variation
+                            amp_min = 0.5
+                            amp_max = 1.5
                         else:
+                            distance = \
+                            min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
+                            noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])
+                            amp_min = center - min([dispersion[0] * variation, noise_limit])
                             amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
 
                         amps_lims[g_count] = [amp_min, amp_max]

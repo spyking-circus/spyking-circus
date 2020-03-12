@@ -120,8 +120,10 @@ class DistanceMatrix(object):
             nearest_index = numpy.argmin(higher_rho_distances)
             nearest_higher_rho_indices[index] = higher_rho_indices[nearest_index]
             nearest_higher_rho_distances[index] = higher_rho_distances[nearest_index]
+
         if len(indices) > 1:
             nearest_higher_rho_distances[indices[0]] = numpy.max(nearest_higher_rho_distances[indices[1:]])
+            nearest_higher_rho_distances[numpy.isinf(nearest_higher_rho_distances)] = 0
 
         return nearest_higher_rho_distances, nearest_higher_rho_indices
 
@@ -420,6 +422,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
     template_shift = params.getint('detection', 'template_shift')
     has_support = test_if_support(params, input_extension)
     has_purity = test_if_purity(params, input_extension)
+    fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
@@ -507,7 +510,10 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                     new_limits = old_limits[keep]
                     if has_purity:
                         new_purity = old_purity[keep]
-            limits[count] = new_limits
+            if not fine_amplitude:
+                limits[count] = new_limits
+            else:
+                limits[count] = [0.5, 1.5]
             if has_purity:
                 purity[count] = new_purity
 
@@ -761,14 +767,18 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_x = over_x[idx] - (i * nb_temp + i + 1)
             data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
             data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i + 1:] = numpy.max(data, 1) / norm
+            distances[i, i + 1:] = numpy.max(data, 1)
             distances[i + 1:, i] = distances[i, i + 1:]
+
+        distances /= norm
 
         # Now we need to sync everything across nodes.
         distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
         if comm.rank == 0:
             distances = distances.reshape(comm.size, nb_temp, nb_temp)
             distances = numpy.sum(distances, 0)
+
+        comm.Barrier()
 
         if comm.rank == 0:
             result = load_data(params, 'clusters')
@@ -1182,12 +1192,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
-    decimation = params.getboolean('clustering', 'decimation')
     has_support = test_if_support(params, '')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
-        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation
+        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=False
     )
     overlap.close()
 
@@ -1209,6 +1218,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     x, n_tm = templates.shape
     nb_temp = int(n_tm // 2)
+    offset = n_t - 1
     # merged = [nb_temp, 0]  # TODO remove (not used)?
 
     if has_support:
@@ -1251,7 +1261,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
             if t1 != k:
                 for count, t2 in enumerate(range(t1, nb_temp)):
                     is_candidate = masks[count]
-                    if is_candidate and t2 != k:
+                    if is_candidate and t2 != k and t2 != t1:
                         candidates[t1] += [t2]
 
         been_found = False
@@ -1265,8 +1275,9 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                 V[0, 0] = overlap_k[i, distances[k, i]]
                 for j in candidates[i]:
                     t_j = None
+                    value = (distances[k, i] - distances[k, j])//2 + offset
                     M[1, 1] = overlap_0[j]
-                    M[1, 0] = overlap_i[j, distances[k, i] - distances[k, j]]
+                    M[1, 0] = overlap_i[j, value]
                     M[0, 1] = M[1, 0]
                     V[1, 0] = overlap_k[j, distances[k, j]]
                     try:
