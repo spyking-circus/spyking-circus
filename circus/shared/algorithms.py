@@ -760,15 +760,22 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
         to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
-
+        res = []
         for i in to_explore:
+            res += [i * nb_temp + i + 1, (i + 1) * nb_temp]
 
-            idx = numpy.where((over_x >= i * nb_temp + i + 1) & (over_x < ((i + 1) * nb_temp)))[0]
-            local_x = over_x[idx] - (i * nb_temp + i + 1)
-            data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-            data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i + 1:] = numpy.max(data, 1)
+        bounds = numpy.searchsorted(over_x, res, 'left')
+
+        for count, i in enumerate(to_explore):
+
+            xmin, xmax = bounds[2*count:2*(count+1)]
+            local_x = over_x[xmin:xmax] - (i * nb_temp + i + 1)
+            local_y = over_y[xmin:xmax]
+            local_data = over_data[xmin:xmax]
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
+            distances[i, i + 1:] = data.max(1).toarray().flatten()
             distances[i + 1:, i] = distances[i, i + 1:]
+            del local_x, local_y, local_data, data
 
         distances /= norm
 
