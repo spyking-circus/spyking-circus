@@ -1966,7 +1966,7 @@ def get_overlaps(
 
     sys.stderr.flush()
     if comm.rank == 0:
-        print_and_log(["Overlaps computed, now gathering data by MPI"], 'info', logger)
+        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
 
     comm.Barrier()
 
@@ -1981,6 +1981,11 @@ def get_overlaps(
             data = gather_array(data, comm, dtype='uint32', compress=blosc_compress)
         else:
             data = gather_array(data, comm, dtype='float32', compress=blosc_compress)
+
+        # We sort by x indices for faster retrieval later
+        if key == 'x':
+            indices = numpy.argsort(data)
+        data = data[indices]
 
         if comm.rank == 0:
             if hdf5_compress:
