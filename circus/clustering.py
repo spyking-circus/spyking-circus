@@ -1608,6 +1608,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         del result
 
+    gc.collect()
     comm.Barrier()
 
     total_nb_clusters = int(io.load_data(params, 'nb_templates') // 2)
@@ -1620,6 +1621,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
 
         comm.Barrier()
+        gc.collect()
 
         if remove_mixture:
             if comm.rank == 0:
@@ -1654,6 +1656,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             normalization=templates_normalization, debug_plots=debug_plots
         )
 
+    gc.collect()
     sys.stderr.flush()
     io.get_overlaps(
         params, erase=True, normalize=templates_normalization, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu

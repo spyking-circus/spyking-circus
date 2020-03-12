@@ -595,17 +595,15 @@ def load_data_memshared(
                         over_x = c_overlap.get('over_x')[:]
                         over_y = c_overlap.get('over_y')[:]
                         over_data = c_overlap.get('over_data')[:]
+                        nb_data = len(over_x)
 
                 c_overlap.close()
 
-                if local_rank == 0:
-                    nb_data = len(over_x)
-
-                long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
 
                 if local_rank == 0:
-                    indices_bytes = long_size * intsize
-                    data_bytes = long_size * floatsize
+                    indices_bytes = nb_data * intsize
+                    data_bytes = nb_data * floatsize
 
                 win_data = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
                 win_indices_x = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
@@ -619,9 +617,9 @@ def load_data_memshared(
                 buf_indices_x = numpy.array(buf_indices_x, dtype='B', copy=False)
                 buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
 
-                data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-                indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(long_size,))
-                indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(long_size,))
+                data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
+                indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(nb_data,))
+                indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(nb_data,))
 
                 sub_comm.Barrier()
 

@@ -9,7 +9,7 @@ Release 0.9.6
 * speeding up isolation step during the smart search
 * improving mixture removal with fine amplitudes
 * removes sklearn from the dependencies
-* restore max_test during clustering to decrease number of templates
+* restore max_test during clustering to decrease number of templates, handling shifts
 * number of bins is adapted during the smart search as function of noise levels
 * add the possibility to hide the status bars (for SpikeInterface logs)
 * fix a rare bug in the clutering, introduced in 0.9.2 (delta set to inf)

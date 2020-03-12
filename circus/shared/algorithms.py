@@ -769,6 +769,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             data[local_x, over_y[idx]] = over_data[idx]
             distances[i, i + 1:] = numpy.max(data, 1)
             distances[i + 1:, i] = distances[i, i + 1:]
+            del local_x, data, idx
 
         distances /= norm
 
