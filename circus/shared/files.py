@@ -8,6 +8,7 @@ import re
 import scipy
 import logging
 import sys
+import gc
 
 import warnings
 with warnings.catch_warnings():
@@ -1989,14 +1990,14 @@ def get_overlaps(
         if key in ['x', 'y']:
             data = gather_array(data, comm, dtype='uint32', compress=blosc_compress)
         else:
-            data = gather_array(data, comm, dtype='float32', compress=blosc_compress)
+            data = gather_array(data, comm, dtype='float32')
 
         # We sort by x indices for faster retrieval later
-        if key == 'x':
-            indices = numpy.argsort(data)
-        data = data[indices]
-
         if comm.rank == 0:
+            if key == 'x':
+                indices = numpy.argsort(data)
+            data = data[indices]
+
             if hdf5_compress:
                 hfile.create_dataset('over_%s' %key, data=data, compression='gzip')
             else:
@@ -2005,9 +2006,11 @@ def get_overlaps(
 
     # We need to gather the sparse arrays.
     if comm.rank == 0:
+        del indices
         hfile.close()
 
     comm.Barrier()
+    gc.collect()
 
     if maxoverlap:
 
@@ -2024,10 +2027,11 @@ def get_overlaps(
         # sub_comm, is_local = get_local_ring(True)
 
         # if is_local:
-        maxlag = numpy.zeros((N_half, N_half), dtype=numpy.int32)
-        maxoverlap = numpy.zeros((N_half, N_half), dtype=numpy.float32)
 
-        to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
+        to_explore = numpy.arange(N_half)[comm.rank::comm.size]
+
+        maxlag = numpy.zeros((len(to_explore), N_half), dtype=numpy.int32)
+        maxoverlap = numpy.zeros((len(to_explore), N_half), dtype=numpy.float32)
 
         res = []
         for i in to_explore:
@@ -2042,26 +2046,40 @@ def get_overlaps(
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_half - (i + 1), over_shape[1]), dtype=numpy.float32)
-            maxoverlap[i, i+1:] = data.max(1).toarray().flatten()
-            maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
-            maxlag[i, i+1:] = N_t - numpy.array(data.argmax(1)).flatten()
-            maxlag[i+1:, i] = -maxlag[i, i+1:]
+            maxoverlap[count, i+1:] = data.max(1).toarray().flatten()
+            #maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+            maxlag[count, i+1:] = N_t - numpy.array(data.argmax(1)).flatten()
+            #maxlag[i+1:, i] = -maxlag[i, i+1:]
             del local_x, local_y, local_data, data
 
         # Now we need to sync everything across nodes.
         maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=blosc_compress)
 
         if comm.rank == 0:
-            maxlag = maxlag.reshape(comm.size, N_half, N_half)
-            maxlag = numpy.sum(maxlag, 0)
+            indices = []
+            for idx in range(comm.size):
+                indices += list(numpy.arange(idx, N_half, comm.size))
+            indices = numpy.argsort(indices)
+
+            maxlag = maxlag[indices, :]
+            maxlag = numpy.maximum(maxlag, maxlag.T)
+            maxlag *= -1*numpy.tril(numpy.ones((N_half, N_half)), -1).astype(numpy.int32)
+        else:
+            del maxlag
 
         maxoverlap = gather_array(maxoverlap, comm, 0, 1, 'float32', compress=blosc_compress)
         if comm.rank == 0:
-            maxoverlap = maxoverlap.reshape(comm.size, N_half, N_half)
-            maxoverlap = numpy.sum(maxoverlap, 0)
+            indices = []
+            for idx in range(comm.size):
+                indices += list(numpy.arange(idx, N_half, comm.size))
+            indices = numpy.argsort(indices)
 
-        # sub_comm.Barrier()
-        # sub_comm.Free()
+            maxoverlap = maxoverlap[indices, :]
+            maxoverlap = numpy.maximum(maxoverlap, maxoverlap.T)
+        else:
+            del maxoverlap
+
+        comm.Barrier()
 
         if comm.rank == 0:
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r+', libver='earliest')
@@ -2082,7 +2100,9 @@ def get_overlaps(
                 myfile2.create_dataset('maxlag',  data=maxlag)
                 myfile2.create_dataset('maxoverlap', data=maxoverlap)
             myfile2.close()
-
+            del maxoverlap, maxlag
+        del over_x, over_y, over_data
     comm.Barrier()
+    gc.collect()
 
     return h5py.File(filename, 'r')

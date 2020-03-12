@@ -757,9 +757,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
             )
 
-        distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
 
-        to_explore = numpy.arange(nb_temp - 1)[comm.rank::comm.size]
+        to_explore = numpy.arange(nb_temp)[comm.rank::comm.size]
+        distances = numpy.zeros((len(to_explore), nb_temp), dtype=numpy.float32)
+
         res = []
         for i in to_explore:
             res += [i * nb_temp + i + 1, (i + 1) * nb_temp]
@@ -773,8 +774,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-            distances[i, i + 1:] = data.max(1).toarray().flatten()
-            distances[i + 1:, i] = distances[i, i + 1:]
+            distances[count, i + 1:] = data.max(1).toarray().flatten()
             del local_x, local_y, local_data, data
 
         distances /= norm
@@ -782,8 +782,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         # Now we need to sync everything across nodes.
         distances = gather_array(distances, comm, 0, 1, 'float32', compress=blosc_compress)
         if comm.rank == 0:
-            distances = distances.reshape(comm.size, nb_temp, nb_temp)
-            distances = numpy.sum(distances, 0)
+            indices = []
+            for idx in range(comm.size):
+                indices += list(numpy.arange(idx, nb_temp, comm.size))
+            indices = numpy.argsort(indices)
+
+            distances = distances[indices, :]
+            distances = numpy.maximum(distances, distances.T)
 
         comm.Barrier()
 

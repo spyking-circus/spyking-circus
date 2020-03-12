@@ -1503,7 +1503,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # We need to gather the sparse arrays.
         temp_x = gather_array(temp_x, comm, dtype='uint32', compress=blosc_compress)
         temp_y = gather_array(temp_y, comm, dtype='uint32', compress=blosc_compress)
-        temp_data = gather_array(temp_data, comm, compress=blosc_compress)
+        temp_data = gather_array(temp_data, comm)
 
         if parallel_hdf5:
             if comm.rank == 0:
@@ -1619,7 +1619,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Merging similar templates..."], 'default', logger)
 
         merged1 = algo.merging_cc(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
-
         comm.Barrier()
         gc.collect()
 
@@ -1629,7 +1628,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
         else:
             merged2 = [0, 0]
-
+        comm.Barrier()
+        gc.collect()
     else:
         merged1 = [0, 0]
         merged2 = [0, 0]
@@ -1655,7 +1655,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu,
             normalization=templates_normalization, debug_plots=debug_plots
         )
-
+    comm.Barrier()
     gc.collect()
     sys.stderr.flush()
     io.get_overlaps(
@@ -1663,4 +1663,5 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     )
 
     comm.Barrier()
+    gc.collect()
     sys.stderr.flush()
