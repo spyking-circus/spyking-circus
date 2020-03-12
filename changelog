@@ -13,6 +13,7 @@ Release 0.9.6
 * number of bins is adapted during the smart search as function of noise levels
 * add the possibility to hide the status bars (for SpikeInterface logs)
 * fix a rare bug in the clutering, introduced in 0.9.2 (delta set to inf)
+* optimize the memory footprint while loading overlaps, faster for large arrays
 
 =============
 Release 0.9.5
