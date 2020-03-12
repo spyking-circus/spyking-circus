@@ -2006,8 +2006,7 @@ def get_overlaps(
         N_half = N_tm // 2
 
         if not SHARED_MEMORY:
-            if comm.rank > 0:
-                over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension)
+            over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension)
         else:
             over_x, over_y, over_data, over_shape = load_data_memshared(
                 params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
@@ -2021,16 +2020,24 @@ def get_overlaps(
 
         to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
 
+        res = []
         for i in to_explore:
+            res += [i * N_tm + i + 1, i * N_tm + N_half]
 
-            idx = numpy.where((over_x >= i*N_tm+i+1) & (over_x < (i*N_tm+N_half)))[0]
-            local_x = over_x[idx] - (i*N_tm+i+1)
-            data = numpy.zeros((N_half - (i + 1), duration), dtype=numpy.float32)
-            data[local_x, over_y[idx]] = over_data[idx]
-            maxlag[i, i+1:] = N_t - numpy.argmax(data, 1)
-            maxlag[i+1:, i] = -maxlag[i, i+1:]
-            maxoverlap[i, i+1:] = numpy.max(data, 1)
+        bounds = numpy.searchsorted(over_x, res, 'left')
+
+        for count, i in enumerate(to_explore):
+
+            xmin, xmax = bounds[2*count:2*(count+1)]
+            local_x = over_x[xmin:xmax] - (i * N_tm + i + 1)
+            local_y = over_y[xmin:xmax]
+            local_data = over_data[xmin:xmax]
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_half - (i + 1), over_shape[1]), dtype=numpy.float32)
+            maxoverlap[i, i+1:] = data.max(1).toarray().flatten()
             maxoverlap[i+1:, i] = maxoverlap[i, i+1:]
+            maxlag[i, i+1:] = N_t - numpy.array(data.argmax(1)).flatten()
+            maxlag[i+1:, i] = -maxlag[i, i+1:]
+            del local_x, local_y, local_data, data
 
         # Now we need to sync everything across nodes.
         maxlag = gather_array(maxlag, comm, 0, 1, 'int32', compress=blosc_compress)
