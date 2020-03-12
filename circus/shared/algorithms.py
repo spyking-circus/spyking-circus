@@ -513,7 +513,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             if not fine_amplitude:
                 limits[count] = new_limits
             else:
-                limits[count] = [0.25, 1.75]
+                limits[count] = [0.5, 1.5]
             if has_purity:
                 purity[count] = new_purity
 

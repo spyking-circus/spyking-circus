@@ -679,11 +679,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 sub_mat = f(ddata, ydata).astype(numpy.float32)
 
                                         if negative_peak:
-                                            max_test = \
-                                                numpy.argmin(sub_mat[template_shift]) == elec_positions[elec][0]
+                                            good_time, good_elec = numpy.unravel_index(numpy.argmin(sub_mat), sub_mat.shape)
                                         else:
-                                            max_test = \
-                                                numpy.argmax(sub_mat[template_shift]) == elec_positions[elec][0]
+                                            good_time, good_elec = numpy.unravel_index(numpy.argmax(sub_mat), sub_mat.shape)
+
+                                        shift = template_shift - good_time
+                                        is_centered = np.abs(shift) < (template_shift / 4)
+                                        max_test = (good_elec == elec_positions[elec][0]) and is_centered
 
                                         if max_test:
                                             if gpass == 0:
@@ -741,6 +743,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                                 )
                                                 to_accept = True
                                                 result['tmp_%s_' % loc_peak + str(elec)].append(sub_mat)
+                                        #else:
+                                        #    print "Good test failed", test_extremas[good_elec, midx]
 
                                     if to_accept:
                                         elt_count += 1
@@ -1369,8 +1373,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         if fine_amplitude:
-                            amp_min = 0.25
-                            amp_max = 1.75
+                            amp_min = 0.5
+                            amp_max = 1.5
                         else:
                             distance = \
                             min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
