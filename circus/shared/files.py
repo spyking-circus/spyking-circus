@@ -1906,9 +1906,11 @@ def get_overlaps(
             print_and_log(["Pre-computing the overlaps of templates..."], 'default', logger)
         to_explore = get_tqdm_progressbar(params, to_explore)
 
-    over_x = [numpy.zeros(0, dtype=numpy.uint32)]
-    over_y = [numpy.zeros(0, dtype=numpy.uint32)]
-    over_data = [numpy.zeros(0, dtype=numpy.float32)]
+    overlaps = {}
+    overlaps['x'] = [numpy.zeros(0, dtype=numpy.uint32)]
+    overlaps['y'] = [numpy.zeros(0, dtype=numpy.uint32)]
+    overlaps['data'] = [numpy.zeros(0, dtype=numpy.float32)]
+    overlaps['steps'] = []
     rows = numpy.arange(N_e*N_t)
     _srows = {'left': {}, 'right': {}}
 
@@ -1954,41 +1956,41 @@ def get_overlaps(
                 ddx = numpy.take(local_idx, dx).astype(numpy.uint32)
                 ddy = numpy.take(to_consider, dy).astype(numpy.uint32)
                 ones = numpy.ones(len(dx), dtype=numpy.uint32)
-                over_x.append(ddx*N_tm + ddy)
-                over_y.append((idelay - 1)*ones)
-                over_data.append(data.data)
+                overlaps['x'].append(ddx*N_tm + ddy)
+                overlaps['y'].append((idelay - 1)*ones)
+                overlaps['data'].append(data.data)
                 if idelay < N_t:
-                    over_x.append(ddy*N_tm + ddx)
-                    over_y.append((duration - idelay)*ones)
-                    over_data.append(data.data)
-
-    over_x = numpy.concatenate(over_x)
-    over_y = numpy.concatenate(over_y)
-    over_data = numpy.concatenate(over_data)
+                    overlaps['x'].append(ddy*N_tm + ddx)
+                    overlaps['y'].append((duration - idelay)*ones)
+                    overlaps['data'].append(data.data)
 
     sys.stderr.flush()
     if comm.rank == 0:
-        print_and_log(["Overlaps computed, now gathering data by MPI"], 'debug', logger)
+        print_and_log(["Overlaps computed, now gathering data by MPI"], 'info', logger)
 
     comm.Barrier()
 
-    # We need to gather the sparse arrays.
-    over_x = gather_array(over_x, comm, dtype='uint32', compress=blosc_compress)
-    over_y = gather_array(over_y, comm, dtype='uint32', compress=blosc_compress)
-    over_data = gather_array(over_data, comm, compress=blosc_compress)
-    over_shape = numpy.array([N_tm**2, duration], dtype=numpy.int32)
-
     if comm.rank == 0:
         hfile = h5py.File(filename, 'w', libver='earliest')
-        if hdf5_compress:
-            hfile.create_dataset('over_x', data=over_x, compression='gzip')
-            hfile.create_dataset('over_y', data=over_y, compression='gzip')
-            hfile.create_dataset('over_data', data=over_data, compression='gzip')
-        else:
-            hfile.create_dataset('over_x', data=over_x)
-            hfile.create_dataset('over_y', data=over_y)
-            hfile.create_dataset('over_data', data=over_data)
+        over_shape = numpy.array([N_tm**2, duration], dtype=numpy.int32)
         hfile.create_dataset('over_shape', data=over_shape)
+
+    for key in ['x', 'y', 'data']:
+        data = numpy.concatenate(overlaps.pop(key))
+        if key in ['x', 'y']:
+            data = gather_array(data, comm, dtype='uint32', compress=blosc_compress)
+        else:
+            data = gather_array(data, comm, dtype='float32', compress=blosc_compress)
+
+        if comm.rank == 0:
+            if hdf5_compress:
+                hfile.create_dataset('over_%s' %key, data=data, compression='gzip')
+            else:
+                hfile.create_dataset('over_%s' %key, data=data)
+        del data
+
+    # We need to gather the sparse arrays.
+    if comm.rank == 0:
         hfile.close()
 
     comm.Barrier()

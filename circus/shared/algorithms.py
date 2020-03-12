@@ -765,11 +765,12 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
             idx = numpy.where((over_x >= i * nb_temp + i + 1) & (over_x < ((i + 1) * nb_temp)))[0]
             local_x = over_x[idx] - (i * nb_temp + i + 1)
-            data = numpy.zeros((nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-            data[local_x, over_y[idx]] = over_data[idx]
-            distances[i, i + 1:] = numpy.max(data, 1)
+            local_y = over_y[idx]
+            local_data = over_data[idx]
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
+            distances[i, i + 1:] = data.max(1).toarray().flatten()
             distances[i + 1:, i] = distances[i, i + 1:]
-            del local_x, data, idx
+            del local_x, local_y, idx, local_y, data
 
         distances /= norm
 
