@@ -525,13 +525,22 @@ def load_data_memshared(
                 local_nb_data = 0
                 local_nb_ptr = 0
 
+                res = []
+                for i in range(N_over):
+                    res += [i * N_over, (i + 1) * N_over]
+
+                if local_rank == 0:
+                    bounds = numpy.searchsorted(over_x, res, 'left')
+
                 for i in range(N_over):
 
                     if local_rank == 0:
-                        idx = numpy.where((over_x >= i * N_over) & (over_x < ((i + 1) * N_over)))[0]
-                        local_x = over_x[idx] - i * N_over
+                        xmin, xmax = bounds[2*i:2*(i+1)]
+                        local_x = over_x[xmin:xmax] - i * N_over
+                        local_y = over_y[xmin:xmax]
+                        local_data = over_data[xmin:xmax]
 
-                        sparse_mat = scipy.sparse.csr_matrix((over_data[idx], (local_x, over_y[idx])), shape=(N_over, over_shape[1]))
+                        sparse_mat = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_over, over_shape[1]))
                         local_nb_data = len(sparse_mat.data)
                         local_nb_ptr = len(sparse_mat.indptr)
 
