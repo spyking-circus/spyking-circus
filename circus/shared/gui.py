@@ -184,8 +184,8 @@ class MergeWindow(QMainWindow):
         SHARED_MEMORY = get_shared_memory_flag(params)
 
         if SHARED_MEMORY:
-            self.templates = io.load_data_memshared(params, 'templates', extension=self.ext_in)
-            self.clusters = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
+            self.templates, _ = io.load_data_memshared(params, 'templates', extension=self.ext_in)
+            self.clusters, _ = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
         else:
             self.templates = io.load_data(params, 'templates', self.ext_in)
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
