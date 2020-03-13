@@ -9,11 +9,27 @@ import blosc
 
 
 logger = logging.getLogger(__name__)
-
-
 MPI_VENDOR = MPI.get_vendor()
 SHARED_MEMORY = (hasattr(MPI.Win, 'Allocate_shared') and callable(getattr(MPI.Win, 'Allocate_shared')))
 
+
+def get_local_ring(local_only=False):
+    # # First we need to identify machines in the MPI ring.
+    from uuid import getnode as get_mac
+    myip = numpy.int64(get_mac()) % 100000
+    is_local = False
+
+    if local_only:
+        master_ip = comm.bcast(numpy.array([myip], dtype='int64'), root=0)
+        is_local = myip == master_ip[0]
+        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, is_local)
+    else:
+        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
+
+    return sub_comm
+
+
+sub_comm = get_local_ring()
 
 def test_mpi_ring(nb_nodes):
     if comm.size != nb_nodes:
@@ -39,21 +55,6 @@ def check_valid_path(path):
     res = all_gather_array(data, comm, dtype='int32').astype(numpy.bool)
     return numpy.all(res)
 
-
-def get_local_ring(local_only=False):
-    # # First we need to identify machines in the MPI ring.
-    from uuid import getnode as get_mac
-    myip = numpy.int64(get_mac()) % 100000
-    is_local = False
-
-    if local_only:
-        master_ip = comm.bcast(numpy.array([myip], dtype='int64'), root=0)
-        is_local = myip == master_ip[0]
-        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, is_local)
-    else:
-        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
-
-    return sub_comm, is_local
 
 
 def detect_memory(params, whitening=False, filtering=False, fitting=False):

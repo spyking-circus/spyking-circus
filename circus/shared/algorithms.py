@@ -753,7 +753,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 params, 'overlaps-raw', extension='-merging'
             )
         else:
-            over_x, over_y, over_data, over_shape = load_data_memshared(
+            over_x, over_y, over_data, over_shape, mpi_memory = load_data_memshared(
                 params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
             )
 
@@ -810,6 +810,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             os.remove(filename)
 
+        if SHARED_MEMORY:
+            for memory in mpi_memory:
+                memory.Free()
+
     return [nb_temp, len(to_merge)]
 
 
@@ -864,7 +868,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     SHARED_MEMORY = get_shared_memory_flag(params)
     
     if SHARED_MEMORY:
-        templates = load_data_memshared(params, 'templates', normalize=False)
+        templates, mpi_memory = load_data_memshared(params, 'templates', normalize=False)
     else:
         templates = load_data(params, 'templates')
 
@@ -1163,6 +1167,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     purity_level = gather_array(purity_level, comm)
     max_nb_chances = gather_array(max_nb_chances, comm)
 
+    if SHARED_MEMORY:
+        for memory in mpi_memory:
+            memory.Free()
+
     if comm.rank == 0:
         file_name = file_out_suff + '.templates.hdf5'
         hfile = h5py.File(file_name, 'r+', libver='earliest')
@@ -1215,7 +1223,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     SHARED_MEMORY = get_shared_memory_flag(params)
 
     if SHARED_MEMORY:
-        c_overs = load_data_memshared(
+        c_overs, mpi_memory_1 = load_data_memshared(
             params, 'overlaps', extension='-mixtures', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
         )
     else:
@@ -1224,7 +1232,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         )
 
     if SHARED_MEMORY:
-        templates = load_data_memshared(params, 'templates', normalize=True)
+        templates, mpi_memory_2 = load_data_memshared(params, 'templates', normalize=True)
     else:
         templates = load_data(params, 'templates')
 
@@ -1331,5 +1339,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         os.remove(filename)
+
+    if SHARED_MEMORY:
+        for memory in mpi_memory_1:
+            memory.Free()
+        for memory in mpi_memory_2:
+            memory.Free()
 
     return [nb_temp, len(to_remove)]
