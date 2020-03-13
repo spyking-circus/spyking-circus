@@ -1503,7 +1503,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         # We need to gather the sparse arrays.
         temp_x = gather_array(temp_x, comm, dtype='uint32', compress=blosc_compress)
         temp_y = gather_array(temp_y, comm, dtype='uint32', compress=blosc_compress)
-        temp_data = gather_array(temp_data, comm, compress=blosc_compress)
+        temp_data = gather_array(temp_data, comm)
 
         if parallel_hdf5:
             if comm.rank == 0:

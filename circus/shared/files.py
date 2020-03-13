@@ -1952,7 +1952,7 @@ def get_overlaps(
         if key in ['x', 'y']:
             data = gather_array(data, comm, dtype='uint32', compress=blosc_compress)
         else:
-            data = gather_array(data, comm, dtype='float32', compress=blosc_compress)
+            data = gather_array(data, comm, dtype='float32')
 
         # We sort by x indices for faster retrieval later
         if comm.rank == 0:
