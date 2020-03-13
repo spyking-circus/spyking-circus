@@ -441,6 +441,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 # print "Removing the useless borders..."
                 local_borders = (duration, local_shape - duration)
 
+                if ignore_dead_times:
+                    dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
+
                 if matched_filter:
 
                     if sign_peaks in ['positive', 'both']:
@@ -469,7 +472,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             peaktimes = peaktimes.astype(numpy.uint32)
 
                             idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
-                            found_peaktimes.append(peaktimes[idx])
+                            peaktimes = peaktimes[idx]
+
+                            if ignore_dead_times:
+                                if dead_indices[0] != dead_indices[1]:
+                                    is_included = numpy.in1d(
+                                        peaktimes + t_offset,
+                                        all_dead_times[dead_indices[0]:dead_indices[1]]
+                                    )
+                                    peaktimes = peaktimes[~is_included]
+
+                            found_peaktimes.append(peaktimes)
                 else:
 
                     for i in range(n_e):
@@ -492,22 +505,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         peaktimes = peaktimes.astype(numpy.uint32)
 
                         idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
-                        found_peaktimes.append(peaktimes[idx])
+                        peaktimes = peaktimes[idx]
+
+                        if ignore_dead_times:
+                            if dead_indices[0] != dead_indices[1]:
+                                is_included = numpy.in1d(
+                                    peaktimes + t_offset,
+                                    all_dead_times[dead_indices[0]:dead_indices[1]]
+                                )
+                                peaktimes = peaktimes[~is_included]
+
+                        found_peaktimes.append(peaktimes)
 
                 all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset = t_offset + padding[0]
-
-                if ignore_dead_times:
-                    dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
-                    if dead_indices[0] != dead_indices[1]:
-                        is_included = numpy.in1d(
-                            local_peaktimes + t_offset,
-                            all_dead_times[dead_indices[0]:dead_indices[1]]
-                        )
-                        local_peaktimes = local_peaktimes[~is_included]
-                        local_peaktimes = numpy.sort(local_peaktimes)
 
                 if gpass == 0:
                     for i in range(n_e):
