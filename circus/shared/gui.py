@@ -165,6 +165,13 @@ class MergeWindow(QMainWindow):
         self.has_support = test_if_support(params, self.ext_in)
         if self.has_support:
             self.supports = io.load_data(params, 'supports', self.ext_in)
+            self.mean_channels = numpy.mean(numpy.sum(self.supports, 1))
+            if self.mean_channels < 3:
+                self.low_channel_count = True
+                if comm.rank == 0:
+                    print_and_log(["Templates on few channels only, taking norm into account"], 'debug', logger)
+            else:
+                self.low_channel_count = False
         self.bin_size = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay = 50
         self.time_rpv = params.getfloat('merging', 'time_rpv')
@@ -1163,6 +1170,10 @@ class MergeWindow(QMainWindow):
             all_indices = all_indices & (self.overlapping == 1)
 
         indices = numpy.where(all_indices)[0]
+
+        if self.low_channel_count:
+            ratios = self.norms[self.pairs[indices,0]]/self.norms[self.pairs[indices,1]]
+            indices = indices[numpy.where(numpy.abs(ratios - 1) < 0.1)[0]]
 
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
