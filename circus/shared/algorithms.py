@@ -1203,6 +1203,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     cc_merge = params.getfloat('clustering', 'cc_merge')
     mixtures = []
+    norm = n_e * n_t
     # to_remove = []  # TODO remove (not used)?
 
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
@@ -1316,8 +1317,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         if t_j is None:
                             t_j = templates[:, j].toarray().ravel()
                         new_template = (a1 * t_i + a2 * t_j)
-                        similarity = numpy.corrcoef(t_k, new_template)[0, 1]
-                        local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
+                        similarity = numpy.dot(t_k, new_template)/norm
+                        local_overlap = numpy.dot(t_i, t_j)/norm
                         if similarity > cc_merge and local_overlap < 0.5:
                             if k not in mixtures:
                                 mixtures += [k]
