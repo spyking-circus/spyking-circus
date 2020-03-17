@@ -482,7 +482,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     )
                                     peaktimes = peaktimes[~is_included]
 
-                            found_peaktimes.append(peaktimes)
+                            if sign_peaks == 'both':
+                                found_peaktimes[-1] = numpy.concatenate((found_peaktimes[-1], peaktimes))
+                            else:
+                                found_peaktimes.append(peaktimes)
                 else:
 
                     for i in range(n_e):
