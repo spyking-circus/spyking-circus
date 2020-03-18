@@ -199,7 +199,7 @@ class CircusParser(object):
                         ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
-                        ['clustering', 'sparsify', 'float', '0.5'],
+                        ['clustering', 'sparsify', 'float', '1'],
                         ['clustering', 'nb_ss_bins', 'string', 'auto'],
                         ['clustering', 'nb_ss_rand', 'int', '10000'],
                         ['clustering', 'nb_snippets', 'int', '50'],

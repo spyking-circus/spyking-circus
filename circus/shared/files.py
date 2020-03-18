@@ -1040,9 +1040,25 @@ def load_data(params, data, extension=''):
     elif data == 'supports':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
-            norms = myfile.get('supports')[:]
+            supports = myfile.get('supports')[:]
             myfile.close()
-            return norms
+            return supports
+        else:
+            if comm.rank == 0:
+                print_and_log(["No supports found! Check suffix?"], 'error', logger)
+            sys.exit(0)
+    elif data == 'common-supports':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            supports = myfile.get('supports')[:]
+            myfile.close()
+            nb_temp = len(supports)
+            res = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
+            for i in range(nb_temp):
+                res[i] = 1 - numpy.mean(supports[i]*supports, 1)
+
+            res = numpy.maximum(res, 0.5)
+            return res
         else:
             if comm.rank == 0:
                 print_and_log(["No supports found! Check suffix?"], 'error', logger)
