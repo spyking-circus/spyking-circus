@@ -697,7 +697,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             good_time, good_elec = numpy.unravel_index(numpy.argmax(sub_mat), sub_mat.shape)
 
                                         shift = template_shift - good_time
-                                        is_centered = np.abs(shift) < jitter_range
+                                        is_centered = np.abs(shift) < (template_shift / 4)
                                         max_test = (good_elec == elec_positions[elec][0]) and is_centered
 
                                         if max_test:
@@ -1329,8 +1329,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mean_channels += len(indices)
                     if comp_templates:
-                        local_stds = numpy.std(first_component, 1)
-                        to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
+                        local_maxs = numpy.max(numpy.abs(first_component), 1)
+                        to_delete = numpy.where(local_maxs / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
