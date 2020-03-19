@@ -735,7 +735,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     cc_merge = params.getfloat('clustering', 'cc_merge')
     norm = n_e * n_t
     decimation = params.getboolean('clustering', 'decimation')
-    common_supports = load_data(params, 'common-supports')
+    adapted_cc = params.getboolean('detection', 'adapted_cc')
 
     if cc_merge < 1:
 
@@ -794,7 +794,9 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         if comm.rank == 0:
-            distances /= common_supports
+            if adapted_cc:
+                common_supports = load_data(params, 'common-supports')
+                distances /= common_supports
             result = load_data(params, 'clusters')
             to_merge, result = remove(result, distances, cc_merge)
 
@@ -1216,6 +1218,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     has_support = test_if_support(params, '')
+    adapted_cc = params.getboolean('detection', 'adapted_cc')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
@@ -1256,7 +1259,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
 
-    common_supports = load_data(params, 'common-supports')
+    if adapted_cc:
+        common_supports = load_data(params, 'common-supports')
 
     for i in range(nb_temp - 1):
         data = c_overs[i].toarray()
@@ -1323,7 +1327,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         new_template = (a1 * t_i + a2 * t_j)
                         similarity = numpy.dot(t_k, new_template)/norm
                         local_overlap = numpy.dot(t_i, t_j)/norm
-                        if similarity > (cc_merge*common_supports[i, j]) and local_overlap < 0.5:
+                        if adapted_cc:
+                            threshold = cc_merge*common_supports[i, j]
+                        else:
+                            threshold = cc_merge
+                        if similarity > threshold and local_overlap < 0.5:
                             if k not in mixtures:
                                 mixtures += [k]
                                 been_found = True

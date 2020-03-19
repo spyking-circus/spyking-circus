@@ -1055,9 +1055,7 @@ def load_data(params, data, extension=''):
             nb_temp = len(supports)
             res = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
             for i in range(nb_temp):
-                res[i] = 1 - numpy.mean(supports[i]*supports, 1)
-
-            res = numpy.maximum(res, 0.5)
+                res[i] = (1 - numpy.mean(numpy.logical_and(supports[i], supports), 1))
             return res
         else:
             if comm.rank == 0:
