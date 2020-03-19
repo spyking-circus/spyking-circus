@@ -697,7 +697,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             good_time, good_elec = numpy.unravel_index(numpy.argmax(sub_mat), sub_mat.shape)
 
                                         shift = template_shift - good_time
-                                        is_centered = np.abs(shift) < jitter_range
+                                        is_centered = np.abs(shift) < (template_shift / 4)
                                         max_test = (good_elec == elec_positions[elec][0]) and is_centered
 
                                         if max_test:
