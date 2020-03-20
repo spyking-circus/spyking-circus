@@ -796,7 +796,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             if adapted_cc:
                 common_supports = load_data(params, 'common-supports')
-                adapting = (1 - common_supports/2)**2
+                adapting = (1 - common_supports/4)**2
                 distances /= adapting
             result = load_data(params, 'clusters')
             to_merge, result = remove(result, distances, cc_merge)
@@ -1262,7 +1262,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     if adapted_cc:
         common_supports = load_data(params, 'common-supports')
-        adapting = (1 - common_supports/2)**2
+        adapting = (1 - common_supports/4)**2
 
     for i in range(nb_temp - 1):
         data = c_overs[i].toarray()
