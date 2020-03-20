@@ -796,8 +796,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             if adapted_cc:
                 common_supports = load_data(params, 'common-supports')
-                adapting = (1 - common_supports/4)**2
-                distances /= adapting
+                distances /= common_supports
             result = load_data(params, 'clusters')
             to_merge, result = remove(result, distances, cc_merge)
 
@@ -1262,7 +1261,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     if adapted_cc:
         common_supports = load_data(params, 'common-supports')
-        adapting = (1 - common_supports/4)**2
 
     for i in range(nb_temp - 1):
         data = c_overs[i].toarray()
@@ -1330,7 +1328,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         similarity = numpy.dot(t_k, new_template)/norm
                         local_overlap = numpy.dot(t_i, t_j)/norm
                         if adapted_cc:
-                            threshold = cc_merge*adapting[i, j]
+                            threshold = cc_merge*common_supports[i, j]
                         else:
                             threshold = cc_merge
                         if similarity > threshold and local_overlap < 0.5:

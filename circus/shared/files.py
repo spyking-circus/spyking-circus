@@ -1053,9 +1053,12 @@ def load_data(params, data, extension=''):
             supports = myfile.get('supports')[:]
             myfile.close()
             nb_temp = len(supports)
-            res = numpy.zeros((nb_temp, nb_temp), dtype=numpy.float32)
-            for i in range(nb_temp):
-                res[i] = numpy.mean(numpy.logical_and(supports[i], supports), 1)
+            nb_elec = supports.shape[1]
+            res = numpy.ones((nb_temp, nb_temp), dtype=numpy.float32)
+            if nb_elec > 32:
+                for i in range(nb_temp):
+                    res[i] = numpy.mean(numpy.logical_and(supports[i], supports), 1)
+                res = (1 - res/4)**2
             return res
         else:
             if comm.rank == 0:
