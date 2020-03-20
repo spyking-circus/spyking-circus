@@ -102,7 +102,7 @@ class CircusParser(object):
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['data', 'status_bars', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
-                          ['detection', 'adapted_cc', 'bool', 'False'],
+                          ['detection', 'adapted_cc', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '10'],
                           ['detection', 'matched-filter', 'bool', 'False'],
