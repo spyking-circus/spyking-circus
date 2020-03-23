@@ -1340,7 +1340,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
 
-                    print len(to_delete)/len(indices)
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
                         ratio = -thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].min()
