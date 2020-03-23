@@ -107,6 +107,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
+    if comp_templates:
+        comp_window = n_t // 2
+        comp_levels = stds * comp_window
+
     if sign_peaks == 'negative':
         search_peaks = ['neg']
     elif sign_peaks == 'positive':
@@ -1329,13 +1333,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mean_channels += len(indices)
                     if comp_templates:
-                        local_maxs = numpy.max(numpy.abs(first_component), 1)
-                        to_delete = numpy.where(local_maxs / mads[indices] < sparsify)[0]
+                        local_norms = numpy.linalg.norm(first_component[:, n_t//4:(3*n_t)//4] , axis=1)
+                        to_delete = numpy.where(local_norms / comp_levels[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
 
+                    print len(to_delete)/len(indices)
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
                         ratio = -thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].min()
