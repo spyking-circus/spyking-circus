@@ -1329,15 +1329,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mean_channels += len(indices)
                     if comp_templates:
-                        tmp = sub_data_raw * first_component
-                        values = numpy.sqrt(numpy.median(numpy.mean(tmp, 2), 0))
-                        idx = numpy.argsort(values)[::-1]
-                        to_ignore = values < 0.5 * mads
-                        total_sum = values.sum()
-                        to_remove = idx[numpy.where(numpy.cumsum(values[idx]) > sparsify*total_sum)[0]]
-                        to_delete = numpy.union1d(to_ignore, to_remove)
-                        if len(to_delete) > 0:
-                            first_component[indices[to_delete], :] = 0
+                        local_stds = numpy.std(first_component, 1)
+                        to_delete = numpy.where(local_stds / mads[indices] < sparsify)[0]
+                        first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
