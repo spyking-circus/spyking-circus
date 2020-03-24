@@ -107,9 +107,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
-    if comp_templates:
-        compress_time = params.getint('detection', 'compress_time')
-
     if sign_peaks == 'negative':
         search_peaks = ['neg']
     elif sign_peaks == 'positive':
@@ -1332,8 +1329,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mean_channels += len(indices)
                     if comp_templates:
-                        local_stds = numpy.std(first_component[:, template_shift - compress_time:template_shift+compress_time], axis=1)
-                        to_delete = numpy.where(local_stds / mads[indices] < sparsify)[0]
+                        tmp = sub_data_raw * first_component
+                        values = numpy.median(numpy.sum(tmp, 2), 0)
+                        total_sum = values.sum()
+                        idx = numpy.argsort(values)[::-1]
+                        to_cut = numpy.where(numpy.cumsum(values[idx]) > sparsify*total_sum)[0][0]
+                        to_delete = idx[to_cut:]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
