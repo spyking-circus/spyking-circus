@@ -200,7 +200,7 @@ class CircusParser(object):
                         ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
-                        ['clustering', 'sparsify', 'float', '0.1'],
+                        ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'string', 'auto'],
                         ['clustering', 'nb_ss_rand', 'int', '10000'],
                         ['clustering', 'nb_snippets', 'int', '50'],
@@ -213,6 +213,7 @@ class CircusParser(object):
                         ['clustering', 'savgol', 'bool', 'True'],
                         ['clustering', 'savgol_time', 'float', '0.2'],
                         ['detection', 'noise_time', 'float', '0.1'],
+                        ['detection', 'compress_time', 'float', '1'],
                         ['whitening', 'safety_time', 'string', 'auto'],
                         ['extracting', 'safety_time', 'string', 'auto']]
 
@@ -828,10 +829,11 @@ class CircusParser(object):
             # noise from millisecond to sampling points
             noise_time = self.getfloat('detection', 'noise_time')
             self._noise = int(self.rate * noise_time * 1e-3)
-            if numpy.mod(self._noise, 2) == 0:
-                self._noise += 1
-
             self.set('detection', 'noise_time', self._noise)
+
+            compress_time = self.getfloat('detection', 'compress_time')
+            self._compress = int(self.rate * compress_time * 1e-3)
+            self.set('detection', 'compress_time', self._compress)
 
             # chunk_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:
