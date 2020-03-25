@@ -2025,7 +2025,8 @@ def get_overlaps(
 
             maxlags = maxlags[indices, :]
             maxlags = numpy.maximum(maxlags, maxlags.T)
-            maxlags *= -1*numpy.tril(numpy.ones((N_half, N_half)), -1).astype(numpy.int32)
+            mask = numpy.tril(numpy.ones((nb_temp, nb_temp)), -1) > 0
+            maxlags[mask] *= -1
         else:
             del maxlags
 
