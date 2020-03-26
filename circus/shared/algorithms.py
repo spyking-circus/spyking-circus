@@ -1332,10 +1332,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         similarity = numpy.dot(t_k, new_template)/norm
                         local_overlap = numpy.dot(t_i, t_j)/norm
                         if adapted_cc:
-                            mytest = similarity**exponents[i, j] > cc_merge
+                            mytest1 = similarity**exponents[i, j] > cc_merge
+                            mytest2 = local_overlap**exponents[i, j] < 0.5
                         else:
-                            mytest = similarity > cc_merge
-                        if mytest and local_overlap < 0.5:
+                            mytest1 = similarity > cc_merge
+                            mytest2 = local_overlap < 0.5
+                        if mytest1 and mytest2:
                             if k not in mixtures:
                                 mixtures += [k]
                                 been_found = True
