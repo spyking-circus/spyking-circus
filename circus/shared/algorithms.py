@@ -1332,7 +1332,9 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         similarity = numpy.dot(t_k, new_template)/norm
                         local_overlap = numpy.dot(t_i, t_j)/norm
                         if adapted_cc:
-                            mytest1 = similarity**exponents[i, j] > cc_merge
+                            shared_support = numpy.sum(numpy.logical_or(supports[i], supports[j])*supports[k])
+                            exponent = numpy.exp(-shared_support/adapted_thr)
+                            mytest1 = similarity**exponent > cc_merge
                             mytest2 = local_overlap**exponents[i, j] < 0.5
                         else:
                             mytest1 = similarity > cc_merge
