@@ -1055,10 +1055,8 @@ def load_data(params, data, extension=''):
             nb_temp = len(supports)
             nb_elec = supports.shape[1]
             res = numpy.ones((nb_temp, nb_temp), dtype=numpy.float32)
-            if nb_elec >= 32:
-                for i in range(nb_temp):
-                    res[i] = numpy.mean(numpy.logical_and(supports[i], supports), 1)
-                res = (1 - res/4)**2
+            for i in range(nb_temp):
+                res[i] = numpy.sum(numpy.logical_and(supports[i], supports), 1)
             return res
         else:
             if comm.rank == 0:
