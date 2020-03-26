@@ -1335,7 +1335,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                             mytest = similarity**exponents[i, j] > cc_merge
                         else:
                             mytest = similarity > cc_merge
-                        if similarity**adapted_thr[i, j] > threshold and local_overlap < 0.5:
+                        if mytest and local_overlap < 0.5:
                             if k not in mixtures:
                                 mixtures += [k]
                                 been_found = True
