@@ -143,7 +143,6 @@ class CircusParser(object):
                           ['clustering', 'remove_mixture', 'bool', 'True'],
                           ['clustering', 'dispersion', 'string', '(5, 5)'],
                           ['clustering', 'two_components', 'bool', 'True'],
-                          ['clustering', 'precision', 'float', '1e-1'],
                           ['clustering', 'templates_normalization', 'bool', 'True'],
                           ['clustering', 'halo_rejection', 'float', 'inf'],
                           ['clustering', 'adapted_cc', 'bool', 'True'],

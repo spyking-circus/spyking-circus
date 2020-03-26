@@ -697,7 +697,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             good_time, good_elec = numpy.unravel_index(numpy.argmax(sub_mat), sub_mat.shape)
 
                                         shift = template_shift - good_time
-                                        is_centered = np.abs(shift) < (template_shift / 2)
+                                        is_centered = np.abs(shift) < (template_shift / 4)
                                         max_test = (good_elec == elec_positions[elec][0]) and is_centered
 
                                         if max_test:
@@ -1348,7 +1348,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     shift = template_shift - tmpidx[1]
                     is_noise = len(indices) == len(to_delete) or (1 / ratio) < noise_thresh
 
-                    if is_noise or (np.abs(shift) > template_shift / 2):
+                    if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
                         myamps += [[0, 10]]
                     else:
