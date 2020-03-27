@@ -158,6 +158,8 @@ class MergeWindow(QMainWindow):
         self.noise_limit = params.getfloat('merging', 'noise_limit')
         self.sparsity_limit = params.getfloat('merging', 'sparsity_limit')
         self.min_spikes = params.getint('merging', 'min_spikes')
+        self.adapted_cc = params.getboolean('clustering', 'adapted_cc')
+        self.adapted_thr = params.getint('clustering', 'adapted_thr')
 
         self.duration = io.load_data(params, 'duration')
         self.nb_bhatta_bins = 100
@@ -244,6 +246,11 @@ class MergeWindow(QMainWindow):
                 self.sparsities[idx] = 1.0 - float(nb_channels - 1) / float(self.N_e - 1)
 
         self.overlap /= self.shape[0] * self.shape[1]
+
+        if self.adapted_cc:
+            common_supports = io.load_data(params, 'common-supports')
+            self.exponents = numpy.exp(-common_supports/self.adapted_thr)
+
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait = numpy.array([0], dtype=numpy.int32)
 
@@ -549,7 +556,10 @@ class MergeWindow(QMainWindow):
 
             temp_id1 = self.to_consider[temp_id1]
             best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
-            candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            if not self.adapted_cc:
+                candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            else:
+                candidates = best_matches[self.overlap[temp_id1, best_matches]**self.exponents[temp_id1, best_matches] >= self.cc_overlap]
 
             for temp_id2 in candidates:
 
