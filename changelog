@@ -1,4 +1,10 @@
 =============
+Release 0.9.7
+=============
+
+* fix a bug while converting with export_all 
+
+=============
 Release 0.9.6
 =============
 

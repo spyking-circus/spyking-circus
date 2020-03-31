@@ -202,7 +202,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             garbage = io.load_data(params, 'garbage', extension)
             for t in range(N_tm, N_tm + N_e):
                 elec = t - N_tm
-                spikes = garbage['gspikes'].pop('elec_%d' % elec).astype(numpy.uint64)
+                spikes = garbage['gspikes'].pop('elec_%d' % elec).astype(numpy.int64)
                 spikes = numpy.random.permutation(spikes)[:100]
                 mapping_sparse[t, 0] = t - N_tm
                 waveform = io.get_stas(params, times_i=spikes, labels_i=np.ones(len(spikes)), src=elec, neighs=[elec], nodes=nodes, mean_mode=True)
