@@ -59,15 +59,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if use_gpu:
-        import cudamat as cmt
+        import cupy
         # # Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
             gpu_id = int(comm.rank // nb_cpu)
         else:
             gpu_id = 0
-        cmt.cuda_set_device(gpu_id)
-        cmt.init()
-        cmt.cuda_sync_threads()
+        cupy.cuda.Device(gpu_id)
 
     if SHARED_MEMORY:
         templates, _ = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
@@ -78,7 +76,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     temp_2_shift = 2 * template_shift
     temp_3_shift = 3 * template_shift
-    full_gpu = use_gpu and gpu_only
     n_tm = N_tm // 2
     n_scalar = n_e * n_t
 
@@ -135,7 +132,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             neighbors[i] = numpy.where(numpy.sum(tmp, axis=1) != 0.0)[0]
 
     if use_gpu:
-        templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
+        templates = cupy.sparse.csr_matrix(templates)
 
     info_string = ''
 
@@ -186,18 +183,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         temporal_whitening = None  # default assignment (for PyCharm code inspection)
 
-    if full_gpu:
+    if use_gpu:
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in range(n_over):
-                c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
+                c_overs[i] = cupy.sparse.csr_matrix(c_overs[i])
         except Exception:
             if comm.rank == 0:
                 print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', logger)
             for i in range(n_over):
                 if i in c_overs:
                     del c_overs[i]
-            full_gpu = False
 
     nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
     processed_chunks = int(min(nb_chunks, max_chunk))
@@ -255,7 +251,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         success_flags_debug_file = None  # default assignment (for PyCharm code inspection)
 
     if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
+        spatial_whitening = cupy.asarray(spatial_whitening)
 
     last_chunk_size = 0
     slice_indices = numpy.zeros(0, dtype=numpy.int32)
@@ -304,8 +300,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if do_spatial_whitening:
             if use_gpu:
-                local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
-                local_chunk = local_chunk.dot(spatial_whitening).asarray()
+                local_chunk = cupy.asarray(local_chunk)
+                local_chunk = cupy.asnumpy(local_chunk.dot(spatial_whitening))
             else:
                 local_chunk = numpy.dot(local_chunk, spatial_whitening)
         if do_temporal_whitening:
@@ -386,11 +382,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         nb_local_peak_times = len(local_peaktimes)
 
-        if full_gpu:
-            # all_indices = cmt.CUDAMatrix(all_indices)
-            # tmp_gpu = cmt.CUDAMatrix(local_peaktimes.reshape((1, nb_local_peak_times)), copy_on_host=False)
-            _ = cmt.CUDAMatrix(local_peaktimes.reshape((1, nb_local_peak_times)), copy_on_host=False)
-
         if nb_local_peak_times > 0:
             # print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."
 
@@ -405,8 +396,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             del local_chunk
 
             if use_gpu:
-                sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
-                b = cmt.sparse_dot(templates, sub_mat)
+                sub_mat = cupy.asarray(sub_mat)
+                b = templates.dot(sub_mat)
             else:
                 b = templates.dot(sub_mat)
 
@@ -415,21 +406,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_restriction = (t_offset, t_offset + chunk_size)
             all_spikes = local_peaktimes + g_offset
 
-            # Because for GPU, slicing by columns is more efficient, we need to transpose b
-            # b = b.transpose()
-            if use_gpu and not full_gpu:
-                b = b.asarray()           
-
             failure = numpy.zeros(nb_local_peak_times, dtype=numpy.int32)
-
-            if full_gpu:
-                mask = numpy.zeros((2 * n_tm, nb_local_peak_times), dtype=numpy.float32)
-                mask[:n_tm, :] = 1
-                # data = cmt.empty(mask.shape)
-                _ = cmt.empty(mask.shape)
-                patch_gpu = b.shape[1] == 1
-            else:
-                patch_gpu = None
 
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, n_e), dtype=numpy.bool)
@@ -451,16 +428,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
-                if full_gpu:
-                    b_array = b.asarray()
-                else:
-                    b_array = None
-
                 data = b[:n_tm, :]
 
                 if numerous_argmax:
                     if len(best_indices) == 0:
                         best_indices = largest_indices(data, nb_argmax)
+                        if use_gpu:
+                            best_indices = cupy.asnumpy(best_indices)
                     best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)  
                 else:
                     best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
@@ -468,37 +442,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
+                best_amp = b[best_template_index, peak_index]
+                if two_components:
+                    best_amp2 = b[best_template2_index, peak_index]
+                else:
+                    best_amp2 = 0
+
                 if templates_normalization:
-                    if full_gpu:
-                        best_amp = b_array[best_template_index, peak_index] / n_scalar
-                        best_amp2 = b_array[best_template2_index, peak_index] / n_scalar
-                    else:
-                        best_amp = b[best_template_index, peak_index] / n_scalar
-                        if two_components:
-                            best_amp2 = b[best_template2_index, peak_index] / n_scalar
-                        else:
-                            best_amp2 = 0.0
+                    best_amp /= n_scalar
+                    best_amp2 /= n_scalar
+
+                    if use_gpu:
+                        best_amp = float(best_amp)
+                        best_amp2 = float(best_amp2)
+                        best_template_index = int(best_template_index)
+                        best_template2_index = int(best_template2_index)
+                        peak_index = int(peak_index)
+
                     best_amp_n = best_amp / norm_templates[best_template_index]
                     best_amp2_n = best_amp2 / norm_templates[best_template2_index]
                 else:
-                    if full_gpu:
-                        best_amp = b_array[best_template_index, peak_index]
-                        best_amp = best_amp / norm_templates_2[best_template_index]
-                        # TODO is `best_amp` value correct?
-                        best_amp2 = b_array[best_template2_index, peak_index]
-                        best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
-                        # TODO is `best_amp2` value correct?
-                    else:
-                        best_amp = b[best_template_index, peak_index]
-                        best_amp = best_amp / norm_templates_2[best_template_index]
-                        # TODO is `best_amp` value correct?
-                        if two_components:
-                            best_amp2 = b[best_template2_index, peak_index]
-                            best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
-                            # TODO is `best_amp2` value correct?
-                        else:
-                            best_amp2 = 0.0
-
+                    best_amp  /= norm_templates_2[best_template_index]
+                    best_amp2 /= norm_templates_2[best_template2_index]
                     best_amp_n = best_amp
                     best_amp2_n = best_amp2
 
@@ -515,22 +480,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     nb_neighbors = len(is_neighbor)
                     indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
                     indices[idx_neighbor, np.arange(nb_neighbors)] = 1
+                    if use_gpu:
+                        indices = cupy.asarray(indices)
 
-                    if full_gpu:
-                        indices = cmt.CUDAMatrix(indices, copy_on_host=False)
-                        if patch_gpu:
-                            b_lines = b.get_col_slice(0, b.shape[0])
-                        else:
-                            b_lines = b.get_col_slice(is_neighbor[0], is_neighbor[-1]+1)
-                        tmp1 = cmt.sparse_dot(c_overs[best_template_index], indices, mult=-best_amp)
-                        tmp2 = cmt.sparse_dot(c_overs[best_template2_index], indices, mult=-best_amp2)
-                        b_lines.add(tmp1.add(tmp2))
-                        del tmp1, tmp2
-                    else:
-                        tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        if abs(best_amp2) > min_second_component:
-                            tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
-                        b[:, is_neighbor] += tmp1.dot(indices)
+                    tmp1 = c_overs[best_template_index]
+                    tmp1.data *= -best_amp
+                    if abs(best_amp2) > min_second_component:
+                        tmp2 = c_overs[best_template2_index]
+                        tmp2.data *= -best_amp2
+                        tmp1 += tmp2
+                    b[:, is_neighbor] += tmp1.dot(indices)
 
                     numerous_argmax = False
 
@@ -652,7 +611,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     field_to_write = numpy.array(result_debug[field_label], dtype=field_dtype)
                     field_file.write(field_to_write.tostring())
 
-            if full_gpu:
+            if use_gpu:
                 del b, data
 
     sys.stderr.flush()
