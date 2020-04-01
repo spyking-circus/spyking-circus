@@ -445,7 +445,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             iteration_nb = 0
             local_max = 0
             numerous_argmax = False
-            nb_argmax = n_tm
+            nb_argmax = n_tm * nb_local_peak_times
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
@@ -460,8 +460,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if numerous_argmax:
                     if len(best_indices) == 0:
-                        best_indices = largest_indices(data, nb_argmax)
-                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)  
+                        best_indices = largest_indices(data, min(nb_argmax, n_tm))
+                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
                 else:
                     best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
 
@@ -543,6 +543,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['templates'] += [best_template_index]
                     # Mark current matching as tried.
                     b[best_template_index, peak_index] = -numpy.inf
+                    nb_argmax -= 1
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -564,11 +565,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # Mark all the matching associated to the current peak as tried.
                         b[:, peak_index] = -numpy.inf
                         index = numpy.arange(n_tm) * nb_local_peak_times + peak_index
+                        nb_argmax -= n_tm
                     else:
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
                         index = best_template_index * nb_local_peak_times + peak_index
-                    
+                        nb_argmax -= 1
+
                     if numerous_argmax:
                         best_indices = best_indices[~numpy.in1d(best_indices, index)]
 
