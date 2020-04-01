@@ -3,6 +3,7 @@ Release 0.9.7
 =============
 
 * reducing the number of templates for large number of channels, dynamically adapting cc_merge
+* speeding up the fitting procedure
 
 =============
 Release 0.9.6

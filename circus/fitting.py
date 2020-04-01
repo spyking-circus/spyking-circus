@@ -448,6 +448,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
+            data = b[:n_tm, :]
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -455,8 +457,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     b_array = b.asarray()
                 else:
                     b_array = None
-
-                data = b[:n_tm, :]
 
                 if numerous_argmax:
                     if len(best_indices) == 0:
@@ -528,7 +528,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del tmp1, tmp2
                     else:
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        if abs(best_amp2) > min_second_component:
+                        if numpy.abs(best_amp2) > min_second_component:
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
 
