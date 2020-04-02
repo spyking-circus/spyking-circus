@@ -363,7 +363,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if rejection_threshold > 0:
         reject_noise = True
-        noise_levels = stds * numpy.sqrt(2 * noise_window)
+        noise_levels = stds * (2 * noise_window + 1)
     else:
         reject_noise = False
 
@@ -468,7 +468,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             sub_mat = local_chunk[peak - snippet_duration:peak + snippet_duration + 1, elec]
 
                             if reject_noise:
-                                slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window]
+                                slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window + 1]
                                 value = numpy.linalg.norm(slice_window)/noise_levels[elec]
                                 is_noise = value < rejection_threshold
                             else:
