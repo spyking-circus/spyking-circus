@@ -1330,7 +1330,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     mean_channels += len(indices)
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
-                        to_delete = numpy.where(local_stds / mads[indices] < sparsify)[0]
+                        to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
