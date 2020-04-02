@@ -363,7 +363,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if rejection_threshold > 0:
         reject_noise = True
-        noise_levels = stds * (2 * noise_window + 1)
+        noise_levels = stds * numpy.sqrt(2 * noise_window + 1)
     else:
         reject_noise = False
 
