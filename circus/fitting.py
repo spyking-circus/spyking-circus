@@ -445,10 +445,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             iteration_nb = 0
             local_max = 0
             numerous_argmax = False
-            nb_argmax = 0
+            nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
+            flatten_data = data.ravel()
 
             while numpy.mean(failure) < total_nb_chances:
 
@@ -459,13 +460,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     b_array = None
 
                 if numerous_argmax:
-                    nb_argmax += 1
                     if len(best_indices) == 0:
-                        best_indices = largest_indices(data, nb_argmax**2)
-                        nb_argmax = 0
+                        best_indices = largest_indices(flatten_data, nb_argmax)
                     best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
                 else:
-                    nb_argmax = 0
                     best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
 
                 peak_scalar_product = data[best_template_index, peak_index]

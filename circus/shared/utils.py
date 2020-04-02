@@ -29,9 +29,8 @@ from scipy.optimize import brenth, minimize
 
 def largest_indices(ary, n):
     """Returns the n largest indices from a numpy array."""
-    flat = ary.flatten()
-    indices = np.argpartition(flat, -n)[-n:]
-    indices = indices[np.argsort(-flat[indices])]
+    indices = np.argpartition(ary, -n)[-n:]
+    indices = indices[np.argsort(-ary[indices])]
     return indices
 
 def test_patch_for_similarities(params, extension):
