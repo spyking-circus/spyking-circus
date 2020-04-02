@@ -32,7 +32,7 @@ def largest_indices(ary, n):
     flat = ary.flatten()
     indices = np.argpartition(flat, -n)[-n:]
     indices = indices[np.argsort(-flat[indices])]
-    return indices#np.unravel_index(indices, ary.shape)
+    return indices
 
 def test_patch_for_similarities(params, extension):
 
