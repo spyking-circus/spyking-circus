@@ -448,6 +448,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
+            data = b[:n_tm, :]
+            flatten_data = data.ravel()
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -456,12 +459,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
-                data = b[:n_tm, :]
-
                 if numerous_argmax:
                     if len(best_indices) == 0:
-                        best_indices = largest_indices(data, nb_argmax)
-                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)  
+                        best_indices = largest_indices(flatten_data, nb_argmax)
+                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
                 else:
                     best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
 
@@ -528,7 +529,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del tmp1, tmp2
                     else:
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        if abs(best_amp2) > min_second_component:
+                        if numpy.abs(best_amp2) > min_second_component:
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
 
@@ -568,7 +569,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
                         index = best_template_index * nb_local_peak_times + peak_index
-                    
+
                     if numerous_argmax:
                         best_indices = best_indices[~numpy.in1d(best_indices, index)]
 

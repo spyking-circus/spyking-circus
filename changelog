@@ -2,7 +2,8 @@
 Release 0.9.7
 =============
 
-* fix a bug while converting with export_all 
+* fix a bug while converting with export_all
+* speeding up the fitting procedure
 
 =============
 Release 0.9.6
