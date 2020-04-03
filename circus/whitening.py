@@ -47,6 +47,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     use_hanning = params.getboolean('detection', 'hanning')
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     noise_window = params.getint('detection', 'noise_time')
+    debug = params.getboolean('detection', 'debug')
     data_file.open()
     #################################################################
 
@@ -327,8 +328,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_chunks, last_chunk_len = data_file.analyze(chunk_size)
 
     groups = {}
+    if debug:
+        noisy_waveforms = {}
+
     for i in range(N_e):
         groups[i] = 0
+        if debug:
+            noisy_waveforms[i] = numpy.zeros((0, 2*noise_window + 1), dtype=numpy.float32)
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
@@ -363,7 +369,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if rejection_threshold > 0:
         reject_noise = True
-        noise_levels = stds * numpy.sqrt(2 * noise_window + 1)
     else:
         reject_noise = False
 
@@ -469,7 +474,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             if reject_noise:
                                 slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window + 1]
-                                value = numpy.linalg.norm(slice_window)/noise_levels[elec]
+                                if debug:
+                                    noisy_waveforms[elec] = numpy.vstack((noisy_waveforms[elec], slice_window))
+                                value = numpy.std(slice_window)/stds[elec]
                                 is_noise = value < rejection_threshold
                             else:
                                 is_noise = False
@@ -517,6 +524,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         gdata_pos = gather_array(elts_pos[:, :elt_count_pos].T, comm, 0, 1)
 
     nb_waveforms = 0
+
+    if debug:
+        for i in range(N_e):
+            numpy.save('noise_%d_elec_%d' %(comm.rank, i), noisy_waveforms[i])
 
     if comm.rank == 0:
         # DO PCA on elts and store the basis obtained.
