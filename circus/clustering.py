@@ -103,6 +103,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if rejection_threshold > 0:
         reject_noise = True
+        noise_levels = stds * (2 * noise_window + 1)
     else:
         reject_noise = False
 
@@ -632,7 +633,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if reject_noise:
 
                                     slice_window = local_chunk[peak - noise_window: peak + noise_window + 1, indices]
-                                    values = numpy.std(slice_window) / stds[indices]
+                                    values = numpy.linalg.norm(slice_window) / noise_levels[indices]
                                     is_noise = numpy.all(
                                         values < rejection_threshold
                                     )
