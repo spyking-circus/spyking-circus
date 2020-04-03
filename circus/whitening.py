@@ -369,6 +369,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if rejection_threshold > 0:
         reject_noise = True
+        noise_levels = stds * (2 * noise_window + 1)
     else:
         reject_noise = False
 
@@ -398,40 +399,52 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = scipy.ndimage.filters.convolve1d(local_chunk, temporal_whitening, axis=0, mode='constant')
 
             # Extracting the peaks.
+
+            local_borders = (snippet_duration, local_shape - snippet_duration)
+
+            if ignore_dead_times:
+                dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
+
             all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
+            found_peaktimes = []
             for i in range(N_e):
                 height = thresholds[i]
                 if sign_peaks == 'negative':
                     peaktimes = scipy.signal.find_peaks(-local_chunk[:, i], height=height, distance=dist_peaks)[0]
                 elif sign_peaks == 'positive':
-                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=height)[0]
+                    peaktimes = scipy.signal.find_peaks(local_chunk[:, i], height=height, distance=dist_peaks)[0]
                 elif sign_peaks == 'both':
-                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=height)[0]
+                    peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=height, distance=dist_peaks)[0]
                 else:
                     peaktimes = numpy.empty(0, dtype=numpy.uint32)
+
                 peaktimes = peaktimes.astype(numpy.uint32)
-                all_peaktimes.append(peaktimes)
-            all_peaktimes = np.concatenate(all_peaktimes)
+                idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                peaktimes = peaktimes[idx]
 
-            # print "Removing the useless borders..."
-            local_borders = (snippet_duration, local_shape - snippet_duration)
-            idx = (all_peaktimes >= local_borders[0]) & (all_peaktimes < local_borders[1])
-            all_peaktimes = numpy.compress(idx, all_peaktimes)
+                if ignore_dead_times:
+                    if dead_indices[0] != dead_indices[1]:
+                        is_included = numpy.in1d(
+                            peaktimes + t_offset,
+                            all_dead_times[dead_indices[0]:dead_indices[1]]
+                        )
+                        peaktimes = peaktimes[~is_included]
+
+                found_peaktimes.append(peaktimes)
+
+            all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
             local_peaktimes = numpy.unique(all_peaktimes)
-
-            if ignore_dead_times:
-                dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + local_shape])
-                if dead_indices[0] != dead_indices[1]:
-                    is_included = numpy.in1d(local_peaktimes + t_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
-                    local_peaktimes = local_peaktimes[~is_included]
-                    local_peaktimes = numpy.sort(local_peaktimes)
 
             if len(local_peaktimes) > 0:
 
-                diff_times = local_peaktimes[-1]-local_peaktimes[0]
+                diff_times = local_peaktimes[-1] - local_peaktimes[0]
                 all_times = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
                 min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
                 max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
+
+                test_extremas = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
+                for i in range(N_e):
+                    test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
                 n_times = len(local_peaktimes)
                 argmax_peak = numpy.random.permutation(numpy.arange(n_times))
@@ -442,26 +455,31 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if (elt_count_neg + elt_count_pos) == nb_elts:
                         break
 
+                    all_elecs = numpy.where(test_extremas[:, peak - local_peaktimes[0]])[0]
+                    data = local_chunk[peak, all_elecs]
+
                     if sign_peaks == 'negative':
-                        elec = numpy.argmin(local_chunk[peak])
+                        elec = numpy.argmin(data)
                         negative_peak = True
                     elif sign_peaks == 'positive':
-                        elec = numpy.argmax(local_chunk[peak])
+                        elec = numpy.argmax(data)
                         negative_peak = False
                     elif sign_peaks == 'both':
                         if N_e == 1:
-                            if local_chunk[peak] < 0:
+                            if data < 0:
                                 negative_peak = True
-                            elif local_chunk[peak] > 0:
+                            elif data > 0:
                                 negative_peak = False
                             elec = 0
                         else:
-                            if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
-                                elec = numpy.argmax(local_chunk[peak])
+                            if numpy.abs(numpy.max(data)) > numpy.abs(numpy.min(data)):
+                                elec = numpy.argmax(data)
                                 negative_peak = False
                             else:
-                                elec = numpy.argmin(local_chunk[peak])
+                                elec = numpy.argmin(data)
                                 negative_peak = True
+
+                    elec = all_elecs[elec]
 
                     if groups[elec] < upper_bounds:
 
@@ -476,7 +494,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window + 1]
                                 if debug:
                                     noisy_waveforms[elec] = numpy.vstack((noisy_waveforms[elec], slice_window))
-                                value = numpy.std(slice_window)/stds[elec]
+                                value = numpy.linalg.norm(slice_window)/noise_levels[elec]
                                 is_noise = value < rejection_threshold
                             else:
                                 is_noise = False

@@ -457,6 +457,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             peaktimes = peaktimes.astype(numpy.uint32)
 
                             idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                            peaktimes = peaktimes[idx]
+
+                            if ignore_dead_times:
+                                if dead_indices[0] != dead_indices[1]:
+                                    is_included = numpy.in1d(
+                                        peaktimes + t_offset,
+                                        all_dead_times[dead_indices[0]:dead_indices[1]]
+                                    )
+                                    peaktimes = peaktimes[~is_included]
                             found_peaktimes.append(peaktimes[idx])
 
                     if sign_peaks in ['negative', 'both']:
@@ -481,7 +490,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     )
                                     peaktimes = peaktimes[~is_included]
 
-                            found_peaktimes.append(peaktimes)
+                            if sign_peaks == 'negative':
+                                found_peaktimes.append(peaktimes)
+                            else:
+                                found_peaktimes[i] = numpy.concatenate(found_peaktimes[i], peaktimes)
                 else:
 
                     for i in range(n_e):
@@ -516,7 +528,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         found_peaktimes.append(peaktimes)
 
-                all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
+                all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
 
                 local_peaktimes = numpy.unique(all_peaktimes)
                 local_offset = t_offset + padding[0]
@@ -568,34 +580,40 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
+
+                        all_elecs = numpy.where(test_extremas[:, peak - local_peaktimes[0]])[0]
+                        data = local_chunk[peak, all_elecs]
+
                         if sign_peaks == 'negative':
-                            elec = numpy.argmin(local_chunk[peak])
+                            elec = numpy.argmin(data)
                             negative_peak = True
                             loc_peak = 'neg'
                         elif sign_peaks == 'positive':
-                            elec = numpy.argmax(local_chunk[peak])
+                            elec = numpy.argmax(data)
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':
                             if n_e == 1:
                                 elec = 0
-                                if local_chunk[peak] < 0:
+                                if data < 0:
                                     negative_peak = True
                                     loc_peak = 'neg'
-                                elif local_chunk[peak] > 0:
+                                elif data > 0:
                                     negative_peak = False
                                     loc_peak = 'pos'
                             else:
-                                if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
-                                    elec = numpy.argmax(local_chunk[peak])
+                                if numpy.abs(numpy.max(data)) > numpy.abs(numpy.min(data)):
+                                    elec = numpy.argmax(data)
                                     negative_peak = False
                                     loc_peak = 'pos'
                                 else:
-                                    elec = numpy.argmin(local_chunk[peak])
+                                    elec = numpy.argmin(data)
                                     negative_peak = True
                                     loc_peak = 'neg'
                         else:
                             raise ValueError("unexpected value %s" % sign_peaks)
+
+                        elec = all_elecs[elec]
 
                         key = '%s_%s' % (loc_peak, str(elec))
 
