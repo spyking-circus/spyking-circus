@@ -105,7 +105,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if rejection_threshold > 0:
         reject_noise = True
         duration = 2 * noise_window + 1
-        noise_levels = (thresholds + (duration - 1)*mads)
+        noise_levels = (thresholds + (duration - 1)*stds)
     else:
         reject_noise = False
 
@@ -1347,8 +1347,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mean_channels += len(indices)
                     if comp_templates:
-                        local_stds = numpy.std(first_component, 1)
-                        to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
+                        #local_stds = numpy.std(first_component, 1)
+                        #to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
+                        local_l1 = numpy.mean(numpy.abs(first_component), 1)
+                        to_delete = numpy.where(local_l1 / mads[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
