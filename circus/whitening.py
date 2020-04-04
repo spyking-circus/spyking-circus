@@ -370,7 +370,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if rejection_threshold > 0:
         reject_noise = True
         duration = 2 * noise_window + 1
-        noise_levels = (1/duration)*(thresholds + (duration - 1)*mads)
+        noise_levels = (thresholds + (duration - 1)*mads)
     else:
         reject_noise = False
 
@@ -495,7 +495,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window + 1]
                                 if debug:
                                     noisy_waveforms[elec] = numpy.vstack((noisy_waveforms[elec], slice_window))
-                                value = numpy.linalg.norm(slice_window, 1)/noise_levels[elec]
+                                value = numpy.sum(numpy.abs(slice_window))/noise_levels[elec]
                                 is_noise = value < rejection_threshold
                             else:
                                 is_noise = False
