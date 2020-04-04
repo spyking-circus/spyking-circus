@@ -815,7 +815,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             'Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected),
             'Node %d has ignored %d noisy spikes' % (comm.rank, nb_noise)
         ]
-        print_and_log(lines, 'info', logger)
+        print_and_log(lines, 'debug', logger)
         gdata = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2 = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))
