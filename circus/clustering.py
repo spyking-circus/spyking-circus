@@ -100,10 +100,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     mads = io.load_data(params, 'mads')
     stds = io.load_data(params, 'stds')
+    thresholds = io.load_data(params, 'thresholds')
 
     if rejection_threshold > 0:
         reject_noise = True
-        noise_levels = stds * (2 * noise_window + 1)
+        duration = 2 * noise_window + 1
+        noise_levels = (1/duration)*(thresholds + (duration - 1)*mads)
     else:
         reject_noise = False
 
@@ -163,7 +165,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if sign_peaks in ['positive', 'both']:
         basis['proj_pos'], basis['rec_pos'] = io.load_data(params, 'basis-pos')
 
-    thresholds = io.load_data(params, 'thresholds')
     n_scalar = n_e * n_t
     if do_spatial_whitening:
         spatial_whitening = io.load_data(params, 'spatial_whitening')
@@ -633,7 +634,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if reject_noise:
 
                                     slice_window = local_chunk[peak - noise_window: peak + noise_window + 1, indices]
-                                    values = numpy.linalg.norm(slice_window) / noise_levels[indices]
+                                    values = numpy.linalg.norm(slice_window, 1) / noise_levels[indices]
                                     is_noise = numpy.all(
                                         values < rejection_threshold
                                     )
@@ -814,7 +815,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             'Node %d has collected %d spikes and rejected %d spikes' % (comm.rank, elt_count, rejected),
             'Node %d has ignored %d noisy spikes' % (comm.rank, nb_noise)
         ]
-        print_and_log(lines, 'debug', logger)
+        print_and_log(lines, 'info', logger)
         gdata = all_gather_array(numpy.array([elt_count], dtype=numpy.float32), comm, 0)
         gdata2 = gather_array(numpy.array([rejected], dtype=numpy.float32), comm, 0)
         nb_elements = numpy.int64(numpy.sum(gdata))
