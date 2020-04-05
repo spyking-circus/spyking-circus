@@ -105,7 +105,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if rejection_threshold > 0:
         reject_noise = True
         duration = 2 * noise_window + 1
-        noise_levels = (thresholds + (duration - 1)*stds)
+        #noise_levels = (thresholds + (duration - 1)*stds)
+        noise_levels = stds * (2 * duration + 1)
     else:
         reject_noise = False
 
@@ -633,7 +634,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 # # test if the sample is pure Gaussian noise
                                 if reject_noise:
                                     slice_window = local_chunk[peak - noise_window: peak + noise_window + 1, elec]
-                                    value = numpy.sum(numpy.abs(slice_window)) / noise_levels[elec]
+                                    #value = numpy.sum(numpy.abs(slice_window)) / noise_levels[elec]
+                                    value = numpy.linalg.norm(slice_window) / noise_levels[elec]
                                     is_noise = value < rejection_threshold
                                 else:
                                     is_noise = False
@@ -785,6 +787,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             all_times[indices, min_times[midx]:max_times[midx]] = True
                                         else:
                                             all_times[elec, min_times[midx]:max_times[midx]] = True
+                                        test_extremas[elec, peak - local_peaktimes[0]] = False
                                 else:
                                     nb_noise += 1
                                     if gpass <= 1:
@@ -1344,10 +1347,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mean_channels += len(indices)
                     if comp_templates:
-                        #local_stds = numpy.std(first_component, 1)
-                        #to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
-                        local_l1 = numpy.mean(numpy.abs(first_component), 1)
-                        to_delete = numpy.where(local_l1 / stds[indices] < sparsify)[0]
+                        local_stds = numpy.std(first_component, 1)
+                        to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
+                        #local_l1 = numpy.mean(numpy.abs(first_component), 1)
+                        #to_delete = numpy.where(local_l1 / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
