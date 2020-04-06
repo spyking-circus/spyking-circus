@@ -533,7 +533,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
 
-                local_peaktimes = numpy.unique(all_peaktimes)
+                local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
                 local_offset = t_offset + padding[0]
 
                 if gpass == 0:
@@ -554,9 +554,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         for i in range(n_e):
                             test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
-                    n_times = len(local_peaktimes)
-                    argmax_peak = numpy.random.permutation(numpy.arange(n_times))
-                    all_idx = numpy.take(local_peaktimes, argmax_peak)
+                    n_times = len(all_peaktimes)
+                    shuffling = numpy.random.permutation(numpy.arange(n_times))
+                    all_idx = numpy.take(all_peaktimes, shuffling)
+                    argmax_peak = local_indices[shuffling]
 
                     if gpass > 1:
                         for elec in range(n_e):
