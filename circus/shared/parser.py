@@ -213,7 +213,7 @@ class CircusParser(object):
                         ['clustering', 'safety_time', 'string', 'auto'],
                         ['clustering', 'savgol', 'bool', 'True'],
                         ['clustering', 'savgol_time', 'float', '0.2'],
-                        ['detection', 'noise_time', 'float', '0.1'],
+                        ['detection', 'noise_time', 'float', '0.2'],
                         ['whitening', 'safety_time', 'string', 'auto'],
                         ['extracting', 'safety_time', 'string', 'auto']]
 
