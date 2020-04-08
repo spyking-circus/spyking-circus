@@ -2,6 +2,7 @@
 Release 0.9.7
 =============
 
+* fix a bug in the preview mode
 * fix a bug while converting with export_all
 * speeding up the fitting procedure
 
