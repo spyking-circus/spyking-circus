@@ -3,6 +3,7 @@ Release 0.9.7
 =============
 
 * fix a bug in the preview mode
+* fix a bug while converting with export_all set to True
 * fix a rare bug when both peaks are detect in clustering with smart search
 * fix a bug while converting with export_all
 * speeding up the fitting procedure
