@@ -284,7 +284,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     max_nb_rand_ss *= len(numpy.where(smart_searches[p] == 1)[0])
                     random_numbers = numpy.random.rand(max_nb_rand_ss)
                     random_count = 0
-                    break
+                    continue
+
             if search_peaks == ['neg']:
                 sdata = smart_searches[p]
             elif search_peaks == ['pos']:
