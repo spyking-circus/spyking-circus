@@ -307,7 +307,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             elec = best_elec[target]
 
             if has_support:
-                indices = numpy.where(supports[target])[0]
+                if target >= len(supports):
+                    indices = [target - N_tm]
+                else:
+                    indices = numpy.where(supports[target])[0]
             else:
                 indices = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))
