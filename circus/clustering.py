@@ -934,7 +934,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
                         if nb_ss_bins == 'auto':
                             try:
-                                local_nb_bin = max(50, int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])))
+                                local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 50, 250)
                             except Exception:
                                 local_nb_bin = 50
                         else:

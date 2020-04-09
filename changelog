@@ -6,6 +6,7 @@ Release 0.9.7
 * fix a bug while converting with export_all set to True
 * fix a rare bug when both peaks are detect in clustering with smart search
 * fix a bug while converting with export_all
+* fix a possible bug in smart search with dynamic bins
 * speeding up the fitting procedure
 
 =============
