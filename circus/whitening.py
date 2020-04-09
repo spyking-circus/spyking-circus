@@ -329,12 +329,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     groups = {}
     if debug:
-        noisy_waveforms = {}
+        noisy_waveforms = {'rejected' : {}, 'accepted' : {}}
 
     for i in range(N_e):
         groups[i] = 0
         if debug:
-            noisy_waveforms[i] = numpy.zeros((0, 2*noise_window + 1), dtype=numpy.float32)
+            noisy_waveforms['rejected'][i] = numpy.zeros((0, 2*noise_window + 1), dtype=numpy.float32)
+            noisy_waveforms['accepted'][i] = numpy.zeros((0, 2*noise_window + 1), dtype=numpy.float32)
 
     # I guess this is more relevant, to take signals from all over the recordings
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int32))
@@ -496,11 +497,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                             if reject_noise:
                                 slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window + 1]
-                                if debug:
-                                    noisy_waveforms[elec] = numpy.vstack((noisy_waveforms[elec], slice_window))
                                 #value = numpy.sum(numpy.abs(slice_window))/noise_levels[elec]
                                 value = numpy.linalg.norm(slice_window) / noise_levels[elec]
                                 is_noise = value < rejection_threshold
+                                if debug:
+                                    if is_noise:
+                                        key = 'rejected'
+                                    else:
+                                        key = 'accepted'
+                                    noisy_waveforms[key][elec] = numpy.vstack((noisy_waveforms[key][elec], slice_window))
                             else:
                                 is_noise = False
                             
@@ -551,7 +556,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if debug:
         for i in range(N_e):
-            numpy.save('noise_%d_elec_%d' %(comm.rank, i), noisy_waveforms[i])
+            numpy.save('whitening_accepted_%d_elec_%d' %(comm.rank, i), noisy_waveforms['accepted'][i])
+            numpy.save('whitening_rejected_%d_elec_%d' %(comm.rank, i), noisy_waveforms['rejected'][i])
 
     if comm.rank == 0:
         # DO PCA on elts and store the basis obtained.

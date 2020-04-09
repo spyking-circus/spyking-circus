@@ -79,8 +79,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     to_write = ['clusters_', 'times_', 'data_', 'peaks_', 'noise_times_']
-    if debug:
-        to_write += ['rho_', 'delta_']
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     jitter_range = params.getint('detection', 'jitter_range')
     template_shift_2 = template_shift + jitter_range
@@ -127,6 +125,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     for p in search_peaks:
         smart_searches[p] = numpy.ones(n_e, dtype=numpy.float32) * int(smart_search)
 
+    if debug:
+        to_write += ['rho_', 'delta_']
+        noisy_waveforms = {'rejected' : {}, 'accepted' : {}}
+        for i in range(n_e):
+            noisy_waveforms['rejected'][i] = numpy.zeros((0, 2*noise_window + 1, len(nodes_indices[i])), dtype=numpy.float32)
+            noisy_waveforms['accepted'][i] = numpy.zeros((0, 2*noise_window + 1, len(nodes_indices[i])), dtype=numpy.float32)
 
     basis = {}
 
@@ -638,6 +642,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     #values = numpy.sum(numpy.abs(slice_window), axis=0) / noise_levels[elec]
                                     values = numpy.linalg.norm(slice_window, axis=0) / noise_levels[indices]
                                     is_noise = numpy.all(values < rejection_threshold)
+                                    if debug:
+                                        if is_noise:
+                                            mykey = 'rejected'
+                                        else:
+                                            mykey = 'accepted'
+                                        noisy_waveforms[mykey][elec] = numpy.vstack((noisy_waveforms[mykey][elec], slice_window[numpy.newaxis, :, :]))
                                 else:
                                     is_noise = False
 
@@ -1220,6 +1230,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         pass
 
     comm.Barrier()
+
+    if debug:
+        for i in range(n_e):
+            numpy.save('clustering_accepted_%d_elec_%d' %(comm.rank, i), noisy_waveforms['accepted'][i])
+            numpy.save('clustering_rejected_%d_elec_%d' %(comm.rank, i), noisy_waveforms['rejected'][i])
 
     # gdata = gather_array(numpy.array([local_hits], dtype=numpy.float32), comm, 0)
     gdata2 = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
