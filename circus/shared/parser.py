@@ -208,7 +208,7 @@ class CircusParser(object):
                         ['detection', 'jitter_range', 'float', '0.2'],
                         ['detection', 'smoothing_factor', 'float', '1.48'],
                         ['detection', 'debug', 'bool', 'False'],
-                        ['detection', 'rejection_threshold', 'float', '2'],
+                        ['detection', 'rejection_threshold', 'float', '1'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
                         ['clustering', 'savgol', 'bool', 'True'],
