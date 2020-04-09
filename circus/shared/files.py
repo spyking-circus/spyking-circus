@@ -95,6 +95,7 @@ def get_stas(
 
     alignment = params.getboolean('detection', 'alignment') and auto_align
     over_factor = float(params.getint('detection', 'oversampling_factor'))
+    nb_jitter = params.getint('detection', 'nb_jitter')
 
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
@@ -110,7 +111,7 @@ def get_stas(
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range)+1)
+        cdata = numpy.linspace(-jitter_range, jitter_range, nb_jitter)
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
         duration = 2 * template_shift_2 + 1

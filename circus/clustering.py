@@ -30,6 +30,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     alignment = params.getboolean('detection', 'alignment')
     isolation = params.getboolean('detection', 'isolation')
     over_factor = float(params.getint('detection', 'oversampling_factor'))
+    nb_jitter = params.getint('detection', 'nb_jitter')
     matched_filter = params.getboolean('detection', 'matched-filter')
     _ = params.getfloat('detection', 'spike_thresh')
     spike_width = params.getfloat('detection', 'spike_width')
@@ -147,7 +148,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         savgol_window = None  # default assignment (for PyCharm code inspection)
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range)+1)
+        cdata = numpy.linspace(-jitter_range, jitter_range, nb_jitter)
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff = len(cdata) / 2.0
         duration = template_shift_2

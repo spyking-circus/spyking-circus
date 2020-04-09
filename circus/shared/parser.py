@@ -197,7 +197,7 @@ class CircusParser(object):
                         ['fitting', 'min_second_component', 'float', '1e-2'],
                         ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
-                        ['clustering', 'debug', 'bool', 'True'],
+                        ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
@@ -207,7 +207,7 @@ class CircusParser(object):
                         ['clustering', 'fine_amplitude', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.2'],
                         ['detection', 'smoothing_factor', 'float', '1.48'],
-                        ['detection', 'debug', 'bool', 'True'],
+                        ['detection', 'debug', 'bool', 'False'],
                         ['detection', 'rejection_threshold', 'float', '2'],
                         ['data', 'memory_usage', 'float', '0.1'],
                         ['clustering', 'safety_time', 'string', 'auto'],
@@ -813,6 +813,12 @@ class CircusParser(object):
             jitter = self.getfloat('detection', 'jitter_range')
             jitter_range = int(self.rate * jitter * 1e-3)
             self.set('detection', 'jitter_range', jitter_range)
+
+            over_factor = self.getfloat('detection', 'oversampling_factor')
+            nb_jitter = int(over_factor * 2 * jitter_range)
+            if numpy.mod(nb_jitter, 2) == 0:
+              nb_jitter += 1
+            self.set('detection', 'nb_jitter', nb_jitter)
 
             if 'chunk' in self.parser._sections['fitting']:
                 self.parser.set('fitting', 'chunk_size', 
