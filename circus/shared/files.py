@@ -110,7 +110,7 @@ def get_stas(
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range)+1)
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff  = len(cdata) / 2.
         duration = 2 * template_shift_2 + 1

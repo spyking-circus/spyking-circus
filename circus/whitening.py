@@ -357,7 +357,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     stds = io.load_data(params, 'stds')
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, +jitter_range, int(over_factor * 2 * jitter_range))
+        cdata = numpy.linspace(-jitter_range, +jitter_range, int(over_factor * 2 * jitter_range) + 1)
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff = len(cdata) / 2.0
         snippet_duration = template_shift_2

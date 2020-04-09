@@ -147,7 +147,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         savgol_window = None  # default assignment (for PyCharm code inspection)
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range))
+        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range)+1)
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff = len(cdata) / 2.0
         duration = template_shift_2
@@ -554,10 +554,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
                     max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
 
-                    if isolation:
-                        test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
-                        for i in range(n_e):
-                            test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
+                    test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                    for i in range(n_e):
+                        test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
                     n_times = len(all_peaktimes)
                     shuffling = numpy.random.permutation(numpy.arange(n_times))
