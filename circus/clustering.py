@@ -583,9 +583,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         to_accept = False
                         max_test = True
 
-                        target_area = test_extremas[:, min_times[midx]:max_times[midx]].sum(1)
-                        all_elecs = numpy.where(target_area)[0]
+                        all_elecs = numpy.where(test_extremas[:, peak - local_peaktimes[0]])[0]
                         data = local_chunk[peak, all_elecs]
+
+                        #target_area = test_extremas[:, min_times[midx]:max_times[midx]].sum(1)
+                        #all_elecs = numpy.where(target_area)[0]
+                        #data = local_chunk[peak, all_elecs]
 
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
