@@ -499,7 +499,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             if reject_noise:
                                 slice_window = sub_mat[snippet_duration - noise_window: snippet_duration + noise_window + 1]
                                 #value = numpy.sum(numpy.abs(slice_window))/noise_levels[elec]
-                                value = numpy.linalg.norm(slice_window) / noise_levels[elec]
+                                value = numpy.linalg.norm(slice_window, 1) / noise_levels[elec]
                                 is_noise = value < rejection_threshold
                                 if debug:
                                     if is_noise:
