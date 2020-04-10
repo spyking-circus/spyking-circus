@@ -831,6 +831,12 @@ class CircusParser(object):
 
             self.set('detection', 'noise_time', self._noise)
 
+            over_factor = self.getfloat('detection', 'oversampling_factor')
+            nb_jitter = int(over_factor * 2 * jitter_range)
+            if numpy.mod(nb_jitter, 2) == 0:
+              nb_jitter += 1
+            self.set('detection', 'nb_jitter', nb_jitter)
+
             # chunk_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:
                 chunk = self.parser.getfloat(section, 'chunk_size')
