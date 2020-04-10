@@ -128,8 +128,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             diff_times = local_peaktimes[-1]-local_peaktimes[0]
             all_times = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
-            min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
-            max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
+            padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
+            min_times = numpy.maximum(padded_peaks - safety_time, 0)
+            max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
             argmax_peak = numpy.random.permutation(numpy.arange(len(local_peaktimes)))
             all_idx = numpy.take(local_peaktimes, argmax_peak)
 
@@ -426,7 +427,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peaktimes = peaktimes.astype(numpy.uint32)
                 found_peaktimes.append(peaktimes)
 
-            all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
+            all_peaktimes = numpy.concatenate(found_peaktimes) # i.e. concatenate once for efficiency
             local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
 
             if len(local_peaktimes) > 0:
@@ -436,7 +437,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
                 min_times = numpy.maximum(padded_peaks - safety_time, 0)
-                max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times)
+                max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
                 test_extremas = numpy.zeros((N_e, diff_times), dtype=numpy.bool)
                 for i in range(N_e):
                     test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True

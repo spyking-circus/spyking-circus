@@ -462,6 +462,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
                             found_peaktimes.append(peaktimes[idx])
 
+                            peaktimes = peaktimes[idx]
+
+                            if ignore_dead_times:
+                                if dead_indices[0] != dead_indices[1]:
+                                    is_included = numpy.in1d(
+                                        peaktimes + t_offset,
+                                        all_dead_times[dead_indices[0]:dead_indices[1]]
+                                    )
+                                    peaktimes = peaktimes[~is_included]
+
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(
                             local_chunk, waveform_neg, axis=0, mode='constant'
@@ -522,9 +532,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         found_peaktimes.append(peaktimes)
 
-                all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
+                all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
 
-                local_peaktimes = numpy.unique(all_peaktimes)
+                local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
                 local_offset = t_offset + padding[0]
 
                 if gpass == 0:
@@ -537,17 +547,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     diff_times = local_peaktimes[-1] - local_peaktimes[0]
                     all_times = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
-                    min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
-                    max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
+                    padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
+                    min_times = numpy.maximum(padded_peaks - safety_time, 0)
+                    max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
 
-                    if isolation:
-                        test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
-                        for i in range(n_e):
-                            test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
+                    test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                    for i in range(n_e):
+                        test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
-                    n_times = len(local_peaktimes)
-                    argmax_peak = numpy.random.permutation(numpy.arange(n_times))
-                    all_idx = numpy.take(local_peaktimes, argmax_peak)
+                    n_times = len(all_peaktimes)
+                    shuffling = numpy.random.permutation(numpy.arange(n_times))
+                    all_idx = numpy.take(all_peaktimes, shuffling)
+                    argmax_peak = local_indices[shuffling]
 
                     if gpass > 1:
                         for elec in range(n_e):
@@ -572,36 +583,42 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         to_accept = False
                         max_test = True
 
+                        target_area = test_extremas[:, min_times[midx]:max_times[midx]].sum(1)
+                        all_elecs = numpy.where(target_area)[0]
+                        data = local_chunk[peak, all_elecs]
+
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
                         if sign_peaks == 'negative':
-                            elec = numpy.argmin(local_chunk[peak])
+                            elec = numpy.argmin(data)
                             negative_peak = True
                             loc_peak = 'neg'
                         elif sign_peaks == 'positive':
-                            elec = numpy.argmax(local_chunk[peak])
+                            elec = numpy.argmax(data)
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':
                             if n_e == 1:
                                 elec = 0
-                                if local_chunk[peak] < 0:
+                                if data < 0:
                                     negative_peak = True
                                     loc_peak = 'neg'
-                                elif local_chunk[peak] > 0:
+                                elif data > 0:
                                     negative_peak = False
                                     loc_peak = 'pos'
                             else:
-                                if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
-                                    elec = numpy.argmax(local_chunk[peak])
+                                if numpy.abs(numpy.max(data)) > numpy.abs(numpy.min(data)):
+                                    elec = numpy.argmax(data)
                                     negative_peak = False
                                     loc_peak = 'pos'
                                 else:
-                                    elec = numpy.argmin(local_chunk[peak])
+                                    elec = numpy.argmin(data)
                                     negative_peak = True
                                     loc_peak = 'neg'
                         else:
                             raise ValueError("unexpected value %s" % sign_peaks)
+
+                        elec = all_elecs[elec]
 
                         key = '%s_%s' % (loc_peak, str(elec))
 
@@ -775,6 +792,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             all_times[indices, min_times[midx]:max_times[midx]] = True
                                         else:
                                             all_times[elec, min_times[midx]:max_times[midx]] = True
+                                        test_extremas[elec, peak - local_peaktimes[0]] = False
                                 else:
                                     nb_noise += 1
                                     if gpass <= 1:
