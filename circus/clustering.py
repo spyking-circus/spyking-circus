@@ -1379,20 +1379,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         myamps += [[0, 10]]
                     else:
 
-                        x, y, z = sub_data_raw.shape
-                        sub_data_raw[:, to_delete, :] = 0
-                        sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
-                        first_flat = first_component.reshape(y * z, 1)
-                        amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
-                        amplitudes /= numpy.sum(first_flat ** 2)
-                        center = 1 #numpy.median(amplitudes)  # TODO remove this line?
-                        variation = numpy.median(numpy.abs(amplitudes - center))
-
-                        # TODO remove the following lines?
-                        # # We are rescaling the template such that median amplitude is exactly 1
-                        # # This is changed because of the smoothing
-                        # first_component *= center
-
                         templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
                         if shift > 0:
                             templates[indices, shift:] = first_component[:, :-shift]
@@ -1415,6 +1401,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             amp_min = 0.5
                             amp_max = 1.5
                         else:
+                            x, y, z = sub_data_raw.shape
+                            sub_data_raw[:, to_delete, :] = 0
+                            sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
+                            first_flat = first_component.reshape(y * z, 1)
+                            amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
+                            amplitudes /= numpy.sum(first_flat ** 2)
+                            center = 1 #numpy.median(amplitudes)  # TODO remove this line?
+                            variation = numpy.median(numpy.abs(amplitudes - center))
                             distance = \
                             min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
                             noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])

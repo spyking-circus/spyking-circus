@@ -145,6 +145,8 @@ class CircusParser(object):
                           ['clustering', 'two_components', 'bool', 'True'],
                           ['clustering', 'templates_normalization', 'bool', 'True'],
                           ['clustering', 'halo_rejection', 'float', 'inf'],
+                          ['clustering', 'adapted_cc', 'bool', 'False'],
+                          ['clustering', 'adapted_thr', 'int', '100'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.75'],
@@ -826,8 +828,6 @@ class CircusParser(object):
             # noise from millisecond to sampling points
             noise_time = self.getfloat('detection', 'noise_time')
             self._noise = int(self.rate * noise_time * 1e-3)
-            if numpy.mod(self._noise, 2) == 0:
-                self._noise += 1
 
             self.set('detection', 'noise_time', self._noise)
 
