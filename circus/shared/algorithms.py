@@ -1329,8 +1329,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         if t_j is None:
                             t_j = templates[:, j].toarray().ravel()
                         new_template = (a1 * t_i + a2 * t_j)
-                        similarity = numpy.dot(t_k, new_template)/norm
-                        local_overlap = numpy.dot(t_i, t_j)/norm
+                        similarity = numpy.corrcoef(t_k, new_template)[0, 1]
+                        local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
                         if adapted_cc:
                             shared_support = numpy.sum(numpy.logical_or(supports[i], supports[j])*supports[k])
                             exponent = numpy.exp(-shared_support/adapted_thr)
