@@ -90,6 +90,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_ss_bins = int(nb_ss_bins)
     max_nb_rand_ss = params.getint('clustering', 'nb_ss_rand')
     nb_snippets = params.getint('clustering', 'nb_snippets')
+    ignored_mixtures = params.getfloat('clustering', 'ignored_mixtures')
     use_hanning = params.getboolean('detection', 'hanning')
     use_savgol = params.getboolean('clustering', 'savgol')
     templates_normalization = params.getboolean('clustering', 'templates_normalization')
@@ -1358,9 +1359,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_stds = numpy.std(first_component, 1)
                         to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
+                        sub_data_raw[:, to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
+
+                    nb_kept = float(len(indices) - len(to_delete))
+                    channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).mean(1)
+                    frac_high_variances = len(numpy.where(channel_mads > mads[indices])[0])/nb_kept
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
@@ -1372,7 +1378,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         raise ValueError("Unexpected value %s" % p)
 
                     shift = template_shift - tmpidx[1]
-                    is_noise = len(indices) == len(to_delete) or (1 / ratio) < noise_thresh
+                    is_noise = (len(indices) == len(to_delete)) or \
+                               ((1 / ratio) < noise_thresh) or \
+                               (frac_high_variances > ignored_mixtures)
 
                     if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
