@@ -1364,9 +1364,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
 
-                    nb_kept = float(len(indices) - len(to_delete))
-                    channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).mean(1)
-                    frac_high_variances = len(numpy.where(channel_mads > mads[indices])[0])/nb_kept
+                    channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).max(1)
+                    frac_high_variances = numpy.max(channel_mads/mads[indices])
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)

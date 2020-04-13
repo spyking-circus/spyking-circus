@@ -9,6 +9,7 @@ Release 0.9.7
 * speeding up the fitting procedure
 * enhancing the non-selection of noisy snippets, and thus clustering
 * option to dynamically adapt cc_merge for large number of electrodes
+* remove putative mixtures based on variance, speeding up drastically CC estimation
 
 =============
 Release 0.9.6

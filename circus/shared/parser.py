@@ -147,7 +147,7 @@ class CircusParser(object):
                           ['clustering', 'halo_rejection', 'float', 'inf'],
                           ['clustering', 'adapted_cc', 'bool', 'False'],
                           ['clustering', 'adapted_thr', 'int', '100'],
-                          ['clustering', 'ignored_mixtures', 'float', '1'],
+                          ['clustering', 'ignored_mixtures', 'float', '5'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.75'],
@@ -520,11 +520,11 @@ class CircusParser(object):
                 print_and_log(["cc_merge in [validating] should be in [0,1]"], 'error', logger)
             sys.exit(0)
 
-        test = (self.parser.getfloat('clustering', 'ignored_mixtures') >= 0) and (self.parser.getfloat('clustering', 'ignored_mixtures') <= 1)
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["ignored_mixtures in [validating] should be in [0,1]"], 'error', logger)
-            sys.exit(0)
+        # test = (self.parser.getfloat('clustering', 'ignored_mixtures') >= 0) and (self.parser.getfloat('clustering', 'ignored_mixtures') <= 1)
+        # if not test:
+        #     if comm.rank == 0:
+        #         print_and_log(["ignored_mixtures in [validating] should be in [0,1]"], 'error', logger)
+        #     sys.exit(0)
 
         test = (self.parser.getfloat('data', 'memory_usage') > 0) and (self.parser.getfloat('data', 'memory_usage') <= 1)
         if not test:
