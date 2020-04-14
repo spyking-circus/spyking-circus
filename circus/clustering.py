@@ -30,6 +30,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     alignment = params.getboolean('detection', 'alignment')
     isolation = params.getboolean('detection', 'isolation')
     over_factor = float(params.getint('detection', 'oversampling_factor'))
+    nb_jitter = params.getint('detection', 'nb_jitter')
     matched_filter = params.getboolean('detection', 'matched-filter')
     _ = params.getfloat('detection', 'spike_thresh')
     spike_width = params.getfloat('detection', 'spike_width')
@@ -89,6 +90,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         nb_ss_bins = int(nb_ss_bins)
     max_nb_rand_ss = params.getint('clustering', 'nb_ss_rand')
     nb_snippets = params.getint('clustering', 'nb_snippets')
+    ignored_mixtures = params.getfloat('clustering', 'ignored_mixtures')
     use_hanning = params.getboolean('detection', 'hanning')
     use_savgol = params.getboolean('clustering', 'savgol')
     templates_normalization = params.getboolean('clustering', 'templates_normalization')
@@ -103,7 +105,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if rejection_threshold > 0:
         reject_noise = True
-        noise_levels = stds * 2 * noise_window
+        noise_levels = stds * (2 * noise_window + 1)
     else:
         reject_noise = False
 
@@ -140,7 +142,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         savgol_window = None  # default assignment (for PyCharm code inspection)
 
     if alignment:
-        cdata = numpy.linspace(-jitter_range, jitter_range, int(over_factor * 2 * jitter_range))
+        cdata = numpy.linspace(-jitter_range, jitter_range, nb_jitter)
         xdata = numpy.arange(-template_shift_2, template_shift_2 + 1)
         xoff = len(cdata) / 2.0
         duration = template_shift_2
@@ -461,6 +463,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
                             found_peaktimes.append(peaktimes[idx])
 
+                            peaktimes = peaktimes[idx]
+
+                            if ignore_dead_times:
+                                if dead_indices[0] != dead_indices[1]:
+                                    is_included = numpy.in1d(
+                                        peaktimes + t_offset,
+                                        all_dead_times[dead_indices[0]:dead_indices[1]]
+                                    )
+                                    peaktimes = peaktimes[~is_included]
+
                     if sign_peaks in ['negative', 'both']:
                         filter_chunk = scipy.ndimage.filters.convolve1d(
                             local_chunk, waveform_neg, axis=0, mode='constant'
@@ -521,9 +533,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         found_peaktimes.append(peaktimes)
 
-                all_peaktimes = numpy.concatenate(found_peaktimes).astype(numpy.uint32)  # i.e. concatenate once for efficiency
+                all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
 
-                local_peaktimes = numpy.unique(all_peaktimes)
+                local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
                 local_offset = t_offset + padding[0]
 
                 if gpass == 0:
@@ -536,17 +548,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     diff_times = local_peaktimes[-1] - local_peaktimes[0]
                     all_times = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
-                    min_times = numpy.maximum(local_peaktimes - local_peaktimes[0] - safety_time, 0)
-                    max_times = numpy.minimum(local_peaktimes - local_peaktimes[0] + safety_time + 1, diff_times)
+                    padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
+                    min_times = numpy.maximum(padded_peaks - safety_time, 0)
+                    max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
 
-                    if isolation:
-                        test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
-                        for i in range(n_e):
-                            test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
+                    test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                    for i in range(n_e):
+                        test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
-                    n_times = len(local_peaktimes)
-                    argmax_peak = numpy.random.permutation(numpy.arange(n_times))
-                    all_idx = numpy.take(local_peaktimes, argmax_peak)
+                    n_times = len(all_peaktimes)
+                    shuffling = numpy.random.permutation(numpy.arange(n_times))
+                    all_idx = numpy.take(all_peaktimes, shuffling)
+                    argmax_peak = local_indices[shuffling]
 
                     if gpass > 1:
                         for elec in range(n_e):
@@ -571,36 +584,45 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         to_accept = False
                         max_test = True
 
+                        all_elecs = numpy.where(test_extremas[:, peak - local_peaktimes[0]])[0]
+                        data = local_chunk[peak, all_elecs]
+
+                        #target_area = test_extremas[:, min_times[midx]:max_times[midx]].sum(1)
+                        #all_elecs = numpy.where(target_area)[0]
+                        #data = local_chunk[peak, all_elecs]
+
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
                         if sign_peaks == 'negative':
-                            elec = numpy.argmin(local_chunk[peak])
+                            elec = numpy.argmin(data)
                             negative_peak = True
                             loc_peak = 'neg'
                         elif sign_peaks == 'positive':
-                            elec = numpy.argmax(local_chunk[peak])
+                            elec = numpy.argmax(data)
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':
                             if n_e == 1:
                                 elec = 0
-                                if local_chunk[peak] < 0:
+                                if data < 0:
                                     negative_peak = True
                                     loc_peak = 'neg'
-                                elif local_chunk[peak] > 0:
+                                elif data > 0:
                                     negative_peak = False
                                     loc_peak = 'pos'
                             else:
-                                if numpy.abs(numpy.max(local_chunk[peak])) > numpy.abs(numpy.min(local_chunk[peak])):
-                                    elec = numpy.argmax(local_chunk[peak])
+                                if numpy.abs(numpy.max(data)) > numpy.abs(numpy.min(data)):
+                                    elec = numpy.argmax(data)
                                     negative_peak = False
                                     loc_peak = 'pos'
                                 else:
-                                    elec = numpy.argmin(local_chunk[peak])
+                                    elec = numpy.argmin(data)
                                     negative_peak = True
                                     loc_peak = 'neg'
                         else:
                             raise ValueError("unexpected value %s" % sign_peaks)
+
+                        elec = all_elecs[elec]
 
                         key = '%s_%s' % (loc_peak, str(elec))
 
@@ -618,7 +640,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 # # test if the sample is pure Gaussian noise
                                 if reject_noise:
 
-                                    slice_window = local_chunk[peak - noise_window: peak + noise_window, indices]
+                                    slice_window = local_chunk[peak - noise_window: peak + noise_window + 1, indices]
                                     values = \
                                         numpy.linalg.norm(slice_window, axis=0) / noise_levels[indices]
                                     is_noise = numpy.all(
@@ -774,6 +796,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             all_times[indices, min_times[midx]:max_times[midx]] = True
                                         else:
                                             all_times[elec, min_times[midx]:max_times[midx]] = True
+                                        test_extremas[elec, peak - local_peaktimes[0]] = False
                                 else:
                                     nb_noise += 1
                                     if gpass <= 1:
@@ -1336,9 +1359,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_stds = numpy.std(first_component, 1)
                         to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
+                        sub_data_raw[:, to_delete, :] = 0
                         mean_channels -= len(to_delete)
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
+
+                    channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).max(1)
+                    frac_high_variances = numpy.max(channel_mads/mads[indices])
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
@@ -1350,26 +1377,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         raise ValueError("Unexpected value %s" % p)
 
                     shift = template_shift - tmpidx[1]
-                    is_noise = len(indices) == len(to_delete) or (1 / ratio) < noise_thresh
+                    is_noise = (len(indices) == len(to_delete)) or \
+                               ((1 / ratio) < noise_thresh) or \
+                               (frac_high_variances > ignored_mixtures)
 
                     if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
                         myamps += [[0, 10]]
                     else:
-
-                        x, y, z = sub_data_raw.shape
-                        sub_data_raw[:, to_delete, :] = 0
-                        sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
-                        first_flat = first_component.reshape(y * z, 1)
-                        amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
-                        amplitudes /= numpy.sum(first_flat ** 2)
-                        center = 1 #numpy.median(amplitudes)  # TODO remove this line?
-                        variation = numpy.median(numpy.abs(amplitudes - center))
-
-                        # TODO remove the following lines?
-                        # # We are rescaling the template such that median amplitude is exactly 1
-                        # # This is changed because of the smoothing
-                        # first_component *= center
 
                         templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
                         if shift > 0:
@@ -1393,6 +1408,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             amp_min = 0.5
                             amp_max = 1.5
                         else:
+                            x, y, z = sub_data_raw.shape
+                            sub_data_raw[:, to_delete, :] = 0
+                            sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
+                            first_flat = first_component.reshape(y * z, 1)
+                            amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
+                            amplitudes /= numpy.sum(first_flat ** 2)
+                            center = 1 #numpy.median(amplitudes)  # TODO remove this line?
+                            variation = numpy.median(numpy.abs(amplitudes - center))
                             distance = \
                             min(0, numpy.abs(first_component[tmpidx[0], tmpidx[1]]) - thresholds[indices[tmpidx[0]]])
                             noise_limit = max([0, distance + mads[indices[tmpidx[0]]]])

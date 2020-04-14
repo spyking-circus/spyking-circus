@@ -145,6 +145,9 @@ class CircusParser(object):
                           ['clustering', 'two_components', 'bool', 'True'],
                           ['clustering', 'templates_normalization', 'bool', 'True'],
                           ['clustering', 'halo_rejection', 'float', 'inf'],
+                          ['clustering', 'adapted_cc', 'bool', 'False'],
+                          ['clustering', 'adapted_thr', 'int', '100'],
+                          ['clustering', 'ignored_mixtures', 'float', '20'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.75'],
@@ -517,6 +520,12 @@ class CircusParser(object):
                 print_and_log(["cc_merge in [validating] should be in [0,1]"], 'error', logger)
             sys.exit(0)
 
+        # test = (self.parser.getfloat('clustering', 'ignored_mixtures') >= 0) and (self.parser.getfloat('clustering', 'ignored_mixtures') <= 1)
+        # if not test:
+        #     if comm.rank == 0:
+        #         print_and_log(["ignored_mixtures in [validating] should be in [0,1]"], 'error', logger)
+        #     sys.exit(0)
+
         test = (self.parser.getfloat('data', 'memory_usage') > 0) and (self.parser.getfloat('data', 'memory_usage') <= 1)
         if not test:
             if comm.rank == 0:
@@ -826,10 +835,14 @@ class CircusParser(object):
             # noise from millisecond to sampling points
             noise_time = self.getfloat('detection', 'noise_time')
             self._noise = int(self.rate * noise_time * 1e-3)
-            if numpy.mod(self._noise, 2) == 0:
-                self._noise += 1
 
             self.set('detection', 'noise_time', self._noise)
+
+            over_factor = self.getfloat('detection', 'oversampling_factor')
+            nb_jitter = int(over_factor * 2 * jitter_range)
+            if numpy.mod(nb_jitter, 2) == 0:
+              nb_jitter += 1
+            self.set('detection', 'nb_jitter', nb_jitter)
 
             # chunk_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:

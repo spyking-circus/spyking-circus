@@ -8,6 +8,9 @@ Release 0.9.7
 * fix a bug while converting with export_all
 * fix a possible bug in smart search with dynamic bins
 * speeding up the fitting procedure
+* enhancing the non-selection of noisy snippets, and thus clustering
+* option to dynamically adapt cc_merge for large number of electrodes
+* remove putative mixtures based on variance, speeding up drastically CC estimation
 
 =============
 Release 0.9.6
