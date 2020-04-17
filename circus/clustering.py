@@ -1635,7 +1635,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             print_and_log(
-                ["Removing %d strongly shifted or noisy templates..." % len(templates_to_remove)], 'default', logger
+                ["Removing %d strongly shifted or noisy/mixture templates..." % len(templates_to_remove)], 'default', logger
             )
 
         if comm.rank == 0:

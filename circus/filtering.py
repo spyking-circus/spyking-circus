@@ -173,6 +173,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
                 local_chunk -= numpy.median(local_chunk, 0)
 
+            if not do_filtering:
+                local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
+
             if do_remove_median:
                 if not process_all_channels:
                     global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
