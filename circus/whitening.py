@@ -108,6 +108,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         thresholds = io.load_data(params, 'thresholds')
 
+        local_borders = (template_shift, local_shape - template_shift)
+        found_peaktimes = []
+
         if ignore_spikes:
             # Extracting the peaks.
             local_peaktimes = [np.empty(0, dtype=numpy.uint32)]
@@ -116,17 +119,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t
                 )[0]
                 peaktimes = peaktimes.astype(numpy.uint32)
-                local_peaktimes.append(peaktimes)
-            local_peaktimes = numpy.concatenate(local_peaktimes)
 
-            local_peaktimes = numpy.unique(local_peaktimes)
+                # print "Removing the useless borders..."
+                idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
+                peaktimes = numpy.compress(idx, peaktimes)
+
+                found_peaktimes.append(peaktimes)
         else:
-            local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
+            for i in range(N_e):
+                found_peaktimes.append(numpy.zeros(0, dtype=numpy.uint32))
 
-        # print "Removing the useless borders..."
-        local_borders = (template_shift, local_shape - template_shift)
-        idx = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
-        local_peaktimes = numpy.compress(idx, local_peaktimes)
+        all_peaktimes = numpy.concatenate(found_peaktimes)
+        local_peaktimes = numpy.unique(all_peaktimes)
 
         if len(local_peaktimes) > 0:
 
@@ -135,12 +139,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
             min_times = numpy.maximum(padded_peaks - safety_time, 0)
             max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
+
+            test_extremas = numpy.zeros((N_e, diff_times + 1), dtype=numpy.bool)
+            for i in range(N_e):
+                test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
+
             argmax_peak = numpy.random.permutation(numpy.arange(len(local_peaktimes)))
             all_idx = numpy.take(local_peaktimes, argmax_peak)
 
             # print "Selection of the peaks with spatio-temporal masks..."
             for idx, peak in zip(argmax_peak, all_idx):
-                elec = numpy.argmax(numpy.abs(local_chunk[peak]))
+
+                all_elecs = numpy.where(test_extremas[:, peak - local_peaktimes[0]])[0]
+                data = local_chunk[peak, all_elecs]
+                elec = all_elecs[numpy.argmax(numpy.abs(data))]
                 indices = nodes_indices[elec]
                 if safety_space:
                     all_times[indices, min_times[idx]:max_times[idx]] = True
@@ -442,7 +454,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
                 min_times = numpy.maximum(padded_peaks - safety_time, 0)
                 max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
-                test_extremas = numpy.zeros((N_e, diff_times), dtype=numpy.bool)
+                test_extremas = numpy.zeros((N_e, diff_times + 1), dtype=numpy.bool)
                 for i in range(N_e):
                     test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
