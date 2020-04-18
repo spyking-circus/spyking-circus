@@ -8,6 +8,7 @@ Release 0.9.7
 * fix a bug if removing reference channel after filtering has been already done
 * fix a bug while converting with export_all
 * fix a possible bug in smart search with dynamic bins
+* enhance the robustness of the whitening for very large arrays
 * speeding up the fitting procedure
 * enhancing the non-selection of noisy snippets, and thus clustering
 * option to dynamically adapt cc_merge for large number of electrodes
