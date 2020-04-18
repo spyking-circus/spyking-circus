@@ -124,6 +124,7 @@ class CircusParser(object):
                           ['whitening', 'fudge', 'float', '1e-18'],
                           ['whitening', 'safety_space', 'bool', 'True'],
                           ['whitening', 'temporal', 'bool', 'False'],
+                          ['whitening', 'ignore_spikes', 'bool', 'True'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'nb_repeats', 'int', '3'],

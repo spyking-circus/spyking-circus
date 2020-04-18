@@ -32,6 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     sign_peaks = params.get('detection', 'peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    ignore_spikes = params.getboolean('whitening', 'ignore_spikes')
     chunk_size = detect_memory(params, whitening=True)
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     nodes, edges = get_nodes_and_edges(params)
@@ -107,17 +108,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
         thresholds = io.load_data(params, 'thresholds')
 
-        # Extracting the peaks.
-        local_peaktimes = [np.empty(0, dtype=numpy.uint32)]
-        for i in range(N_e):
-            peaktimes = scipy.signal.find_peaks(
-                numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t
-            )[0]
-            peaktimes = peaktimes.astype(numpy.uint32)
-            local_peaktimes.append(peaktimes)
-        local_peaktimes = numpy.concatenate(local_peaktimes)
+        if ignore_spikes:
+            # Extracting the peaks.
+            local_peaktimes = [np.empty(0, dtype=numpy.uint32)]
+            for i in range(N_e):
+                peaktimes = scipy.signal.find_peaks(
+                    numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, wlen=N_t
+                )[0]
+                peaktimes = peaktimes.astype(numpy.uint32)
+                local_peaktimes.append(peaktimes)
+            local_peaktimes = numpy.concatenate(local_peaktimes)
 
-        local_peaktimes = numpy.unique(local_peaktimes)
+            local_peaktimes = numpy.unique(local_peaktimes)
+        else:
+            local_peaktimes = numpy.zeros(0, dtype=numpy.uint32)
 
         # print "Removing the useless borders..."
         local_borders = (template_shift, local_shape - template_shift)
