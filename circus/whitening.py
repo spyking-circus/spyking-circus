@@ -29,6 +29,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     spike_width = params.getfloat('detection', 'spike_width')
     matched_filter = params.getboolean('detection', 'matched-filter')
     matched_thresh = params.getfloat('detection', 'matched_thresh')
+    fudge = params.getfloat('whitening', 'fudge')
     sign_peaks = params.get('detection', 'peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
@@ -201,7 +202,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_times_elec = numpy.any(numpy.take(all_times, indices, axis=0), 0)
             esubset = numpy.where(all_times_elec == False)[0]
             local_data = local_chunk[esubset][:, indices]
-            local_whitening = get_whitening_matrix(local_data).astype(numpy.float32)
+            local_whitening = get_whitening_matrix(local_data, fudge=fudge).astype(numpy.float32)
             pos = numpy.where(elec == indices)[0]
             local_res_spac[elec, indices] = local_whitening[pos]
             local_silences += [len(esubset)]
