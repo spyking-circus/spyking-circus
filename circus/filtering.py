@@ -169,9 +169,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
 
             if do_filtering:
+                local_chunk -= numpy.median(local_chunk, 0)
                 local_chunk = signal.filtfilt(b, a, local_chunk, axis=0)
                 local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
-                local_chunk -= numpy.median(local_chunk, 0)
             else:
                 local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
 
