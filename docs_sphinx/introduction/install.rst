@@ -40,7 +40,7 @@ Then activate the environment::
 
 Then install the software itself::
 
-    (circus) >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
+    (circus) >> conda install -c conda-forge -c intel -c spyking-circus spyking-circus
 
 
 Using pip
