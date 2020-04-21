@@ -41,15 +41,15 @@ install:
   - 'set PATH=%PYTHON%;%PYTHON%\Library\bin;%PYTHON%\Scripts;%PATH%'
   # Install MPI
   - ps: (new-object net.webclient).DownloadFile(
-        "https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisetup.exe",
+        "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisetup.exe",
         "C:\projects\MSMpiSetup.exe")
   - C:\projects\MSMpiSetup.exe -unattend -minimal
   - ps: (new-object net.webclient).DownloadFile(
-        "https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisdk.msi",
+        "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisdk.msi",
         "C:\projects\MSMpiSdk.msi")
   - ps: msiexec /i C:\projects\MSMpiSdk.msi /quiet /qn /norestart
   - set PATH=C:\Program Files\Microsoft MPI\Bin;%PATH%
-  - set PATH=C:\Program Files (x86)\Microsoft SDKs\MPI\Lib;%PATH%
+  - set PATH=C:\Program Files (x86)\Microsoft SDKs\MPI;%PATH%
   # Check that we have the expected version and architecture for Python
   - 'python --version'
   - 'python -c "import struct; print(struct.calcsize(''P'') * 8)"'

@@ -15,7 +15,7 @@ Here are some detailed instructions:
         (circus) >> conda install -c intel mpi4py
 
     5. You should see the following message:
-        * mpi4py requires that Microsoft MPI 6 be installed on the host system. That is a system wide installation that is currently not available through conda. In order to successfully use mpi4py you must install Microsoft MPI and then append the bin directory of the MPI installation to your PATH environment variable. To install Microsoft MPI see MPIv10_
+        * mpi4py requires that Microsoft MPI be installed on the host system. That is a system wide installation that is currently not available through conda. In order to successfully use mpi4py you must install Microsoft MPI (both .exe and .msi) and then append the bin directory of the MPI installation to your PATH environment variable. To install Microsoft MPI see MPIv10_
 
     6. Install microsoft MPIv10_ (both .msi and .exe) as requested with the previous link
     7. Add the mpi installation's bin directory to the path (``C:\program files\microsoft mpi\bin``)
