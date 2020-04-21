@@ -23,12 +23,12 @@ environment:
     #   PYPI_UPLOAD_WHEEL: yes
     #   platform: x64
 
-    - PYTHON: "C:\\Miniconda-x64"
-      PYTHON_VERSION: "2.7"
-      PYTHON_ARCH: "64"
-      PYPI_UPLOAD_SOURCE: no
-      PYPI_UPLOAD_WHEEL: no
-      platform: x64
+    # - PYTHON: "C:\\Miniconda-x64"
+    #   PYTHON_VERSION: "2.7"
+    #   PYTHON_ARCH: "64"
+    #   PYPI_UPLOAD_SOURCE: no
+    #   PYPI_UPLOAD_WHEEL: no
+    #   platform: x64
 
   ANACONDA_TOKEN:
     secure: 7drSxrQivCMViVHFeeFsfVzN3mELF6vkv4JAcuzdNedzFOvX1HAcGBTe0WolTsUJ
