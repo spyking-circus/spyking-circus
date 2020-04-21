@@ -70,6 +70,7 @@ test_script:
   - python setup.py bdist_wheel
   # Try installing from the source package (install dependencies via conda first)
   - conda install --yes --quiet -c spyking-circus tqdm mpi4py numpy cython scipy matplotlib h5py colorama psutil qt pyqt python-blosc statsmodels scikit-learn
+  - conda activate  # apparently necessary for mpi4py
   - FOR /R dist %%F in (*.tar.gz) do pip install %%F
   - spyking-circus -h
   - pip uninstall -y -q spyking-circus
