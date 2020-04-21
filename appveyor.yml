@@ -47,7 +47,7 @@ install:
         "https://download.microsoft.com/download/a/5/2/a5207ca5-1203-491a-8fb8-906fd68ae623/msmpisdk.msi",
         "C:\projects\MSMpiSdk.msi")
   - C:\projects\MSMpiSetup.exe -unattend -minimal
-  - C:\projects\MSMpiSdk.exe -unattend -minimal
+  - C:\projects\MSMpiSdk.msi -unattend -minimal
   - set PATH=C:\Program Files\Microsoft MPI\Bin;%PATH%
   # Check that we have the expected version and architecture for Python
   - 'python --version'
