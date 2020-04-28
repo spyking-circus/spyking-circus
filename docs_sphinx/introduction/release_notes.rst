@@ -34,6 +34,23 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 0.9.7
+=============
+
+* fix a bug in the preview mode
+* fix a bug while converting with export_all set to True
+* fix a rare bug when both peaks are detect in clustering with smart search
+* fix a bug if removing reference channel after filtering has been already done
+* fix a bug while converting with export_all
+* fix a bug in the filtering introduced in 0.9.6 (last chunk not filtered)
+* fix a possible bug in smart search with dynamic bins
+* enhance the robustness of the whitening for very large arrays
+* speeding up the fitting procedure
+* enhancing the non-selection of noisy snippets, and thus clustering
+* option to dynamically adapt cc_merge for large number of electrodes
+* remove putative mixtures based on variance, speeding up drastically CC estimation
+
+=============
 Release 0.9.6
 =============
 
