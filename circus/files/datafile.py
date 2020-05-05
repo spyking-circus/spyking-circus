@@ -129,6 +129,7 @@ class DataFile(object):
         self.file_name = file_name
         self.is_empty = is_empty
         self.stream_mode = stream_mode
+        self._is_open = False
 
         f_next, extension = os.path.splitext(self.file_name)
 
@@ -561,6 +562,9 @@ class DataFile(object):
                 source._open(mode)
         else:
             self._open(mode)
+        self._is_open = True
+        self._mode = mode
+
 
     def close(self):
         if self.is_stream:
@@ -568,3 +572,5 @@ class DataFile(object):
                 source._close()
         else:
             self._close()
+
+        self._is_open = False
