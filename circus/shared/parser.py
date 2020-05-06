@@ -969,7 +969,6 @@ class CircusParser(object):
                 stream_mode = None
                 data_file, extension = os.path.splitext(data_file)
                 data_file += ".dat"
-
             else:
                 if has_been_created:
                     data_file = self.get('data', 'data_file_no_overwrite')
@@ -981,6 +980,7 @@ class CircusParser(object):
                 else:
                     if comm.rank == 0:
                         print_and_log(['The copy file has not yet been created! Returns normal file'], 'debug', logger)
+
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 

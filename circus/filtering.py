@@ -146,11 +146,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         to_explore = range(comm.rank, nb_chunks, comm.size)
 
-        if data_file_in == data_file_out:
-            data_file_in.open(mode='r+')
-        else:
-            data_file_in.open(mode='r')
-
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(params, to_explore)
 
@@ -408,6 +403,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         description['dtype_offset'] = 0
         description['data_offset'] = 0
 
+        comm.Barrier()
         data_file_out = params.get_data_file(is_empty=not has_been_created, params=description)
 
         if comm.rank == 0:
@@ -442,7 +438,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if params.getboolean('data', 'overwrite'):
         data_file_in.open(mode='r+')
     else:
-        data_file_in.open()
+        data_file_in.open(mode='r')
         data_file_out.open(mode='r+')
 
     if do_filter or remove_median or remove_ground:
