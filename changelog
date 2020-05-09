@@ -3,6 +3,7 @@ Release 0.9.8
 =============
 
 * fix a bug while filtering HDF5 file with overwrite set to False
+* fix a bug for windows and Intel MPI
 
 =============
 Release 0.9.7
