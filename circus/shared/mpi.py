@@ -132,7 +132,7 @@ def gather_mpi_arguments(hostfile, params):
     elif MPI_VENDOR[0] == 'Intel MPI':
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
-            mpi_args += ['-machinefile', hostfile]
+            mpi_args += ['-hosts', hostfile]
     else:
         print_and_log([
                         '%s may not be yet properly implemented: contact developpers' %
