@@ -149,6 +149,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(params, to_explore)
 
+        if data_file_in == data_file_out:
+            data_file_in.open(mode='r+')
+        else:
+            data_file_in.open(mode='r')
+            data_file_out.open(mode='r+')
+
         for count, gidx in enumerate(to_explore):
 
             is_first = data_file_in.is_first_chunk(gidx, nb_chunks)
