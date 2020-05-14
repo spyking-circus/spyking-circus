@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
+
 import sys
 import argparse
 import shutil
@@ -32,9 +40,6 @@ def main(argv=None):
 
     if argv is None:
         argv = sys.argv[1:]
-
-    os.environ['OPENBLAS_NUM_THREADS'] = str(1)
-    os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
 
     parallel_hdf5 = h5py.get_config().mpi
     user_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
