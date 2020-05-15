@@ -892,6 +892,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels = labels[labels > -1]
         indices[i] = list(labels)
 
+    mask_intersect = numpy.zeros((nb_temp, nb_temp), dtype=numpy.bool)
+    for i in range(nb_temp):
+        for j in range(i, nb_temp):
+            mask_intersect[i, j] = numpy.any(supports[i]*supports[j])
+
+    mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
+
     all_sizes = {}
     all_temp = numpy.arange(comm.rank, nb_temp, comm.size)
     all_elec = numpy.arange(comm.rank, N_e, comm.size)
@@ -946,9 +953,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             snippets = scipy.sparse.csr_matrix(snippets)
 
         for j in range(nb_temp):
-            template = templates[:, j].toarray().ravel()
-            data = snippets.dot(template).astype(numpy.float32)
-            all_snippets[j, i] = data
+            if mask_intersect[i, j]:
+                template = templates[:, j].toarray().ravel()
+                data = snippets.dot(template).astype(numpy.float32)
+                all_snippets[j, i] = data
+            else:
+                all_snippets[i, j] = numpy.random.randn(0).astype(numpy.float32)
 
         all_sizes[i] = snippets.shape[0]
 
@@ -988,10 +998,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         all_snippets[i, 'noise'] = amplitudes
 
     for i in range(nb_temp):
+        has_template = numpy.mod(i, comm.size)
         for j in range(nb_temp):
-            if not (i,j) in all_snippets:
-                all_snippets[i, j] = numpy.zeros(0, dtype=numpy.float32)
-            all_snippets[i, j] = all_gather_array(all_snippets[i, j], comm, shape=0, dtype='float32')
+            if has_template == comm.rank:
+                data = all_snippets[i, j]
+            else:
+                data = empty_array
+            all_snippets[i, j] = comm.bcast(data, root=has_template)
 
         all_snippets[i, 'noise'] = all_gather_array(all_snippets[i, 'noise'], comm, shape=0, dtype='float32')
 
