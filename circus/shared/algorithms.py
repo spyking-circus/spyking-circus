@@ -958,7 +958,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 data = snippets.dot(template).astype(numpy.float32)
                 all_snippets[j, i] = data
             else:
-                all_snippets[i, j] = numpy.random.randn(0).astype(numpy.float32)
+                all_snippets[j, i] = numpy.zeros(0, dtype=numpy.float32)
 
         all_sizes[i] = snippets.shape[0]
 
@@ -1000,13 +1000,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     empty_array = numpy.zeros(0, dtype=numpy.float32)
 
     for i in range(nb_temp):
-        has_template = numpy.mod(i, comm.size)
         for j in range(nb_temp):
-            if has_template == comm.rank:
-                data = all_snippets[i, j]
-            else:
-                data = empty_array
-            all_snippets[i, j] = comm.bcast(data, root=has_template)
+            if not (i,j) in all_snippets:
+                all_snippets[i, j] = empty_array
+            all_snippets[i, j] = all_gather_array(all_snippets[i, j], comm, shape=0, dtype='float32')
 
         all_snippets[i, 'noise'] = all_gather_array(all_snippets[i, 'noise'], comm, shape=0, dtype='float32')
 
@@ -1045,7 +1042,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         nb_chances = numpy.zeros(all_sizes[i], dtype=numpy.int32)
         for j in range(nb_temp):
             # if (similarity[i, j] >= thr_similarity) and (i != j):
-            if i != j:
+            if i != j and mask_intersect[i, j]:
                 if normalization:
                     # Use the normalized scalar products.
                     ref_values = nsps[j, j]  # i.e. snippets of j projected on template i
