@@ -1064,14 +1064,21 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         bad_values['noise'] = amplitudes[i, 'noise']
 
-        all_bad_values = numpy.concatenate([
-            values
-            for values in bad_values.values()
-        ])
-        all_neutral_values = numpy.concatenate([
-            values
-            for values in neutral_values.values()
-        ])
+        if len(bad_values) > 0:
+            all_bad_values = numpy.concatenate([
+                values
+                for values in bad_values.values()
+            ])
+        else:
+            all_bad_values = numpy.zeros(0, dtype=numpy.float32)
+
+        if len(neutral_values) > 0:
+            all_neutral_values = numpy.concatenate([
+                values
+                for values in neutral_values.values()
+            ])
+        else:
+            all_neutral_values = numpy.zeros(0, dtype=numpy.float32)
 
         # Then we need to fix a_min and a_max to minimize the error
 
