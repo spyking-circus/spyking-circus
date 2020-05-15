@@ -4,6 +4,7 @@ Release 0.9.8
 
 * fix a bug while filtering HDF5 file with overwrite set to False
 * fix a bug for windows and Intel MPI
+* reducing the memory footprint while optimizing amplitudes for large number of templates
 
 =============
 Release 0.9.7
