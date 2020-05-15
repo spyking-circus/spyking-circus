@@ -1003,24 +1003,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         for j in range(nb_temp):
             if not (i,j) in all_snippets:
                 all_snippets[i, j] = empty_array
+
             all_snippets[i, j] = all_gather_array(all_snippets[i, j], comm, shape=0, dtype='float32')
 
         all_snippets[i, 'noise'] = all_gather_array(all_snippets[i, 'noise'], comm, shape=0, dtype='float32')
-
-    sps = {}  # i.e. all the scalar products
-    nsps = {}  # i.e. all the normalized scalar products
-    amplitudes = {}  # i.e. all the amplitudes
-
-    # We need to gather all amplitudes accross nodes
-    for i in range(nb_temp):
-        for j in range(nb_temp):
-            sps[i, j] = all_snippets[i, j]
-            nsps[i, j] = sps[i, j] / norm_templates[i]
-            amplitudes[i, j] = sps[i, j] / norm_2[i]
-
-        amplitudes[i, 'noise'] = all_snippets[i, 'noise'] / norm_2[i]
     
-    del all_snippets
+    #del all_snippets
     # And finally, we set a_min/a_max optimally for all the template.
     purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
     max_nb_chances = numpy.zeros(len(all_temp), dtype=numpy.float32)
@@ -1030,12 +1018,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     for count, i in enumerate(all_temp):
 
         # First, we collect admissible snippets (according to their (normalized) scalar products).
-        good_values = amplitudes[i, i]
+        good_values = all_snippets[i, i]  / norm_2[i]
         center = 1 #numpy.median(good_values)
         if normalization:
-            tgt_values = nsps[i, i]
+            tgt_values = all_snippets[i, i] / norm_templates[i]
         else:
-            tgt_values = sps[i, i]
+            tgt_values = all_snippets[i, i]
 
         bad_values = {}
         neutral_values = {}
@@ -1045,24 +1033,24 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             if i != j and mask_intersect[i, j]:
                 if normalization:
                     # Use the normalized scalar products.
-                    ref_values = nsps[j, j]  # i.e. snippets of j projected on template i
-                    values = nsps[i, j]  # i.e. snippets of j projected on template i
-                    ref2_values = nsps[j, i]  # i.e. snippets of i projected on template j
+                    ref_values = all_snippets[j, j] / norm_templates[j]  # i.e. snippets of j projected on template i
+                    values = all_snippets[i, j] / norm_templates[i]  # i.e. snippets of j projected on template i
+                    ref2_values = all_snippets[j, i]  / norm_templates[j] # i.e. snippets of i projected on template j
                 else:
                     # Use the scalar products (not normalized).
-                    ref_values = sps[j, j]  # i.e. snippets of j projected on template i
-                    values = sps[i, j]  # i.e. snippets of j projected on template i
-                    ref2_values = sps[j, i]  # i.e. snippets of i projected on template j
+                    ref_values = all_snippets[j, j]  # i.e. snippets of j projected on template i
+                    values = all_snippets[i, j]  # i.e. snippets of j projected on template i
+                    ref2_values = all_snippets[j, i]  # i.e. snippets of i projected on template j
 
                 selection = ref_values <= values  # i.e. snippets of j on which a fit with template i is tried *before* a fit with template j
-                bad_values[j] = amplitudes[i, j][selection]
+                bad_values[j] = all_snippets[i, j][selection]  / norm_2[i]
                 selection = ref_values > values   # i.e. snippets of j on which a fit with template i is tried *after* a fit with template j
-                neutral_values[j] = amplitudes[i, j][selection]
+                neutral_values[j] = all_snippets[i, j][selection] / norm_2[i]
 
                 selection = tgt_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
                 nb_chances[selection] += 1
 
-        bad_values['noise'] = amplitudes[i, 'noise']
+        bad_values['noise'] = all_snippets[i, 'noise'] / norm_2[i]
 
         if len(bad_values) > 0:
             all_bad_values = numpy.concatenate([
