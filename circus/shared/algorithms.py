@@ -997,6 +997,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         amplitudes = numpy.concatenate(noise_amplitudes.pop(i))
         all_snippets[i, 'noise'] = amplitudes
 
+    empty_array = numpy.zeros(0, dtype=numpy.float32)
+
     for i in range(nb_temp):
         has_template = numpy.mod(i, comm.size)
         for j in range(nb_temp):
