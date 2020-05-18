@@ -870,19 +870,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
 
     max_snippets = 250
-    sparse_snippets = False
     max_noise_snippets = min(max_snippets, 10000 // N_e)
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
     
     if SHARED_MEMORY:
-        templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=False)
+        templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=False, transpose=True)
     else:
         templates = load_data(params, 'templates')
+        templates = templates.T
 
     supports = load_data(params, 'supports')
-    x, n_tm = templates.shape
+    n_tm, x = templates.shape
     nb_temp = int(n_tm // 2)
     norm_templates = load_data(params, 'norm-templates')[:nb_temp]
     norm_templates *= numpy.sqrt(N_e * N_t)
@@ -950,23 +950,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels_i = labels[idx_i]
         snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-        if sparse_snippets:
-            snippets[:, ~supports[i], :] = 0
-
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
-
-        if sparse_snippets:
-            snippets = scipy.sparse.csr_matrix(snippets)
+        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T
 
         for j in range(nb_temp):
             if mask_intersect[i, j]:
-                template = templates[:, j].toarray().ravel()
-                data = snippets.dot(template).astype(numpy.float32)
-                all_snippets['all']['x'].append((i*nb_temp + j)*numpy.ones(len(data), dtype=numpy.int32))
+                data = templates[j].dot(snippets)[0].astype(numpy.float32)
+                all_snippets['all']['x'].append((j*nb_temp + i)*numpy.ones(len(data), dtype=numpy.int32))
                 all_snippets['all']['data'].append(data)
 
-        all_sizes[i] = snippets.shape[0]
+        all_sizes[i] = snippets.shape[1]
 
     noise_amplitudes = {}
     for i in range(nb_temp):
@@ -989,14 +982,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
-
-        if sparse_snippets:
-            snippets = scipy.sparse.csr_matrix(snippets)
+        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T
 
         for j in range(nb_temp):
-            template = templates[:, j].toarray().ravel()
-            data = snippets.dot(template).astype(numpy.float32)
+            data = templates[j].dot(snippets)[0].astype(numpy.float32)
             noise_amplitudes[j].append(data)
 
     for i in range(nb_temp):

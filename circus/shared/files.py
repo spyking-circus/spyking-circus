@@ -2166,7 +2166,7 @@ def load_sp_memshared(file_name, nb_temp):
             i = c // nb_temp
             j = numpy.mod(c, nb_temp)
             
-            results[j, i] = data[x_min:x_max]
+            results[i, j] = data[x_min:x_max]
 
         bounds = numpy.searchsorted(indices_noise, numpy.arange(nb_temp + 1), 'left')
 
