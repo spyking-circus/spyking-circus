@@ -11,7 +11,7 @@ import h5py
 import scipy.linalg
 import scipy.sparse
 
-from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas
+from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas, load_sp_memshared, load_sp
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
     batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity
 from circus.shared.messages import print_and_log
@@ -865,21 +865,24 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     nodes, edges = get_nodes_and_edges(params)
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
+    hdf5_compress = params.getboolean('data', 'hdf5_compress')
+    blosc_compress = params.getboolean('data', 'blosc_compress')
+    tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
 
     max_snippets = 250
-    sparse_snippets = False
     max_noise_snippets = min(max_snippets, 10000 // N_e)
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
     
     if SHARED_MEMORY:
-        templates, mpi_memory = load_data_memshared(params, 'templates', normalize=False)
+        templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=False, transpose=True)
     else:
         templates = load_data(params, 'templates')
+        templates = templates.T
 
     supports = load_data(params, 'supports')
-    x, n_tm = templates.shape
+    n_tm, x = templates.shape
     nb_temp = int(n_tm // 2)
     norm_templates = load_data(params, 'norm-templates')[:nb_temp]
     norm_templates *= numpy.sqrt(N_e * N_t)
@@ -911,7 +914,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     # First we gather all the snippets for the final templates.
 
     clusters_info = {}
-    all_snippets = {}
+    
+    all_snippets = {'all' : {}, 'noise' : {}}
+    for key in ['all', 'noise']:
+        all_snippets[key]['x'] = [numpy.zeros(0, dtype=numpy.int32)]
+        all_snippets[key]['data'] = [numpy.zeros(0, dtype=numpy.float32)]
 
     for i in to_explore:  # for each cluster...
 
@@ -943,24 +950,16 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels_i = labels[idx_i]
         snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-        if sparse_snippets:
-            snippets[:, ~supports[i], :] = 0
-
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
-
-        if sparse_snippets:
-            snippets = scipy.sparse.csr_matrix(snippets)
+        snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
         for j in range(nb_temp):
             if mask_intersect[i, j]:
-                template = templates[:, j].toarray().ravel()
-                data = snippets.dot(template).astype(numpy.float32)
-                all_snippets[j, i] = data
-            else:
-                all_snippets[j, i] = numpy.zeros(0, dtype=numpy.float32)
+                data = templates[j].dot(snippets)[0].astype(numpy.float32)
+                all_snippets['all']['x'].append((j*nb_temp + i)*numpy.ones(len(data), dtype=numpy.int32))
+                all_snippets['all']['data'].append(data)
 
-        all_sizes[i] = snippets.shape[0]
+        all_sizes[i] = snippets.shape[1]
 
     noise_amplitudes = {}
     for i in range(nb_temp):
@@ -983,31 +982,62 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps)
-
-        if sparse_snippets:
-            snippets = scipy.sparse.csr_matrix(snippets)
+        snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
         for j in range(nb_temp):
-            template = templates[:, j].toarray().ravel()
-            data = snippets.dot(template).astype(numpy.float32)
+            data = templates[j].dot(snippets)[0].astype(numpy.float32)
             noise_amplitudes[j].append(data)
 
     for i in range(nb_temp):
         amplitudes = numpy.concatenate(noise_amplitudes.pop(i))
-        all_snippets[i, 'noise'] = amplitudes
+        all_snippets['noise']['x'].append(i*numpy.ones(len(amplitudes), dtype=numpy.int32))
+        all_snippets['noise']['data'].append(amplitudes)
 
-    empty_array = numpy.zeros(0, dtype=numpy.float32)
+    filename = os.path.join(tmp_path_loc, 'sp.h5')
 
-    for i in range(nb_temp):
-        for j in range(nb_temp):
-            if not (i,j) in all_snippets:
-                all_snippets[i, j] = empty_array
+    if comm.rank == 0:
+        if os.path.exists(filename):
+            os.remove(filename)
+        hfile = h5py.File(filename, 'w', libver='earliest')
 
-            all_snippets[i, j] = all_gather_array(all_snippets[i, j], comm, shape=0, dtype='float32')
+    for k in ['all', 'noise']:
 
-        all_snippets[i, 'noise'] = all_gather_array(all_snippets[i, 'noise'], comm, shape=0, dtype='float32')
-    
+        for key in ['x', 'data']:
+            data = numpy.concatenate(all_snippets[k].pop(key))
+            if key == 'x':
+                data = gather_array(data, comm, dtype='int32', compress=blosc_compress)
+            else:
+                data = gather_array(data, comm, dtype='float32')
+
+            # We sort by x indices for faster retrieval later
+            if comm.rank == 0:
+                if key == 'x':
+                    indices = numpy.argsort(data)
+                
+                data = data[indices]
+
+                if hdf5_compress:
+                    hfile.create_dataset('%s/over_%s' %(k, key), data=data, compression='gzip')
+                else:
+                    hfile.create_dataset('%s/over_%s' %(k, key), data=data)
+            del data
+
+    # We need to gather the sparse arrays.
+    if comm.rank == 0:
+        del indices
+        hfile.close()
+
+    comm.Barrier()
+    ## Once all data are saved, we need to load them with shared mpi_memory
+    if SHARED_MEMORY:
+        all_snippets, mpi_memory_2 = load_sp_memshared(filename, nb_temp)
+    else:
+        all_snippets = load_sp(filename, nb_temp)
+
+    comm.Barrier()
+    if comm.rank == 0:
+        os.remove(filename)
+
     #del all_snippets
     # And finally, we set a_min/a_max optimally for all the template.
     purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
@@ -1181,7 +1211,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     max_nb_chances = gather_array(max_nb_chances, comm)
 
     if SHARED_MEMORY:
-        for memory in mpi_memory:
+        for memory in mpi_memory_1 + mpi_memory_2:
             memory.Free()
 
     if comm.rank == 0:

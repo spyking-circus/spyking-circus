@@ -2086,3 +2086,126 @@ def get_overlaps(
             memory.Free()
 
     return h5py.File(filename, 'r')
+
+
+def load_sp_memshared(file_name, nb_temp):
+
+    intsize = MPI.INT.Get_size()
+    floatsize = MPI.FLOAT.Get_size()
+    local_rank = sub_comm.rank
+
+    if os.path.exists(file_name):
+
+        c_overlap = h5py.File(file_name, 'r')
+        
+        results = {}
+
+        if local_rank == 0:
+            over_x = c_overlap.get('all/over_x')[:]
+            over_data = c_overlap.get('all/over_data')[:]
+            noise_x = c_overlap.get('noise/over_x')[:]
+            noise_data = c_overlap.get('noise/over_data')[:]
+            nb_data = len(over_x)
+            nb_noise_data = len(noise_x)
+            
+            indices_bytes = nb_data * intsize
+            data_bytes = nb_data * floatsize
+            indices_noise_bytes = nb_noise_data * intsize
+            data_noise_bytes = nb_noise_data * floatsize
+        else:
+            indices_bytes = 0
+            data_bytes = 0
+            nb_data = 0
+            nb_noise_data = 0
+            data_noise_bytes = 0
+            indices_noise_bytes = 0
+
+
+        c_overlap.close()
+
+        nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+        nb_noise_data = numpy.int64(sub_comm.bcast(numpy.array([nb_noise_data], dtype=numpy.int32), root=0)[0])
+
+        win_data = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
+        buf_data, _ = win_data.Shared_query(0)
+        buf_data = numpy.array(buf_data, dtype='B', copy=False)
+
+        win_indices = MPI.Win.Allocate_shared(nb_data * intsize, intsize, comm=sub_comm)
+        buf_indices, _ = win_indices.Shared_query(0)
+        buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+
+        data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
+        indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(nb_data,))
+
+        win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
+        buf_data_noise, _ = win_data_noise.Shared_query(0)
+        buf_data_noise = numpy.array(buf_data_noise, dtype='B', copy=False)
+
+        win_indices_noise = MPI.Win.Allocate_shared(nb_noise_data * intsize, intsize, comm=sub_comm)
+        buf_indices_noise, _ = win_indices_noise.Shared_query(0)
+        buf_indices_noise = numpy.array(buf_indices_noise, dtype='B', copy=False)
+
+        data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
+        indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+
+        sub_comm.Barrier()
+
+        if local_rank == 0:
+            data[:] = over_data
+            indices[:] = over_x
+            data_noise[:] = noise_data
+            indices_noise[:] = noise_x
+
+        sub_comm.Barrier()
+
+        bounds = numpy.searchsorted(indices, numpy.arange(nb_temp**2 + 1), 'left')
+
+        for c in range(nb_temp**2):
+
+            x_min, x_max = bounds[c], bounds[c+1]
+            i = c // nb_temp
+            j = numpy.mod(c, nb_temp)
+            
+            results[i, j] = data[x_min:x_max]
+
+        bounds = numpy.searchsorted(indices_noise, numpy.arange(nb_temp + 1), 'left')
+
+        for c in range(nb_temp):
+
+            x_min, x_max = bounds[c], bounds[c+1]
+            
+            results[c, 'noise'] = data_noise[x_min:x_max]
+
+
+        sub_comm.Barrier()
+        return results, (win_data, win_data_noise, win_indices_noise)
+
+def load_sp(file_name, nb_temp):
+
+    if os.path.exists(file_name):
+
+        c_overlap = h5py.File(file_name, 'r')
+        results = {}
+
+        over_x = c_overlap.get('all/over_x')[:]
+        over_data = c_overlap.get('all/over_data')[:]
+        noise_x = c_overlap.get('noise/over_x')[:]
+        noise_data = c_overlap.get('noise/over_data')[:]
+
+        bounds = numpy.searchsorted(over_x, numpy.arange(nb_temp**2 + 1), 'left')
+
+        for c in range(nb_temp**2):
+
+            x_min, x_max = bounds[c], bounds[c+1]
+            j = c // nb_temp
+            i = numpy.mod(c, nb_temp)
+            results[i, j] = over_data[x_min:x_max]
+
+        bounds = numpy.searchsorted(noise_x, numpy.arange(nb_temp + 1), 'left')
+
+        for c in range(nb_temp):
+
+            x_min, x_max = bounds[c], bounds[c+1]
+            results[c, 'noise'] = noise_data[x_min:x_max]
+
+        return results
