@@ -2178,4 +2178,4 @@ def load_sp_memshared(file_name, nb_temp):
 
 
         sub_comm.Barrier()
-        return results
+        return results, (win_data, win_data_noise, win_indices_noise)

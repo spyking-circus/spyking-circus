@@ -877,7 +877,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     SHARED_MEMORY = get_shared_memory_flag(params)
     
     if SHARED_MEMORY:
-        templates, mpi_memory = load_data_memshared(params, 'templates', normalize=False)
+        templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=False)
     else:
         templates = load_data(params, 'templates')
 
@@ -1040,8 +1040,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     comm.Barrier()
     ## Once all data are saved, we need to load them with shared mpi_memory
-    all_snippets = load_sp_memshared(filename, nb_temp)
-    
+    if SHARED_MEMORY:
+        all_snippets, mpi_memory_2 = load_sp_memshared(filename, nb_temp)
+    else:
+        all_snippets = load_sp(filename, nb_temp)
+
     if comm.rank == 0:
         os.remove(filename)
 
@@ -1218,7 +1221,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     max_nb_chances = gather_array(max_nb_chances, comm)
 
     if SHARED_MEMORY:
-        for memory in mpi_memory:
+        for memory in mpi_memory_1 + mpi_memory_2:
             memory.Free()
 
     if comm.rank == 0:
