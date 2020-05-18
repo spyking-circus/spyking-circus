@@ -11,7 +11,7 @@ import h5py
 import scipy.linalg
 import scipy.sparse
 
-from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas, load_sp_memshared
+from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas, load_sp_memshared, load_sp
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
     batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity
 from circus.shared.messages import print_and_log
@@ -1045,6 +1045,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     else:
         all_snippets = load_sp(filename, nb_temp)
 
+    comm.Barrier()
     if comm.rank == 0:
         os.remove(filename)
 

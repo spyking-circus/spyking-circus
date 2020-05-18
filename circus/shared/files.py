@@ -2179,3 +2179,33 @@ def load_sp_memshared(file_name, nb_temp):
 
         sub_comm.Barrier()
         return results, (win_data, win_data_noise, win_indices_noise)
+
+def load_sp(file_name, nb_temp):
+
+    if os.path.exists(file_name):
+
+        c_overlap = h5py.File(file_name, 'r')
+        results = {}
+
+        over_x = c_overlap.get('all/over_x')[:]
+        over_data = c_overlap.get('all/over_data')[:]
+        noise_x = c_overlap.get('noise/over_x')[:]
+        noise_data = c_overlap.get('noise/over_data')[:]
+
+        bounds = numpy.searchsorted(over_x, numpy.arange(nb_temp**2 + 1), 'left')
+
+        for c in range(nb_temp**2):
+
+            x_min, x_max = bounds[c], bounds[c+1]
+            j = c // nb_temp
+            i = numpy.mod(c, nb_temp)
+            results[i, j] = over_data[x_min:x_max]
+
+        bounds = numpy.searchsorted(noise_x, numpy.arange(nb_temp + 1), 'left')
+
+        for c in range(nb_temp):
+
+            x_min, x_max = bounds[c], bounds[c+1]
+            results[c, 'noise'] = noise_data[x_min:x_max]
+
+        return results
