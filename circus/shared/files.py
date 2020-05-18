@@ -2163,8 +2163,8 @@ def load_sp_memshared(file_name, nb_temp):
         for c in range(nb_temp**2):
 
             x_min, x_max = bounds[c], bounds[c+1]
-            i = c // nb_temp
-            j = numpy.mod(c, nb_temp)
+            j = c // nb_temp
+            i = numpy.mod(c, nb_temp)
             
             results[i, j] = data[x_min:x_max]
 
