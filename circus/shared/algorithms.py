@@ -951,7 +951,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T
+        snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
         for j in range(nb_temp):
             if mask_intersect[i, j]:
@@ -982,7 +982,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T
+        snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
         for j in range(nb_temp):
             data = templates[j].dot(snippets)[0].astype(numpy.float32)
