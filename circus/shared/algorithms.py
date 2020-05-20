@@ -770,11 +770,12 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             res2 += [i, i+1]
 
         bounds = numpy.searchsorted(over_x, res, 'left')
+        bounds_2 = numpy.searchsorted(sub_over[over_sorted], res2, 'left')
+
         duration = over_shape[1] // 2
         mask_duration = (over_y < duration)
 
-        indices = numpy.argsort(sub_over)
-        bounds_2 = numpy.searchsorted(sub_over[indices], res2, 'left')
+        import gc
 
         for count, i in enumerate(to_explore):
 
@@ -784,15 +785,16 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_data = over_data[xmin:xmax]
 
             xmin, xmax = bounds_2[2*count:2*(count+1)]
-            nslice = over_sorted[numpy.where(mask_duration[over_sorted[xmin:xmax]])]
+            nslice = mask_duration[over_sorted[xmin:xmax]]
 
-            local_x = numpy.concatenate((local_x, over_x[nslice] // nb_temp))
-            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
-            local_data = numpy.concatenate((local_data, over_data[nslice]))
+            local_x = numpy.concatenate((local_x, over_x[xmin:xmax][nslice] // nb_temp))
+            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[xmin:xmax][nslice]))
+            local_data = numpy.concatenate((local_data, over_data[xmin:xmax][nslice]))
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp, over_shape[1]), dtype=numpy.float32)
             distances[count, :] = data.max(1).toarray().flatten()
-            del local_x, local_y, local_data, data
+            del local_x, local_y, local_data, data, nslice
+            gc.collect()
 
         distances /= norm
 
