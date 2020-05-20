@@ -2062,6 +2062,7 @@ def get_overlaps(
 
         # Now we need to sync everything across nodes.
         maxlags = gather_array(maxlags, comm, 0, 1, 'int32', compress=blosc_compress)
+        line = numpy.arange(N_half)
 
         if comm.rank == 0:
             indices = []
@@ -2070,6 +2071,8 @@ def get_overlaps(
             indices = numpy.argsort(indices)
 
             maxlags = maxlags[indices, :]
+            maxlags[line, line] = 0
+
             #maxlags = numpy.maximum(maxlags, maxlags.T)
             #mask = numpy.tril(numpy.ones((N_half, N_half)), -1) > 0
             #maxlags[mask] *= -1
@@ -2086,6 +2089,7 @@ def get_overlaps(
             indices = numpy.argsort(indices)
 
             maxoverlaps = maxoverlaps[indices, :]
+            maxoverlaps[line, line] = 0
             #maxoverlaps = numpy.maximum(maxoverlaps, maxoverlaps.T)
         else:
             del maxoverlaps

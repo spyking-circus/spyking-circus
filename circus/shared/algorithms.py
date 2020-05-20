@@ -784,7 +784,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_data = numpy.concatenate((local_data, over_data[nslice]))
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp, over_shape[1]), dtype=numpy.float32)
-            distances[count, (i+1):] = data.max(1).toarray().flatten()[(i+1):]
+            distances[count, :] = data.max(1).toarray().flatten()
             del local_x, local_y, local_data, data
 
         distances /= norm
@@ -798,6 +798,9 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             indices = numpy.argsort(indices)
 
             distances = distances[indices, :]
+            line = numpy.arange(nb_temp)
+            distances[line, line] = 0
+
             #distances = numpy.maximum(distances, distances.T)
 
         comm.Barrier()
