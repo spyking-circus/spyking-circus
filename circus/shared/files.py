@@ -476,6 +476,7 @@ def load_data_memshared(
             over_shape = c_overlap.get('over_shape')[:]
             N_over = numpy.int64(numpy.sqrt(over_shape[0]))
             S_over = over_shape[1]
+            duration = S_over // 2
             c_overs = {}
             nb_data = 0
 
@@ -483,7 +484,7 @@ def load_data_memshared(
                 over_x = c_overlap.get('over_x')[:]
                 over_y = c_overlap.get('over_y')[:]
                 over_data = c_overlap.get('over_data')[:]
-                nb_data = len(over_x)
+                nb_data = len(over_x) * (duration / (duration - 1))
 
             c_overlap.close()
 
@@ -517,6 +518,7 @@ def load_data_memshared(
 
             if local_rank == 0:
                 bounds = numpy.searchsorted(over_x, res, 'left')
+                sub_over = numpy.mod(over_x, N_over)
 
             for i in range(N_over):
 
@@ -525,6 +527,11 @@ def load_data_memshared(
                     local_x = over_x[xmin:xmax] - i * N_over
                     local_y = over_y[xmin:xmax]
                     local_data = over_data[xmin:xmax]
+
+                    nslice = sub_over == i
+                    local_x = numpy.concatenate((local_x, sub_over[nslice]))
+                    local_y = numpy.concatenate((local_y, (S_over - 1) - over_y[nslice]))
+                    local_data = numpy.concatenate((local_data, over_data[nslice]))
 
                     sparse_mat = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_over, over_shape[1]))
                     local_nb_data = len(sparse_mat.data)
@@ -1942,10 +1949,10 @@ def get_overlaps(
                 overlaps['x'].append(ddx*N_tm + ddy)
                 overlaps['y'].append((idelay - 1)*ones)
                 overlaps['data'].append(data.data)
-                if idelay < N_t:
-                    overlaps['x'].append(ddy*N_tm + ddx)
-                    overlaps['y'].append((duration - idelay)*ones)
-                    overlaps['data'].append(data.data)
+                #if idelay < N_t:
+                #    overlaps['x'].append(ddy*N_tm + ddx)
+                #    overlaps['y'].append((duration - idelay)*ones)
+                #    overlaps['data'].append(data.data)
 
     sys.stderr.flush()
     if comm.rank == 0:
@@ -2008,19 +2015,28 @@ def get_overlaps(
 
         res = []
         for i in to_explore:
-            res += [i * N_tm + i + 1, i * N_tm + N_half]
+            res += [i * N_tm, i * N_tm + N_half]
 
         bounds = numpy.searchsorted(over_x, res, 'left')
+        sub_over = numpy.mod(over_x, N_tm)
 
         for count, i in enumerate(to_explore):
 
             xmin, xmax = bounds[2*count:2*(count+1)]
-            local_x = over_x[xmin:xmax] - (i * N_tm + i + 1)
+
+            local_x = over_x[xmin:xmax] - i * N_tm
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
-            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_half - (i + 1), over_shape[1]), dtype=numpy.float32)
-            maxoverlaps[count, i+1:] = data.max(1).toarray().flatten()
-            maxlags[count, i+1:] = N_t - numpy.array(data.argmax(1)).flatten()
+
+            nslice = (sub_over == i) & (over_x < (i * N_tm + N_half))
+
+            local_x = numpy.concatenate((local_x, sub_over[nslice]))
+            local_y = numpy.concatenate((local_y, (duration - 1) - over_y[nslice]))
+            local_data = numpy.concatenate((local_data, over_data[nslice]))
+
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_half, over_shape[1]), dtype=numpy.float32)
+            maxoverlaps[count, :] = data.max(1).toarray().flatten()
+            maxlags[count, :] = N_t - numpy.array(data.argmax(1)).flatten()
             del local_x, local_y, local_data, data
 
         gc.collect()
@@ -2035,9 +2051,9 @@ def get_overlaps(
             indices = numpy.argsort(indices)
 
             maxlags = maxlags[indices, :]
-            maxlags = numpy.maximum(maxlags, maxlags.T)
-            mask = numpy.tril(numpy.ones((N_half, N_half)), -1) > 0
-            maxlags[mask] *= -1
+            #maxlags = numpy.maximum(maxlags, maxlags.T)
+            #mask = numpy.tril(numpy.ones((N_half, N_half)), -1) > 0
+            #maxlags[mask] *= -1
         else:
             del maxlags
 
@@ -2051,7 +2067,7 @@ def get_overlaps(
             indices = numpy.argsort(indices)
 
             maxoverlaps = maxoverlaps[indices, :]
-            maxoverlaps = numpy.maximum(maxoverlaps, maxoverlaps.T)
+            #maxoverlaps = numpy.maximum(maxoverlaps, maxoverlaps.T)
         else:
             del maxoverlaps
 

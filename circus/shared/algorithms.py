@@ -765,18 +765,25 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         res = []
         for i in to_explore:
-            res += [i * nb_temp + i + 1, (i + 1) * nb_temp]
+            res += [i * nb_temp, (i + 1) * nb_temp]
 
         bounds = numpy.searchsorted(over_x, res, 'left')
+        sub_over = numpy.mod(over_x, nb_temp)
 
         for count, i in enumerate(to_explore):
 
             xmin, xmax = bounds[2*count:2*(count+1)]
-            local_x = over_x[xmin:xmax] - (i * nb_temp + i + 1)
+            local_x = over_x[xmin:xmax] - (i * nb_temp)
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
-            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-            distances[count, i + 1:] = data.max(1).toarray().flatten()
+
+            nslice = (sub_over == i)
+            local_x = numpy.concatenate((local_x, sub_over[nslice]))
+            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
+            local_data = numpy.concatenate((local_data, over_data[nslice]))
+
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp, over_shape[1]), dtype=numpy.float32)
+            distances[count, :] = data.max(1).toarray().flatten()
             del local_x, local_y, local_data, data
 
         distances /= norm
@@ -790,7 +797,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             indices = numpy.argsort(indices)
 
             distances = distances[indices, :]
-            distances = numpy.maximum(distances, distances.T)
+            #distances = numpy.maximum(distances, distances.T)
 
         comm.Barrier()
 
