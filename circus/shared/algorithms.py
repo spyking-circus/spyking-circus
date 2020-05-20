@@ -785,8 +785,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
             xmin, xmax = bounds_2[2*count:2*(count+1)]
             nslice = over_sorted[numpy.where(mask_duration[over_sorted[xmin:xmax]])]
-            
-            local_x = numpy.concatenate((local_x, over_x[nslice] / nb_temp))
+
+            local_x = numpy.concatenate((local_x, over_x[nslice] // nb_temp))
             local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))
 
@@ -829,7 +829,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        del result, over_x, over_y, over_data
+        del result, over_x, over_y, over_data, over_sorted, sub_over
 
         if comm.rank == 0:
             os.remove(filename)

@@ -2073,16 +2073,14 @@ def get_overlaps(
             local_data = over_data[xmin:xmax]
 
             xmin, xmax = bounds_2[2*count:2*(count+1)]
-
-            mslice = (mask_duration[over_sorted[xmin:xmax]]) * (over_x[over_sorted[xmin:xmax]] < (i * N_tm + N_half))
-            nslice = over_sorted[numpy.where(mslice)]
-            local_x = numpy.concatenate((local_x, over_x[nslice] / N_tm))
+            nslice = over_sorted[numpy.where(mask_duration[over_sorted[xmin:xmax]])]
+            local_x = numpy.concatenate((local_x, over_x[nslice] // N_tm))
             local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))
 
-            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_half, over_shape[1]), dtype=numpy.float32)
-            maxoverlaps[count, :] = data.max(1).toarray().flatten()
-            maxlags[count, :] = N_t - numpy.array(data.argmax(1)).flatten()
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_tm, over_shape[1]), dtype=numpy.float32)
+            maxoverlaps[count, :] = data.max(1).toarray().flatten()[:N_half]
+            maxlags[count, :] = N_t - numpy.array(data.argmax(1)).flatten()[:N_half]
             del local_x, local_y, local_data, data
 
         gc.collect()
@@ -2143,7 +2141,7 @@ def get_overlaps(
                 myfile2.create_dataset('maxoverlap', data=maxoverlaps)
             myfile2.close()
             del maxoverlaps, maxlags
-        del over_x, over_y, over_data
+        del over_x, over_y, over_data, over_sorted, sub_over
     comm.Barrier()
     gc.collect()
 
