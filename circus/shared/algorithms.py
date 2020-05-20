@@ -751,11 +751,11 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         SHARED_MEMORY = get_shared_memory_flag(params)
 
         if not SHARED_MEMORY:
-            over_x, over_y, over_data, over_shape = load_data(
+            over_x, over_y, over_data, sub_over, over_shape = load_data(
                 params, 'overlaps-raw', extension='-merging'
             )
         else:
-            over_x, over_y, over_data, over_shape, mpi_memory = load_data_memshared(
+            over_x, over_y, over_data, sub_over, over_shape, mpi_memory = load_data_memshared(
                 params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
             )
 
@@ -768,8 +768,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             res += [i * nb_temp, (i + 1) * nb_temp]
 
         bounds = numpy.searchsorted(over_x, res, 'left')
-        sub_over = numpy.mod(over_x, nb_temp)
         duration = over_shape[1] // 2
+        mask_duration = (over_y < duration)
 
         for count, i in enumerate(to_explore):
 
@@ -778,7 +778,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
 
-            nslice = (sub_over == i) & (over_y < duration)
+            nslice = (sub_over == i) & mask_duration
             local_x = numpy.concatenate((local_x, over_x[nslice] / nb_temp))
             local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))

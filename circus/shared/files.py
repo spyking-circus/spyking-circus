@@ -598,18 +598,22 @@ def load_data_memshared(
             win_data = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
             win_indices_x = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
             win_indices_y = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
+            win_indices_sub = MPI.Win.Allocate_shared(indices_bytes, intsize, comm=sub_comm)
 
             buf_data, _ = win_data.Shared_query(0)
             buf_indices_x, _ = win_indices_x.Shared_query(0)
             buf_indices_y, _ = win_indices_y.Shared_query(0)
+            buf_indices_sub, _ = win_indices_sub.Shared_query(0)
 
             buf_data = numpy.array(buf_data, dtype='B', copy=False)
             buf_indices_x = numpy.array(buf_indices_x, dtype='B', copy=False)
             buf_indices_y = numpy.array(buf_indices_y, dtype='B', copy=False)
+            buf_indices_sub = numpy.array(buf_indices_sub, dtype='B', copy=False)
 
             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
             indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(nb_data,))
             indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(nb_data,))
+            indices_sub = numpy.ndarray(buffer=buf_indices_sub, dtype=numpy.int32, shape=(nb_data,))
 
             sub_comm.Barrier()
 
@@ -617,11 +621,12 @@ def load_data_memshared(
                 data[:] = over_data
                 indices_x[:] = over_x
                 indices_y[:] = over_y
+                indices_sub[:] = numpy.mod(over_x, N_over)
                 del over_x, over_y, over_data
 
             sub_comm.Barrier()
 
-            return indices_x, indices_y, data, over_shape, (win_data, win_indices_x, win_indices_y)
+            return indices_x, indices_y, data, indices_sub, over_shape, (win_data, win_indices_x, win_indices_y, win_indices_sub)
         else:
             if comm.rank == 0:
                 print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
@@ -971,6 +976,7 @@ def load_data(params, data, extension=''):
 
             bounds = numpy.searchsorted(over_x, res, 'left')
             sub_over = numpy.mod(over_x, N_over)
+            mask_duration = (over_y < duration)
 
             for count, i in enumerate(range(N_over)):
 
@@ -979,7 +985,7 @@ def load_data(params, data, extension=''):
                 local_y = over_y[xmin:xmax]
                 local_data = over_data[xmin:xmax]
 
-                nslice = (sub_over == i) & (over_y < duration)
+                nslice = (sub_over == i) & mask_duration
                 
                 local_x = numpy.concatenate((local_x, over_x[nslice] / N_over))
                 local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
@@ -1002,8 +1008,9 @@ def load_data(params, data, extension=''):
             over_y = myfile.get('over_y')[:].ravel()
             over_data = myfile.get('over_data')[:].ravel()
             over_shape = myfile.get('over_shape')[:].ravel()
+            over_sub = numpy.mod(over_x, int(numpy.sqrt(over_shape[0])))
             myfile.close()
-            return over_x, over_y, over_data, over_shape
+            return over_x, over_y, over_data, over_sub, over_shape
         else:
             if comm.rank == 0:
                 print_and_log(["No overlaps found! Check suffix?"], 'error', logger)
@@ -2017,13 +2024,17 @@ def get_overlaps(
 
     if maxoverlap:
 
+        sys.stderr.flush()
+        if comm.rank == 0:
+            print_and_log(["Overlaps gathered, now computing overlaps/lags"], 'debug', logger)
+
         assert not half, "Error"
         N_half = N_tm // 2
 
         if not SHARED_MEMORY:
-            over_x, over_y, over_data, over_shape = load_data(params, 'overlaps-raw', extension=extension)
+            over_x, over_y, over_data, sub_over, over_shape = load_data(params, 'overlaps-raw', extension=extension)
         else:
-            over_x, over_y, over_data, over_shape, mpi_memory_2 = load_data_memshared(
+            over_x, over_y, over_data, sub_over, over_shape, mpi_memory_2 = load_data_memshared(
                 params, 'overlaps-raw', extension=extension, use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
             )
 
@@ -2037,8 +2048,8 @@ def get_overlaps(
             res += [i * N_tm, i * N_tm + N_half]
 
         bounds = numpy.searchsorted(over_x, res, 'left')
-        sub_over = numpy.mod(over_x, N_tm)
         duration = over_shape[1] // 2
+        mask_duration = over_y < duration
 
         for count, i in enumerate(to_explore):
 
@@ -2048,7 +2059,7 @@ def get_overlaps(
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
 
-            nslice = (sub_over == i) & (over_x < (i * N_tm + N_half)) & (over_y < duration)
+            nslice = (sub_over == i) & (over_x < (i * N_tm + N_half)) & mask_duration
             local_x = numpy.concatenate((local_x, over_x[nslice] / N_tm))
             local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))
