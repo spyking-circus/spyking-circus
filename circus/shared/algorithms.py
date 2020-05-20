@@ -778,7 +778,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_data = over_data[xmin:xmax]
 
             nslice = (sub_over == i)
-            local_x = numpy.concatenate((local_x, sub_over[nslice]))
+            local_x = numpy.concatenate((local_x, over_x[nslice] / nb_temp))
             local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))
 

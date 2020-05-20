@@ -476,7 +476,6 @@ def load_data_memshared(
             over_shape = c_overlap.get('over_shape')[:]
             N_over = numpy.int64(numpy.sqrt(over_shape[0]))
             S_over = over_shape[1]
-            duration = S_over // 2
             c_overs = {}
             nb_data = 0
 
@@ -484,7 +483,7 @@ def load_data_memshared(
                 over_x = c_overlap.get('over_x')[:]
                 over_y = c_overlap.get('over_y')[:]
                 over_data = c_overlap.get('over_data')[:]
-                nb_data = len(over_x) * (duration / (duration - 1))
+                nb_data = len(over_x) * 2 * (S_over / (S_over - 1))
 
             c_overlap.close()
 
@@ -529,8 +528,8 @@ def load_data_memshared(
                     local_data = over_data[xmin:xmax]
 
                     nslice = sub_over == i
-                    local_x = numpy.concatenate((local_x, sub_over[nslice]))
-                    local_y = numpy.concatenate((local_y, (S_over - 1) - over_y[nslice]))
+                    local_x = numpy.concatenate((local_x, over_x[nslice] / N_over))
+                    local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
                     local_data = numpy.concatenate((local_data, over_data[nslice]))
 
                     sparse_mat = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_over, over_shape[1]))
@@ -2030,8 +2029,8 @@ def get_overlaps(
 
             nslice = (sub_over == i) & (over_x < (i * N_tm + N_half))
 
-            local_x = numpy.concatenate((local_x, sub_over[nslice]))
-            local_y = numpy.concatenate((local_y, (duration - 1) - over_y[nslice]))
+            local_x = numpy.concatenate((local_x, over_x[nslice] / N_tm))
+            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_half, over_shape[1]), dtype=numpy.float32)
