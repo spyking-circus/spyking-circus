@@ -483,7 +483,7 @@ def load_data_memshared(
                 over_x = c_overlap.get('over_x')[:]
                 over_y = c_overlap.get('over_y')[:]
                 over_data = c_overlap.get('over_data')[:]
-                nb_data = len(over_x) * 2 + N_over
+                nb_data = len(over_x) * 2
 
             c_overlap.close()
 
@@ -520,6 +520,7 @@ def load_data_memshared(
             if local_rank == 0:
                 bounds = numpy.searchsorted(over_x, res, 'left')
                 sub_over = numpy.mod(over_x, N_over)
+                mask_duration = (over_y < duration)
 
             for i in range(N_over):
 
@@ -529,7 +530,7 @@ def load_data_memshared(
                     local_y = over_y[xmin:xmax]
                     local_data = over_data[xmin:xmax]
 
-                    nslice = (sub_over == i) & (over_y < duration)
+                    nslice = (sub_over == i) & mask_duration
                     local_x = numpy.concatenate((local_x, over_x[nslice] / N_over))
                     local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
                     local_data = numpy.concatenate((local_data, over_data[nslice]))
@@ -574,7 +575,7 @@ def load_data_memshared(
 
             c_overlap = h5py.File(file_name, 'r')
             over_shape = c_overlap.get('over_shape')[:]
-            N_over = over_shape[0]
+            N_over = int(numpy.sqrt(over_shape[0]))
             S_over = over_shape[1]
             c_overs = {}
             indices_bytes = 0
