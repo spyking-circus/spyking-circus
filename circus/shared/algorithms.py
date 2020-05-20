@@ -769,6 +769,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         bounds = numpy.searchsorted(over_x, res, 'left')
         sub_over = numpy.mod(over_x, nb_temp)
+        duration = over_shape[1] // 2
 
         for count, i in enumerate(to_explore):
 
@@ -777,8 +778,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
 
-            nslice = (sub_over == i)
-            local_x = numpy.concatenate((local_x, sub_over[nslice]))
+            nslice = (sub_over == i) & (over_y < duration)
+            local_x = numpy.concatenate((local_x, over_x[nslice] / nb_temp))
             local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
             local_data = numpy.concatenate((local_data, over_data[nslice]))
 
