@@ -537,11 +537,11 @@ def load_data_memshared(
                     local_data = over_data[xmin:xmax]
 
                     xmin, xmax = bounds_2[2*i:2*(i+1)]
-                    nslice = mask_duration[over_sorted[xmin:xmax]]
+                    nslice = over_sorted[xmin:xmax][mask_duration[over_sorted[xmin:xmax]]]
 
-                    local_x = numpy.concatenate((local_x, over_x[xmin:xmax][nslice] // N_over))
-                    local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[xmin:xmax][nslice]))
-                    local_data = numpy.concatenate((local_data, over_data[xmin:xmax][nslice]))
+                    local_x = numpy.concatenate((local_x, over_x[nslice] // N_over))
+                    local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
+                    local_data = numpy.concatenate((local_data, over_data[nslice]))
 
                     sparse_mat = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_over, over_shape[1]))
                     local_nb_data = len(sparse_mat.data)
@@ -1013,11 +1013,11 @@ def load_data(params, data, extension=''):
                 local_data = over_data[xmin:xmax]
 
                 xmin, xmax = bounds_2[2*i:2*(i+1)]
-                nslice = mask_duration[over_sorted[xmin:xmax]]
+                nslice = over_sorted[xmin:xmax][mask_duration[over_sorted[xmin:xmax]]]
 
-                local_x = numpy.concatenate((local_x, over_x[xmin:xmax][nslice] // N_over))
-                local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[xmin:xmax][nslice]))
-                local_data = numpy.concatenate((local_data, over_data[xmin:xmax][nslice]))
+                local_x = numpy.concatenate((local_x, over_x[nslice] // N_over))
+                local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
+                local_data = numpy.concatenate((local_data, over_data[nslice]))
 
                 c_overs[i] = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_over, over_shape[1]))
 
@@ -2093,11 +2093,11 @@ def get_overlaps(
             local_data = over_data[xmin:xmax]
 
             xmin, xmax = bounds_2[2*count:2*(count+1)]
-            nslice = mask_duration[over_sorted[xmin:xmax]]
+            nslice = over_sorted[xmin:xmax][mask_duration[over_sorted[xmin:xmax]]]
 
-            local_x = numpy.concatenate((local_x, over_x[xmin:xmax][nslice] // N_tm))
-            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[xmin:xmax][nslice]))
-            local_data = numpy.concatenate((local_data, over_data[xmin:xmax][nslice]))
+            local_x = numpy.concatenate((local_x, over_x[nslice] // N_tm))
+            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
+            local_data = numpy.concatenate((local_data, over_data[nslice]))
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_tm, over_shape[1]), dtype=numpy.float32)
             maxoverlaps[count, :] = data.max(1).toarray().flatten()[:N_half]

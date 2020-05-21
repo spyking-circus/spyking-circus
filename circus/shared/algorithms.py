@@ -785,11 +785,11 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             local_data = over_data[xmin:xmax]
 
             xmin, xmax = bounds_2[2*count:2*(count+1)]
-            nslice = mask_duration[over_sorted[xmin:xmax]]
+            nslice = over_sorted[xmin:xmax][mask_duration[over_sorted[xmin:xmax]]]
 
-            local_x = numpy.concatenate((local_x, over_x[xmin:xmax][nslice] // nb_temp))
-            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[xmin:xmax][nslice]))
-            local_data = numpy.concatenate((local_data, over_data[xmin:xmax][nslice]))
+            local_x = numpy.concatenate((local_x, over_x[nslice] // nb_temp))
+            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
+            local_data = numpy.concatenate((local_data, over_data[nslice]))
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp, over_shape[1]), dtype=numpy.float32)
             distances[count, :] = data.max(1).toarray().flatten()
