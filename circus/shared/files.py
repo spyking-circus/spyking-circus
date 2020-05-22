@@ -570,7 +570,7 @@ def load_data_memshared(
                     del local_x, local_y, local_data, nslice
 
             if local_rank == 0:
-                del over_x, over_y, over_data
+                del over_x, over_y, over_data, over_sorted, sub_over
 
             gc.collect()
 
