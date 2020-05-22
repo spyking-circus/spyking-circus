@@ -804,7 +804,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             indices = []
             for idx in range(comm.size):
                 indices += list(numpy.arange(idx, nb_temp, comm.size))
-            indices = numpy.argsort(indices)
+            indices = numpy.argsort(indices).astype(numpy.int32)
 
             distances = distances[indices, :]
             line = numpy.arange(nb_temp)
@@ -1032,7 +1032,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # We sort by x indices for faster retrieval later
             if comm.rank == 0:
                 if key == 'x':
-                    indices = numpy.argsort(data)
+                    indices = numpy.argsort(data).astype(numpy.int32)
                 
                 data = data[indices]
 
@@ -1242,7 +1242,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         for idx in range(comm.size):
             indices += list(numpy.arange(idx, nb_temp, comm.size))
 
-        indices = numpy.argsort(indices)
+        indices = numpy.argsort(indices).astype(numpy.int32)
 
         if fine_amplitude:
             hfile['limits'][:] = bounds[indices]

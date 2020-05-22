@@ -1037,7 +1037,7 @@ def load_data(params, data, extension=''):
             over_data = myfile.get('over_data')[:].ravel()
             over_shape = myfile.get('over_shape')[:].ravel()
             over_sub = numpy.mod(over_x, int(numpy.sqrt(over_shape[0])))
-            over_sorted = numpy.argsort(over_sub).astype(numpy.float32)
+            over_sorted = numpy.argsort(over_sub).astype(numpy.int32)
             myfile.close()
             return over_x, over_y, over_data, over_sub, over_sorted, over_shape
         else:
@@ -2030,7 +2030,7 @@ def get_overlaps(
         # We sort by x indices for faster retrieval later
         if comm.rank == 0:
             if key == 'x':
-                indices = numpy.argsort(data)
+                indices = numpy.argsort(data).astype(numpy.int32)
             data = data[indices]
 
             if hdf5_compress:
@@ -2113,7 +2113,7 @@ def get_overlaps(
             indices = []
             for idx in range(comm.size):
                 indices += list(numpy.arange(idx, N_half, comm.size))
-            indices = numpy.argsort(indices)
+            indices = numpy.argsort(indices).astype(numpy.int32)
 
             maxlags = maxlags[indices, :]
             maxlags[line, line] = 0
@@ -2131,7 +2131,7 @@ def get_overlaps(
             indices = []
             for idx in range(comm.size):
                 indices += list(numpy.arange(idx, N_half, comm.size))
-            indices = numpy.argsort(indices)
+            indices = numpy.argsort(indices).astype(numpy.int32)
 
             maxoverlaps = maxoverlaps[indices, :]
             maxoverlaps[line, line] = 0
