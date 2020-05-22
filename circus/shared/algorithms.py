@@ -751,11 +751,11 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         SHARED_MEMORY = get_shared_memory_flag(params)
 
         if not SHARED_MEMORY:
-            over_x, over_y, over_data, over_shape = load_data(
+            over_x, over_y, over_data, sub_over, over_sorted, over_shape = load_data(
                 params, 'overlaps-raw', extension='-merging'
             )
         else:
-            over_x, over_y, over_data, over_shape, mpi_memory = load_data_memshared(
+            over_x, over_y, over_data, sub_over, over_sorted, over_shape, mpi_memory = load_data_memshared(
                 params, 'overlaps-raw', extension='-merging', use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu
             )
 
@@ -764,20 +764,37 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         distances = numpy.zeros((len(to_explore), nb_temp), dtype=numpy.float32)
 
         res = []
+        res2 = []
         for i in to_explore:
-            res += [i * nb_temp + i + 1, (i + 1) * nb_temp]
+            res += [i * nb_temp, (i + 1) * nb_temp]
+            res2 += [i, i+1]
 
         bounds = numpy.searchsorted(over_x, res, 'left')
+        bounds_2 = numpy.searchsorted(sub_over[over_sorted], res2, 'left')
+
+        duration = over_shape[1] // 2
+        mask_duration = (over_y < duration)
+
+        import gc
 
         for count, i in enumerate(to_explore):
 
             xmin, xmax = bounds[2*count:2*(count+1)]
-            local_x = over_x[xmin:xmax] - (i * nb_temp + i + 1)
+            local_x = over_x[xmin:xmax] - (i * nb_temp)
             local_y = over_y[xmin:xmax]
             local_data = over_data[xmin:xmax]
-            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp - (i + 1), over_shape[1]), dtype=numpy.float32)
-            distances[count, i + 1:] = data.max(1).toarray().flatten()
-            del local_x, local_y, local_data, data
+
+            xmin, xmax = bounds_2[2*count:2*(count+1)]
+            nslice = over_sorted[xmin:xmax][mask_duration[over_sorted[xmin:xmax]]]
+
+            local_x = numpy.concatenate((local_x, over_x[nslice] // nb_temp))
+            local_y = numpy.concatenate((local_y, (over_shape[1] - 1) - over_y[nslice]))
+            local_data = numpy.concatenate((local_data, over_data[nslice]))
+
+            data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(nb_temp, over_shape[1]), dtype=numpy.float32)
+            distances[count, :] = data.max(1).toarray().flatten()
+            del local_x, local_y, local_data, data, nslice
+            gc.collect()
 
         distances /= norm
 
@@ -787,10 +804,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
             indices = []
             for idx in range(comm.size):
                 indices += list(numpy.arange(idx, nb_temp, comm.size))
-            indices = numpy.argsort(indices)
+            indices = numpy.argsort(indices).astype(numpy.int32)
 
             distances = distances[indices, :]
-            distances = numpy.maximum(distances, distances.T)
+            line = numpy.arange(nb_temp)
+            distances[line, line] = 0
+
+            #distances = numpy.maximum(distances, distances.T)
 
         comm.Barrier()
 
@@ -811,7 +831,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        del result, over_x, over_y, over_data
+        del result, over_x, over_y, over_data, over_sorted, sub_over
 
         if comm.rank == 0:
             os.remove(filename)
@@ -1012,7 +1032,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # We sort by x indices for faster retrieval later
             if comm.rank == 0:
                 if key == 'x':
-                    indices = numpy.argsort(data)
+                    indices = numpy.argsort(data).astype(numpy.int32)
                 
                 data = data[indices]
 
@@ -1222,7 +1242,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         for idx in range(comm.size):
             indices += list(numpy.arange(idx, nb_temp, comm.size))
 
-        indices = numpy.argsort(indices)
+        indices = numpy.argsort(indices).astype(numpy.int32)
 
         if fine_amplitude:
             hfile['limits'][:] = bounds[indices]
