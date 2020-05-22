@@ -462,12 +462,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if numerous_argmax:
                     if len(best_indices) == 0:
                         best_indices = largest_indices(flatten_data, nb_argmax)
+
                     best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
                 else:
+                    best_indices = numpy.zeros(0, dtype=numpy.int32)
                     best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
 
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
+
+                if peak_scalar_product < 0:
+                    failure[:] = total_nb_chances
+                    break
 
                 if templates_normalization:
                     if full_gpu:
@@ -558,20 +564,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     # Reject the matching.
                     numerous_argmax = True
+
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if failure[peak_index] >= total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
                         b[:, peak_index] = -numpy.inf
-                        index = numpy.arange(n_tm) * nb_local_peak_times + peak_index
                     else:
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
-                        index = best_template_index * nb_local_peak_times + peak_index
 
                     if numerous_argmax:
-                        best_indices = best_indices[~numpy.in1d(best_indices, index)]
+                        best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+
 
                     # Save debug data.
                     if debug:
