@@ -485,11 +485,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     failure[:] = total_nb_chances
                     break
 
-                peak_scalar_product_worst = flatten_data[flatten_data > - numpy.inf].min()
+                # peak_scalar_product_worst = flatten_data[flatten_data > - numpy.inf].min()
 
-                if peak_scalar_product_worst > max_scalar_product:
-                    failure[:] = total_nb_chances
-                    break
+                # if peak_scalar_product_worst > max_scalar_product:
+                #     failure[:] = total_nb_chances
+                #     break
 
                 if templates_normalization:
                     if full_gpu:
