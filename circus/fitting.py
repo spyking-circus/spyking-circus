@@ -277,7 +277,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         tmp = amp_limits[:, 1] / norm_templates_2[:n_tm]
     max_scalar_product = numpy.max(tmp)
 
-    print min_scalar_product, max_scalar_product
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         # # We need to deal with the borders by taking chunks of size [0, chunck_size + template_shift].
@@ -482,8 +481,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
-<<<<<<< Updated upstream
-=======
                 if (peak_scalar_product < min_scalar_product):
                     failure[:] = total_nb_chances
                     break
@@ -494,7 +491,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     failure[:] = total_nb_chances
                     break
 
->>>>>>> Stashed changes
                 if templates_normalization:
                     if full_gpu:
                         best_amp = b_array[best_template_index, peak_index] / n_scalar
