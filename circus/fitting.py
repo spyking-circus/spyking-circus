@@ -265,12 +265,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
 
-    # if templates_normalization:
-    #     min_scalar_product = amp_limits[:, 0] * n_scalar * norm_templates[:n_tm]
-    #     max_scalar_product = amp_limits[:, 1] * n_scalar * norm_templates[:n_tm]
-    # else:
-    #     min_scalar_product = amp_limits[:, 0] * norm_templates_2[:n_tm]
-    #     max_scalar_product = amp_limits[:, 1] * norm_templates_2[:n_tm]
+    if templates_normalization:
+        min_scalar_product = numpy.min(amp_limits[:, 0] * n_scalar * norm_templates[:n_tm])
+        max_scalar_product = numpy.max(amp_limits[:, 1] * n_scalar * norm_templates[:n_tm])
+    else:
+        min_scalar_product = numpy.min(amp_limits[:, 0] * norm_templates_2[:n_tm])
+        max_scalar_product = numpy.max(amp_limits[:, 1] * norm_templates_2[:n_tm])
 
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -450,7 +450,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            local_max = 0
             numerous_argmax = False
             nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
@@ -467,6 +466,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     b_array = None
 
                 if numerous_argmax:
+
                     if len(best_indices) == 0:
                         best_indices = largest_indices(flatten_data, nb_argmax)
                     best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
@@ -476,15 +476,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
-                # if (peak_scalar_product < min_scalar_product.min()):
-                #     failure[:] = total_nb_chances
-                #     print("Aborting")
-                #     break
 
-                #   peak_scalar_product_worst = flatten_data[flatten_data > - numpy.inf].min()
+                if (peak_scalar_product < min_scalar_product):
+                    failure[:] = total_nb_chances
+                    break
 
+                # peak_scalar_product_worst = flatten_data[flatten_data > - numpy.inf].min()
                 # if peak_scalar_product_worst > max_scalar_product:
                 #     failure[:] = total_nb_chances
+                #     print("Aborting")
                 #     break
 
                 if templates_normalization:
@@ -552,6 +552,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         b[:, is_neighbor] += tmp1.dot(indices)
 
                     numerous_argmax = False
+                    best_indices = numpy.zeros(0, dtype=numpy.int32)
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
@@ -582,14 +583,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if failure[peak_index] >= total_nb_chances:
                         # Mark all the matching associated to the current peak as tried.
                         b[:, peak_index] = -numpy.inf
-                        index = numpy.arange(n_tm) * nb_local_peak_times + peak_index
                     else:
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
-                        index = best_template_index * nb_local_peak_times + peak_index
 
-                    if numerous_argmax:
-                        best_indices = best_indices[~numpy.in1d(best_indices, index)]
+                    best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
 
                     # Save debug data.
                     if debug:
