@@ -471,9 +471,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
-                if peak_scalar_product < 0:
-                    failure[:] = total_nb_chances
-                    break
+                # if peak_scalar_product < 0:
+                #     failure[:] = total_nb_chances
+                #     break
 
                 if templates_normalization:
                     if full_gpu:
@@ -540,6 +540,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         b[:, is_neighbor] += tmp1.dot(indices)
 
                     numerous_argmax = False
+                    best_indices = numpy.zeros(0, dtype=numpy.int32)
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
