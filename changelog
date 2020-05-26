@@ -1,4 +1,10 @@
 =============
+Release 0.9.9
+=============
+
+* fix for shanks (because of optimization in 0.9.8)
+
+=============
 Release 0.9.8
 =============
 
