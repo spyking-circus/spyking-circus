@@ -907,6 +907,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     norm_templates = load_data(params, 'norm-templates')[:nb_temp]
     norm_templates *= numpy.sqrt(N_e * N_t)
     norm_2 = norm_templates ** 2
+    sindices = inv_nodes[nodes]
 
     # For each electrode, get the local cluster labels.
     indices = {}
@@ -943,8 +944,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     for i in to_explore:  # for each cluster...
 
         ref_elec = best_elec[i]  # i.e. electrode of the cluster
-        shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[ref_elec])
-        sindices = inv_nodes[shank_nodes]
 
         times = clusters['times_%d' % ref_elec]
         labels = clusters['clusters_%d' % ref_elec]
@@ -992,8 +991,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     for elec in to_explore:
         times = clusters['noise_times_' + str(elec)]
-        shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[elec])
-        sindices = inv_nodes[shank_nodes]
 
         idx = len(times)
         idx_i = numpy.random.permutation(idx)[:max_noise_snippets]
