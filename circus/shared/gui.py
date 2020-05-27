@@ -193,8 +193,8 @@ class MergeWindow(QMainWindow):
         self.SHARED_MEMORY = get_shared_memory_flag(params)
 
         if self.SHARED_MEMORY:
-            self.templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', extension=self.ext_in)
-            self.clusters, mpi_memory_2 = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
+            self.templates, self.mpi_memory_1 = io.load_data_memshared(params, 'templates', extension=self.ext_in)
+            self.clusters, self.mpi_memory_2 = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
         else:
             self.templates = io.load_data(params, 'templates', self.ext_in)
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
@@ -399,7 +399,7 @@ class MergeWindow(QMainWindow):
         elif self.mpi_wait[0] == 2:
             
             if self.SHARED_MEMORY:
-                for memory in mpi_memory_1 + mpi_memory_2:
+                for memory in self.mpi_memory_1 + self.mpi_memory_2:
                     memory.Free()
             sys.exit(0)
 
@@ -1492,7 +1492,7 @@ class MergeWindow(QMainWindow):
                 self.app.restoreOverrideCursor()
 
         if self.SHARED_MEMORY:
-            for memory in mpi_memory_1 + mpi_memory_2:
+            for memory in self.mpi_memory_1 + self.mpi_memory_2:
                 memory.Free()
 
         sys.exit(0)
