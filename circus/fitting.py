@@ -542,7 +542,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del tmp1, tmp2
                     else:
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        if numpy.abs(best_amp2) > min_second_component:
+                        if numpy.abs(best_amp2_n) > min_second_component:
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
                         b[:, is_neighbor] += tmp1.dot(indices)
 
