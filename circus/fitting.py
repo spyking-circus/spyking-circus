@@ -70,7 +70,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates, _ = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
+        templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
         N_tm, x = templates.shape
     else:
         templates = io.load_data(params, 'templates')
@@ -161,7 +161,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         s_over = over_shape[1]
 
     if SHARED_MEMORY:
-        c_overs, _ = io.load_data_memshared(params, 'overlaps')
+        c_overs, mpi_memory_2 = io.load_data_memshared(params, 'overlaps')
     else:
         c_overs = io.load_data(params, 'overlaps')
 
@@ -715,3 +715,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         io.collect_data(comm.size, params, erase=True)
 
     data_file.close()
+
+    if SHARED_MEMORY:
+        for memory in mpi_memory_1 + mpi_memory_2:
+            memory.Free()

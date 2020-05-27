@@ -2161,7 +2161,7 @@ def get_overlaps(
                 myfile2.create_dataset('maxoverlap', data=maxoverlaps)
             myfile2.close()
             del maxoverlaps, maxlags
-        del over_x, over_y, over_data, over_sorted, sub_over
+
     comm.Barrier()
     gc.collect()
 
