@@ -1013,8 +1013,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     filename = os.path.join(tmp_path_loc, 'sp.h5')
 
     if comm.rank == 0:
+        if not os.path.exists(tmp_path_loc):
+            os.makedirs(tmp_path_loc)
+
         if os.path.exists(filename):
             os.remove(filename)
+
         hfile = h5py.File(filename, 'w', libver='earliest')
 
     for k in ['all', 'noise']:
