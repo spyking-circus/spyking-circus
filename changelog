@@ -4,6 +4,7 @@ Release 0.9.9
 
 * fix for shanks (because of optimization in 0.9.8)
 * fix for clusters (if global tmp is not created)
+* fix for recent versions of MPI (shared memory issues)
 
 =============
 Release 0.9.8

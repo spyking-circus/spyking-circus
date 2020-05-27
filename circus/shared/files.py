@@ -2281,8 +2281,8 @@ def load_sp(file_name, nb_temp):
         for c in range(nb_temp**2):
 
             x_min, x_max = bounds[c], bounds[c+1]
-            j = c // nb_temp
-            i = numpy.mod(c, nb_temp)
+            i = c // nb_temp
+            j = numpy.mod(c, nb_temp)
             results[i, j] = over_data[x_min:x_max]
 
         bounds = numpy.searchsorted(noise_x, numpy.arange(nb_temp + 1), 'left')
