@@ -190,11 +190,11 @@ class MergeWindow(QMainWindow):
         self.shape = h5py.File(self.file_out_suff + '.templates%s.hdf5' % self.ext_in, libver='earliest', mode='r').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
 
-        SHARED_MEMORY = get_shared_memory_flag(params)
+        self.SHARED_MEMORY = get_shared_memory_flag(params)
 
-        if SHARED_MEMORY:
-            self.templates, _ = io.load_data_memshared(params, 'templates', extension=self.ext_in)
-            self.clusters, _ = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
+        if self.SHARED_MEMORY:
+            self.templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', extension=self.ext_in)
+            self.clusters, mpi_memory_2 = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
         else:
             self.templates = io.load_data(params, 'templates', self.ext_in)
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
@@ -397,7 +397,12 @@ class MergeWindow(QMainWindow):
         if self.mpi_wait[0] == 1:
             self.finalize(None)
         elif self.mpi_wait[0] == 2:
+            
+            if self.SHARED_MEMORY:
+                for memory in mpi_memory_1 + mpi_memory_2:
+                    memory.Free()
             sys.exit(0)
+
 
     def update_suggest_value(self):
         self.suggest_value = self.get_suggest_value.value()
@@ -1485,6 +1490,10 @@ class MergeWindow(QMainWindow):
 
             if self.app is not None:
                 self.app.restoreOverrideCursor()
+
+        if self.SHARED_MEMORY:
+            for memory in mpi_memory_1 + mpi_memory_2:
+                memory.Free()
 
         sys.exit(0)
 
