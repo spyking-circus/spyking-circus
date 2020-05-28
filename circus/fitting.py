@@ -544,7 +544,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
                         if numpy.abs(best_amp2_n) > min_second_component:
                             tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
-                        b[:, is_neighbor] += tmp1.dot(indices)
+
+                        to_add = tmp1.toarray()[:, idx_neighbor]
+                        b[:, is_neighbor] += to_add
 
                     numerous_argmax = False
                     best_indices = numpy.zeros(0, dtype=numpy.int32)
