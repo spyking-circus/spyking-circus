@@ -6,6 +6,7 @@ Release 0.9.9
 * fix for clusters (if global tmp is not created)
 * fix for recent versions of MPI (shared memory issues)
 * still speeding up the fitting procedure, as a final bottleneck
+* fix in the smart search and chunks exploration
 
 =============
 Release 0.9.8

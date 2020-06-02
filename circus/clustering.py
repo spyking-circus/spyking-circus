@@ -266,6 +266,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     local_mergings = 0
     cluster_results = {}
 
+    # I guess this is more relevant, to take signals from all over the recordings
+    numpy.random.seed(42)
+    all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
+
     while gpass < (nb_repeats + 1):
 
         comm.Barrier()
@@ -371,11 +375,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 )
 
             result['loc_times_' + str(i)] = [numpy.zeros(0, dtype=numpy.uint32)]
-
-
-        # I guess this is more relevant, to take signals from all over the recordings
-        numpy.random.seed(gpass)
-        all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
 
         # # This is not easy to read, but during the smart search pass, we need to loop over all chunks, and every nodes
         # # should search spikes for a subset of electrodes, to avoid too many communications.
