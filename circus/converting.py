@@ -39,6 +39,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     export_pcs = params.get('converting', 'export_pcs')
     export_all = params.getboolean('converting', 'export_all')
     sparse_export = params.getboolean('converting', 'sparse_export')
+    rpv_threshold = params.getfloat('converting', 'rpv_threshold')
     if export_all and not params.getboolean('fitting', 'collect_all'):
         if comm.rank == 0:
             print_and_log(['Export unfitted spikes only if [fitting] collect_all is True'], 'error', logger)
@@ -77,10 +78,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         amplitudes = [numpy.zeros(0, dtype=numpy.double)]
         N_tm = len(result['spiketimes'])
 
+        has_purity = test_if_purity(params, extension)
+        rpvs = []
+
         if prelabelling:
             labels = []
             norms = io.load_data(params, 'norm-templates', extension)
             norms = norms[:len(norms) // 2]
+            if has_purity:
+                purity = io.load_data(params, 'purity', extension)
 
         for key in result['spiketimes'].keys():
             temp_id = int(key.split('_')[-1])
@@ -89,20 +95,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             myamplitudes = result['amplitudes'].pop(key).astype(numpy.double)
             amplitudes.append(myamplitudes[:, 0])
             clusters.append(temp_id*numpy.ones(len(myamplitudes), dtype=numpy.uint32))
+            rpv = get_rpv(myspikes, params.data_file.sampling_rate)
+            rpvs += [[temp_id, rpv]]
             if prelabelling:
-                rpv = get_rpv(myspikes, params.data_file.sampling_rate)
-                median_amp = numpy.median(myamplitudes[:, 0])
-                std_amp = numpy.std(myamplitudes[:, 0])
-                if rpv > 0 and rpv <= 0.01 and numpy.abs(median_amp - 1) < 0.25:
-                    if numpy.std(myamplitudes[:, 0] < 0.1) and norm[tm_id] > 0.4:
-                        labels += [[temp_id, 'best']]
+                if has_purity:
+                    if rpv <= rpv_threshold:
+                        if purity[temp_id] > 0.75:
+                            labels += [[temp_id, 'good']]
                     else:
+                        if purity[temp_id] > 0.75:
+                            labels += [[temp_id, 'mua']]
+                        else:
+                            labels += [[temp_id, 'noise']]
+                else:
+                    median_amp = numpy.median(myamplitudes[:, 0])
+                    std_amp = numpy.std(myamplitudes[:, 0])
+                    if rpv <= rpv_threshold and numpy.abs(median_amp - 1) < 0.25:
                         labels += [[temp_id, 'good']]
-                elif rpv > 0.1:
-                    if median_amp < 0.5:
-                        labels += [[temp_id, 'mua']]
-                    elif norms[temp_id] < 0.1:
-                        labels += [[temp_id, 'noise']]
+                    else:
+                        if median_amp < 0.5:
+                            labels += [[temp_id, 'mua']]
+                        elif norms[temp_id] < 0.1:
+                            labels += [[temp_id, 'noise']]
 
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" % N_e], 'info', logger)
@@ -120,6 +134,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             for l in labels:
                 f.write('%s\t%s\n' % (l[0], l[1]))
             f.close()
+
+        # f = open(os.path.join(output_path, 'cluster_rpv.tsv'), 'w')
+        # f.write('cluster_id\trpv\n')
+        # for l in rpvs:
+        #     f.write('%s\t%s\n' % (l[0], l[1]))
+        # f.close()
 
         spikes = numpy.concatenate(spikes).astype(numpy.uint64)
         amplitudes = numpy.concatenate(amplitudes).astype(numpy.double)
@@ -182,7 +202,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             garbage = io.load_data(params, 'garbage', extension)
             for t in range(N_tm, N_tm + N_e):
                 elec = t - N_tm
-                spikes = garbage['gspikes'].pop('elec_%d' % elec).astype(numpy.uint64)
+                spikes = garbage['gspikes'].pop('elec_%d' % elec).astype(numpy.int64)
                 spikes = numpy.random.permutation(spikes)[:100]
                 mapping_sparse[t, 0] = t - N_tm
                 waveform = io.get_stas(params, times_i=spikes, labels_i=np.ones(len(spikes)), src=elec, neighs=[elec], nodes=nodes, mean_mode=True)
@@ -271,7 +291,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         to_explore = range(comm.rank, nb_templates, comm.size)
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         all_idx = numpy.zeros(0, dtype=numpy.int32)
         for gcount, target in enumerate(to_explore):
@@ -287,7 +307,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             elec = best_elec[target]
 
             if has_support:
-                indices = numpy.where(supports[target])[0]
+                if target >= len(supports):
+                    indices = [target - N_tm]
+                else:
+                    indices = numpy.where(supports[target])[0]
             else:
                 indices = inv_nodes[edges[nodes[elec]]]
             labels_i = target*numpy.ones(len(idx))

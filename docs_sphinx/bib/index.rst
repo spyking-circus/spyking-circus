@@ -19,11 +19,28 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2020
 ~~~~
 
-* Magland J. et al, *SpikeForest: reproducible web-facing ground-truth validation of automated neural spike sorters*, bioRxiv, 900688
+* Jin M. et al, *Mouse higher visual areas provide both distributed and discrete contributions to visually guided behaviors*, bioRxiv, 001446
+
+* Petersen P. C,  et al.,  *CellExplorer: a graphical user interface and standardized pipeline for visualizing and characterizing single neuron features*, bioRxiv, 083436
+
+* Kajiwara M.et al., *Inhibitory neurons are a Central Controlling regulator in the effective cortical microconnectome*, bioRxiv, 954016
+
+* Magland J. et al., *SpikeForest: reproducible web-facing ground-truth validation of automated neural spike sorters*, bioRxiv, 900688
 
 * Park I. Y., et al. *Deep Learning-Based Template Matching Spike Classification for Extracellular Recordings*, Applied Sciences 10.1 (2020): 301
 
 * Cantu D. A., et al. *EZcalcium: Open Source Toolbox for Analysis of Calcium Imaging Data*, bioRxiv, 893198
+
+* Estabanze L. et al., *Sensorimotor neuronal learning requires cortical topography*, bioRxiv, 873794
+
+* Bolding K. et al., *Robust odor coding across states in piriform cortex requires recurrent circuitry: evidence for pattern completion in an associative network*, bioRxiv, 694331
+
+* Yuan et al., *Versatile live-cell activity analysis platform for characterization of neuronal dynamics at single-cell and network level*, bioRXiv, 071787
+
+* Buccino A. P. et al., *SpikeInterface, a unified framework for spike sorting*, bioRxiv, 796599
+
+* García-Rosales F. et al., *Fronto-temporal coupling dynamics during spontaneous activity and auditory processing*, bioRxiv, 886770
+
 
 2019
 ~~~~

@@ -2,12 +2,12 @@ environment:
   # For new releases, only one job will upload the source code to Pypi, and only
   # one job each for Python 2 and 3 will upload a wheel.
   matrix:
-    # - PYTHON: "C:\\Miniconda37-x64"
-    #   PYTHON_VERSION: "3.7"
-    #   PYTHON_ARCH: "64"
-    #   PYPI_UPLOAD_SOURCE: yes
-    #   PYPI_UPLOAD_WHEEL: yes
-    #   platform: x64
+    - PYTHON: "C:\\Miniconda37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      PYPI_UPLOAD_SOURCE: yes
+      PYPI_UPLOAD_WHEEL: yes
+      platform: x64
 
     - PYTHON: "C:\\Miniconda36-x64"
       PYTHON_VERSION: "3.6"
@@ -23,12 +23,12 @@ environment:
     #   PYPI_UPLOAD_WHEEL: yes
     #   platform: x64
 
-    - PYTHON: "C:\\Miniconda-x64"
-      PYTHON_VERSION: "2.7"
-      PYTHON_ARCH: "64"
-      PYPI_UPLOAD_SOURCE: no
-      PYPI_UPLOAD_WHEEL: no
-      platform: x64
+    # - PYTHON: "C:\\Miniconda-x64"
+    #   PYTHON_VERSION: "2.7"
+    #   PYTHON_ARCH: "64"
+    #   PYPI_UPLOAD_SOURCE: no
+    #   PYPI_UPLOAD_WHEEL: no
+    #   platform: x64
 
   ANACONDA_TOKEN:
     secure: 7drSxrQivCMViVHFeeFsfVzN3mELF6vkv4JAcuzdNedzFOvX1HAcGBTe0WolTsUJ
@@ -44,7 +44,12 @@ install:
         "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisetup.exe",
         "C:\projects\MSMpiSetup.exe")
   - C:\projects\MSMpiSetup.exe -unattend -minimal
+  - ps: (new-object net.webclient).DownloadFile(
+        "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisdk.msi",
+        "C:\projects\MSMpiSdk.msi")
+  - ps: msiexec /i C:\projects\MSMpiSdk.msi /quiet /qn /norestart
   - set PATH=C:\Program Files\Microsoft MPI\Bin;%PATH%
+  - set PATH=C:\Program Files (x86)\Microsoft SDKs\MPI;%PATH%
   # Check that we have the expected version and architecture for Python
   - 'python --version'
   - 'python -c "import struct; print(struct.calcsize(''P'') * 8)"'
@@ -56,15 +61,16 @@ test_script:
   # Stay with the conda version to avoid a downgrade to 4.3 from conda-forge
   - conda config --set auto_update_conda False
   - conda config --add channels conda-forge
-  - conda config --add channels anaconda
+  - conda config --add channels intel
   - conda install --yes --quiet conda-build setuptools wheel
-  - conda build -c spyking-circus -c conda-forge -c anaconda conda_recipe
+  - conda build -c spyking-circus -c conda-forge -c intel conda_recipe
   - python packaging_tools/move_conda_package.py
   - conda install --yes --quiet wheel
-  - python setup.py sdist --formats=zip,gztar,bztar
+  - python setup.py sdist --formats=gztar
   - python setup.py bdist_wheel
   # Try installing from the source package (install dependencies via conda first)
   - conda install --yes --quiet -c spyking-circus tqdm mpi4py numpy cython scipy matplotlib h5py colorama psutil qt pyqt python-blosc statsmodels scikit-learn
+  - conda activate  # apparently necessary for mpi4py
   - FOR /R dist %%F in (*.tar.gz) do pip install %%F
   - spyking-circus -h
   - pip uninstall -y -q spyking-circus
@@ -78,7 +84,7 @@ after_test:
       conda install --yes --quiet -c conda-forge twine &&
       python packaging_tools\conda-server-push.py %APPVEYOR_REPO_TAG_NAME%
      )'
-  - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_TAG%" == "true" if "%PYPI_UPLOAD_SOURCE%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.tar.bz2)'
+  - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_TAG%" == "true" if "%PYPI_UPLOAD_SOURCE%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.tar.gz)'
   - 'if "%APPVEYOR_PULL_REQUEST_NUMBER%" == "" if "%APPVEYOR_REPO_NAME%" == "spyking-circus/spyking-circus" if "%APPVEYOR_REPO_TAG%" == "true" if "%PYPI_UPLOAD_WHEEL%" == "yes" (twine upload -u pierre.yger --skip-existing dist/*.whl)'
 
 artifacts:

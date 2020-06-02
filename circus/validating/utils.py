@@ -166,7 +166,7 @@ def extract_extra_thresholds(params):
     to_explore = range(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     medians = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
 
@@ -196,7 +196,7 @@ def extract_extra_thresholds(params):
     to_explore = range(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     mads = numpy.zeros((N_elec, loc_nb_chunks), dtype=numpy.float32)
 
@@ -405,7 +405,7 @@ def extract_extra_spikes_(params):
     to_explore = range(comm.rank, nb_chunks, comm.size)
 
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(to_explore)
+        to_explore = get_tqdm_progressbar(params, to_explore)
 
     extra_valley = True
 

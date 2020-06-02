@@ -9,11 +9,27 @@ import blosc
 
 
 logger = logging.getLogger(__name__)
-
-
 MPI_VENDOR = MPI.get_vendor()
 SHARED_MEMORY = (hasattr(MPI.Win, 'Allocate_shared') and callable(getattr(MPI.Win, 'Allocate_shared')))
 
+
+def get_local_ring(local_only=False):
+    # # First we need to identify machines in the MPI ring.
+    from uuid import getnode as get_mac
+    myip = numpy.int64(get_mac()) % 100000
+    is_local = False
+
+    if local_only:
+        master_ip = comm.bcast(numpy.array([myip], dtype='int64'), root=0)
+        is_local = myip == master_ip[0]
+        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, is_local)
+    else:
+        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
+
+    return sub_comm
+
+
+sub_comm = get_local_ring()
 
 def test_mpi_ring(nb_nodes):
     if comm.size != nb_nodes:
@@ -39,21 +55,6 @@ def check_valid_path(path):
     res = all_gather_array(data, comm, dtype='int32').astype(numpy.bool)
     return numpy.all(res)
 
-
-def get_local_ring(local_only=False):
-    # # First we need to identify machines in the MPI ring.
-    from uuid import getnode as get_mac
-    myip = numpy.int64(get_mac()) % 100000
-    is_local = False
-
-    if local_only:
-        master_ip = comm.bcast(numpy.array([myip], dtype='int64'), root=0)
-        is_local = myip == master_ip[0]
-        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, is_local)
-    else:
-        sub_comm  = comm.Split_type(MPI.COMM_TYPE_SHARED, myip)
-
-    return sub_comm, is_local
 
 
 def detect_memory(params, whitening=False, filtering=False, fitting=False):
@@ -128,6 +129,10 @@ def gather_mpi_arguments(hostfile, params):
         mpi_args = ['mpiexec']
         if os.path.exists(hostfile):
             mpi_args += ['-f', hostfile]
+    elif MPI_VENDOR[0] == 'Intel MPI':
+        mpi_args = ['mpiexec']
+        if os.path.exists(hostfile):
+            mpi_args += ['-machinefile', hostfile]
     else:
         print_and_log([
                         '%s may not be yet properly implemented: contact developpers' %
@@ -157,9 +162,9 @@ def gather_array(data, mpi_comm, root=0, shape=0, dtype='float32', compress=Fals
         mpi_comm.Gatherv([data.flatten(), size, mpi_type], [gdata, (sizes, displacements), mpi_type], root=root)
     else:
         data = blosc.compress(data, typesize=mpi_type.size, cname='blosclz')
-        data = mpi_comm.gather(data, root=0)
+        data = mpi_comm.gather(data, root=root)
         gdata = [numpy.empty(0, dtype=np_type)]
-        if comm.rank == 0:
+        if comm.rank == root:
             for blosc_data in data:
                 gdata.append(numpy.frombuffer(blosc.decompress(blosc_data), dtype=np_type))
         gdata = numpy.concatenate(gdata)

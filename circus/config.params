@@ -5,7 +5,7 @@
 [data]
 file_format    =            # Can be raw_binary, openephys, hdf5, ... See >> spyking-circus help -i for more info
 stream_mode    = None       # None by default. Can be multi-files, or anything depending to the file format
-mapping        =            # Mapping of the electrode (see http://spyking-circus.rtfd.ord)
+mapping        =            # Mapping of the electrode (see http://spyking-circus.rtfd.org)
 suffix         =            # Suffix to add to generated files, if needed
 overwrite      = True       # Filter or remove artefacts on site (if write access is possible). Data are duplicated otherwise
 parallel_hdf5  = True       # Use the parallel HDF5 feature (if available)
@@ -81,6 +81,7 @@ export_pcs     = prompt     # Can be prompt [default] or in none, all, some
 export_all     = False      # If True, unfitted spikes will be exported as the last Ne templates
 sparse_export  = True       # For recent versions of phy, and large number of templates/channels
 prelabelling   = False      # If True, putative labels (good, noise, best, mua) are pre-assigned to neurons
+rpv_threshold  = 0.05       # Percentage of RPV allowed while labelling neurons as good neurons
 
 [validating]
 nearest_elec   = auto       # Validation channel (e.g. electrode closest to the ground truth cell)

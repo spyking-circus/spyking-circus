@@ -51,35 +51,51 @@ class NumpyFile(RawBinaryFile):
         self.size = len(self.data)
         self._close()
 
+        if self.time_axis == 0:
+            if not self.grid_ids:
+                self._read_chunk = self._read_time_0_no_grid
+            else:
+                self._read_chunk = self._read_time_0_grid
+        elif self.time_axis == 1:
+            if not self.grid_ids:
+                self._read_chunk = self._read_time_1_no_grid
+            else:
+                self._read_chunk = self._read_time_1_grid
+
         return header
+
+    def _read_time_0_no_grid(self, do_slice, t_start, t_stop, nodes):
+        if do_slice:
+            local_chunk = self.data[t_start:t_stop, nodes]
+        else:
+            local_chunk = self.data[t_start:t_stop, :]
+        return local_chunk
+
+    def _read_time_1_no_grid(self, do_slice, t_start, t_stop, nodes):
+        if do_slice:
+            local_chunk = self.data[nodes, t_start:t_stop].T
+        else:
+            local_chunk = self.data[:, t_start:t_stop].T
+        return local_chunk
+
+    def _read_time_0_grid(self, do_slice, t_start, t_stop, nodes):
+        local_chunk = self.data[t_start:t_stop, :, :].reshape(t_stop-t_start, self.nb_channels)
+        if do_slice:
+            local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        return local_chunk
+
+    def _read_time_1_grid(self, do_slice, t_start, t_stop, nodes):
+        local_chunk = self.data[:, :, t_start:t_stop].reshape(self.nb_channels, t_stop-t_start).T
+        if do_slice:
+            local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        return local_chunk
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
         self._open()
-
         t_start, t_stop = self._get_t_start_t_stop(idx, chunk_size, padding)
         do_slice = nodes is not None and not numpy.all(nodes == numpy.arange(self.nb_channels))
-
-        if self.time_axis == 0:
-            if not self.grid_ids:
-                if do_slice:
-                    local_chunk = self.data[t_start:t_stop, nodes].copy()
-                else:
-                    local_chunk = self.data[t_start:t_stop, :].copy()
-            else:
-                local_chunk = self.data[t_start:t_stop, :, :].copy().reshape(t_stop-t_start, self.nb_channels)
-                if do_slice:
-                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
-        elif self.time_axis == 1:
-            if not self.grid_ids:
-                if do_slice:
-                    local_chunk = self.data[nodes, t_start:t_stop].copy().T
-                else:
-                    local_chunk = self.data[:, t_start:t_stop].copy().T
-            else:
-                local_chunk = self.data[:, :, t_start:t_stop].copy().reshape(self.nb_channels, t_stop-t_start).T
-                if do_slice:
-                    local_chunk = numpy.take(local_chunk, nodes, axis=1)
+        local_chunk = self._read_chunk(do_slice, t_start, t_stop, nodes)
         self._close()
 
         return self._scale_data_to_float32(local_chunk)

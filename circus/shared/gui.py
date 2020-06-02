@@ -158,11 +158,22 @@ class MergeWindow(QMainWindow):
         self.noise_limit = params.getfloat('merging', 'noise_limit')
         self.sparsity_limit = params.getfloat('merging', 'sparsity_limit')
         self.min_spikes = params.getint('merging', 'min_spikes')
+        self.adapted_cc = params.getboolean('clustering', 'adapted_cc')
+        self.adapted_thr = params.getint('clustering', 'adapted_thr')
 
         self.duration = io.load_data(params, 'duration')
+        self.nb_bhatta_bins = 100
+        self.bhattas_level = ((self.nb_bhatta_bins - 1)/self.duration)/self.nb_bhatta_bins
         self.has_support = test_if_support(params, self.ext_in)
         if self.has_support:
             self.supports = io.load_data(params, 'supports', self.ext_in)
+            self.mean_channels = numpy.mean(numpy.sum(self.supports, 1))
+            if self.mean_channels < 3:
+                self.low_channel_count = True
+                if comm.rank == 0:
+                    print_and_log(["Templates on few channels only, taking norm into account"], 'debug', logger)
+            else:
+                self.low_channel_count = False
         self.bin_size = int(self.cc_bin * self.sampling_rate * 1e-3)
         self.max_delay = 50
         self.time_rpv = params.getfloat('merging', 'time_rpv')
@@ -179,11 +190,11 @@ class MergeWindow(QMainWindow):
         self.shape = h5py.File(self.file_out_suff + '.templates%s.hdf5' % self.ext_in, libver='earliest', mode='r').get('temp_shape')[:]
         self.electrodes = io.load_data(params, 'electrodes', self.ext_in)
 
-        SHARED_MEMORY = get_shared_memory_flag(params)
+        self.SHARED_MEMORY = get_shared_memory_flag(params)
 
-        if SHARED_MEMORY:
-            self.templates = io.load_data_memshared(params, 'templates', extension=self.ext_in)
-            self.clusters = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
+        if self.SHARED_MEMORY:
+            self.templates, self.mpi_memory_1 = io.load_data_memshared(params, 'templates', extension=self.ext_in)
+            self.clusters, self.mpi_memory_2 = io.load_data_memshared(params, 'clusters-light', extension=self.ext_in)
         else:
             self.templates = io.load_data(params, 'templates', self.ext_in)
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
@@ -237,6 +248,10 @@ class MergeWindow(QMainWindow):
         self.overlap /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait = numpy.array([0], dtype=numpy.int32)
+
+        if self.adapted_cc:
+            common_supports = io.load_data(params, 'common-supports')
+            self.exponents = numpy.exp(-common_supports/self.adapted_thr)
 
         if comm.rank > 0:
             self.listen()
@@ -382,7 +397,12 @@ class MergeWindow(QMainWindow):
         if self.mpi_wait[0] == 1:
             self.finalize(None)
         elif self.mpi_wait[0] == 2:
+            
+            if self.SHARED_MEMORY:
+                for memory in self.mpi_memory_1 + self.mpi_memory_2:
+                    memory.Free()
             sys.exit(0)
+
 
     def update_suggest_value(self):
         self.suggest_value = self.get_suggest_value.value()
@@ -528,9 +548,11 @@ class MergeWindow(QMainWindow):
 
         to_explore = range(comm.rank, len(self.to_consider), comm.size)
 
+        bins = numpy.linspace(0, self.duration, self.nb_bhatta_bins)
+
         if comm.rank == 0:
             print_and_log(['Updating the data...'], 'default', logger)
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(self.params, to_explore)
             if self.app is not None:
                 self.ui.label_nb_templates.setText("# templates: %d" % len(self.to_consider))
 
@@ -538,7 +560,10 @@ class MergeWindow(QMainWindow):
 
             temp_id1 = self.to_consider[temp_id1]
             best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
-            candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            if not self.adapted_cc:
+                candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            else:
+                candidates = best_matches[self.overlap[temp_id1, best_matches]**self.exponents[temp_id1, best_matches] >= self.cc_overlap]
 
             for temp_id2 in candidates:
 
@@ -551,14 +576,14 @@ class MergeWindow(QMainWindow):
                 self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
                 self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
 
-                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
-                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=numpy.linspace(0, self.duration, 100), density=True)
+                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
+                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
 
                 max_size = largest_nonzero_interval(x1*x2)
                 enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
 
                 if (max_size > 5) and enough_spikes:
-                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration))
+                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
                 else:
                     dist = 0
                 self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
@@ -836,6 +861,7 @@ class MergeWindow(QMainWindow):
     def update_detail_2_plot(self):
         indices = self.inspect_points
         temp_indices = self.to_consider[list(self.inspect_templates)]
+        bins = numpy.linspace(0, self.duration, self.nb_bhatta_bins)
 
         if self.app is not None:
             self.detail_2_ax.clear()
@@ -851,15 +877,18 @@ class MergeWindow(QMainWindow):
                 spikes2 = spikes2 / self.sampling_rate
 
                 try:
-                    x, y = numpy.histogram(spikes1, bins=numpy.linspace(0, self.duration, 100), density=True)
+                    x1, y = numpy.histogram(spikes1, bins=bins, density=True)
                     cidx = numpy.where(temp_indices == n1)[0][0]
-                    data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
-                    x, y = numpy.histogram(spikes2, bins=numpy.linspace(0, self.duration, 100), density=True)
+                    data_line, = self.detail_2_ax.plot(y[1:], x1, lw=2, color=self.inspect_colors_templates[cidx])
+                    x2, y = numpy.histogram(spikes2, bins=bins, density=True)
                     cidx = numpy.where(temp_indices == n2)[0][0]
-                    data_line, = self.detail_2_ax.plot(y[1:], x, lw=2, color=self.inspect_colors_templates[cidx])
+                    data_line, = self.detail_2_ax.plot(y[1:], x2, lw=2, color=self.inspect_colors_templates[cidx])
+                    #data_line, = self.detail_2_ax.plot(y[1:], (x1+x2)/2, lw=1, color='k')
                 except Exception:
                     pass
 
+
+            data_line, = self.detail_2_ax.plot(bins, self.bhattas_level*numpy.ones(self.nb_bhatta_bins), lw=1, color='k')
             self.detail_2_ax.set_xticks(numpy.linspace(0, self.duration, 5))
             self.detail_2_ax.set_xlabel('Time [s]')
             self.detail_2_ax.set_ylabel('Spike density')
@@ -1155,6 +1184,10 @@ class MergeWindow(QMainWindow):
             all_indices = all_indices & (self.overlapping == 1)
 
         indices = numpy.where(all_indices)[0]
+
+        if self.low_channel_count:
+            ratios = self.norms[self.pairs[indices,0]]/self.norms[self.pairs[indices,1]]
+            indices = indices[numpy.where(numpy.abs(ratios - 1) < 0.1)[0]]
 
         if self.app is not None:
             self.app.setOverrideCursor(QCursor(Qt.WaitCursor))
@@ -1457,6 +1490,10 @@ class MergeWindow(QMainWindow):
 
             if self.app is not None:
                 self.app.restoreOverrideCursor()
+
+        if self.SHARED_MEMORY:
+            for memory in self.mpi_memory_1 + self.mpi_memory_2:
+                memory.Free()
 
         sys.exit(0)
 

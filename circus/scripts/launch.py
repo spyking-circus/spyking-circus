@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
+
 import sys
 import argparse
 import shutil
@@ -32,9 +40,6 @@ def main(argv=None):
 
     if argv is None:
         argv = sys.argv[1:]
-
-    os.environ['OPENBLAS_NUM_THREADS'] = str(1)
-    os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
 
     parallel_hdf5 = h5py.get_config().mpi
     user_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
@@ -245,7 +250,7 @@ but a subset x,y can be done. Steps are:
         if nb_chunks <= (second + 1):
             print_and_log(['Recording is too short to display seconds [%d-%d]' % (second, second+1)])
             sys.exit(0)
-        local_chunk = data_file.get_snippet(int(second*params.rate), chunk_size)
+        local_chunk = data_file.get_snippet(int(second*params.rate), int(1.2*chunk_size))
         description = data_file.get_description()
         data_file.close()
 

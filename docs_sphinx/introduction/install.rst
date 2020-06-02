@@ -40,7 +40,7 @@ Then activate the environment::
 
 Then install the software itself::
 
-    (circus) >> conda install -c conda-forge -c anaconda -c spyking-circus spyking-circus
+    (circus) >> conda install -c conda-forge -c intel -c spyking-circus spyking-circus
 
 
 Using pip
@@ -112,7 +112,7 @@ If you want to use the phy GUI to visualize your results, you may need to instal
 Once this is done, install phy_ 2.0::
 
     (circus) >> pip install colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs dask toolz mtscomp
-    (circus) >> pip install --upgrade https://github.com/cortex-lab/phy/archive/dev.zip
+    (circus) >> pip install --upgrade https://github.com/cortex-lab/phy/archive/master.zip
     (circus) >> pip install --upgrade https://github.com/cortex-lab/phylib/archive/master.zip
 
 You can see more details on the `phy website <https://phy.readthedocs.io/en/latest/installation/>`_

@@ -27,6 +27,12 @@ from distutils.version import StrictVersion
 from scipy.optimize import brenth, minimize
 
 
+def largest_indices(ary, n):
+    """Returns the n largest indices from a numpy array."""
+    indices = np.argpartition(ary, -n)[-n:]
+    indices = indices[np.argsort(-ary[indices])]
+    return indices
+
 def test_patch_for_similarities(params, extension):
 
     import circus.shared.files as io
@@ -98,7 +104,7 @@ def apply_patch_for_similarities(params, extension):
         to_explore = numpy.arange(N_half - 1)[comm.rank::comm.size]
 
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
 
         if not SHARED_MEMORY:
             over_x, over_y, over_data, over_shape = io.load_data(params, 'overlaps-raw', extension=extension)
@@ -225,9 +231,13 @@ def purge(file, pattern):
         print_and_log(['Removing %s for directory %s' % (pattern, dir)], 'debug', logger)
 
 
-def get_tqdm_progressbar(iterator):
+def get_tqdm_progressbar(params, iterator):
     sys.stderr.flush()
-    return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]', ncols=66)
+    show_bars = params.getboolean('data', 'status_bars')
+    if show_bars:
+        return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]', ncols=66)
+    else:
+        return iterator
 
 
 def get_whitening_matrix(X, fudge=1e-15):

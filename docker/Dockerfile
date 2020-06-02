@@ -13,14 +13,14 @@ RUN echo "Installing SpyKING CIRCUS and phy 2.0..."
 #########################################
 ### Spyking Circus
 RUN apt-get update && apt-get install -y libmpich-dev mpich
+RUN apt-get update && apt-get install -y qt5-default
+RUN apt-get update && apt-get install -y libglib2.0-0 libgl1-mesa-glx
+RUN apt-get update && apt-get install -y packagekit-gtk3-module libcanberra-gtk-module libcanberra-gtk3-module
+RUN pip install scikit-build
+RUN pip install cmake
 RUN pip install spyking-circus
 
 ### Phy
 RUN pip install pyqt5 colorcet pyopengl qtconsole requests traitlets tqdm joblib click mkdocs
 RUN pip install https://github.com/cortex-lab/phylib/archive/master.zip
-RUN pip install https://github.com/cortex-lab/phy/archive/dev.zip
-RUN apt-get update && apt-get install -y libglib2.0-0
-RUN apt-get update && apt-get install -y libgl1-mesa-glx
-RUN apt-get update && apt-get install -y qt5-default
-RUN apt-get update && apt-get install -y packagekit-gtk3-module
-RUN apt-get update && apt-get install -y libcanberra-gtk-module libcanberra-gtk3-module
+RUN pip install https://github.com/cortex-lab/phy/archive/master.zip

@@ -100,6 +100,7 @@ class CircusParser(object):
                           ['data', 'blosc_compress', 'bool', 'False'],
                           ['data', 'is_cluster', 'bool', 'False'],
                           ['data', 'shared_memory', 'bool', 'True'],
+                          ['data', 'status_bars', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '10'],
@@ -120,9 +121,10 @@ class CircusParser(object):
                           ['triggers', 'dead_file', 'string', ''],
                           ['triggers', 'ignore_times', 'bool', 'False'],
                           ['whitening', 'chunk_size', 'int', '30'],
-                          ['whitening', 'fudge', 'float', '1e-18'],
+                          ['whitening', 'fudge', 'float', '1e-15'],
                           ['whitening', 'safety_space', 'bool', 'True'],
                           ['whitening', 'temporal', 'bool', 'False'],
+                          ['whitening', 'ignore_spikes', 'bool', 'False'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
                           ['clustering', 'nb_repeats', 'int', '3'],
@@ -133,8 +135,8 @@ class CircusParser(object):
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
                           ['clustering', 'noise_thr', 'float', '0.5'],
-                          ['clustering', 'cc_merge', 'float', '0.975'],
-                          ['clustering', 'n_abs_min', 'int', '10'],
+                          ['clustering', 'cc_merge', 'float', '0.95'],
+                          ['clustering', 'n_abs_min', 'int', '20'],
                           ['clustering', 'sensitivity', 'float', '3'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
                           ['clustering', 'merging_method', 'string', 'distance'],
@@ -144,6 +146,9 @@ class CircusParser(object):
                           ['clustering', 'two_components', 'bool', 'True'],
                           ['clustering', 'templates_normalization', 'bool', 'True'],
                           ['clustering', 'halo_rejection', 'float', 'inf'],
+                          ['clustering', 'adapted_cc', 'bool', 'False'],
+                          ['clustering', 'adapted_thr', 'int', '100'],
+                          ['clustering', 'ignored_mixtures', 'float', '20'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.75'],
@@ -164,6 +169,7 @@ class CircusParser(object):
                           ['converting', 'export_all', 'bool', 'False'],
                           ['converting', 'sparse_export', 'bool', 'False'],
                           ['converting', 'prelabelling', 'bool', 'False'],
+                          ['converting', 'rpv_threshold', 'float', '0.05'],
                           ['validating', 'nearest_elec', 'string', 'auto'],
                           ['validating', 'max_iter', 'int', '200'],
                           ['validating', 'learning_rate', 'float', '1.0e-3'],
@@ -188,13 +194,18 @@ class CircusParser(object):
                         ['fitting', 'max_chunk', 'float', 'inf'],
                         ['fitting', 'chunk_size', 'int', '1'],
                         ['fitting', 'debug', 'bool', 'False'],
+                        ['fitting', 'max_nb_chances', 'int', '10'],
+                        ['fitting', 'percent_nb_chances', 'float', '99'],
+                        ['fitting', 'min_second_component', 'float', '0.1'],
                         ['filtering', 'butter_order', 'int', '3'],
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
                         ['clustering', 'decimation', 'bool', 'True'],
                         ['clustering', 'sparsify', 'float', '0.25'],
-                        ['clustering', 'nb_ss_bins', 'int', '200'],
+                        ['clustering', 'nb_ss_bins', 'string', 'auto'],
+                        ['clustering', 'nb_ss_rand', 'int', '10000'],
+                        ['clustering', 'nb_snippets', 'int', '50'],
                         ['clustering', 'fine_amplitude', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.2'],
                         ['detection', 'smoothing_factor', 'float', '1.48'],
@@ -510,6 +521,12 @@ class CircusParser(object):
                 print_and_log(["cc_merge in [validating] should be in [0,1]"], 'error', logger)
             sys.exit(0)
 
+        # test = (self.parser.getfloat('clustering', 'ignored_mixtures') >= 0) and (self.parser.getfloat('clustering', 'ignored_mixtures') <= 1)
+        # if not test:
+        #     if comm.rank == 0:
+        #         print_and_log(["ignored_mixtures in [validating] should be in [0,1]"], 'error', logger)
+        #     sys.exit(0)
+
         test = (self.parser.getfloat('data', 'memory_usage') > 0) and (self.parser.getfloat('data', 'memory_usage') <= 1)
         if not test:
             if comm.rank == 0:
@@ -819,10 +836,14 @@ class CircusParser(object):
             # noise from millisecond to sampling points
             noise_time = self.getfloat('detection', 'noise_time')
             self._noise = int(self.rate * noise_time * 1e-3)
-            if numpy.mod(self._noise, 2) == 0:
-                self._noise += 1
 
             self.set('detection', 'noise_time', self._noise)
+
+            over_factor = self.getfloat('detection', 'oversampling_factor')
+            nb_jitter = int(over_factor * 2 * jitter_range)
+            if numpy.mod(nb_jitter, 2) == 0:
+              nb_jitter += 1
+            self.set('detection', 'nb_jitter', nb_jitter)
 
             # chunk_size from second to sampling points
             for section in ['data', 'whitening', 'fitting']:
@@ -948,7 +969,6 @@ class CircusParser(object):
                 stream_mode = None
                 data_file, extension = os.path.splitext(data_file)
                 data_file += ".dat"
-
             else:
                 if has_been_created:
                     data_file = self.get('data', 'data_file_no_overwrite')
@@ -960,6 +980,7 @@ class CircusParser(object):
                 else:
                     if comm.rank == 0:
                         print_and_log(['The copy file has not yet been created! Returns normal file'], 'debug', logger)
+
 
         return self._create_data_file(data_file, is_empty, params, stream_mode)
 

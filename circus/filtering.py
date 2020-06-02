@@ -146,29 +146,41 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         to_explore = range(comm.rank, nb_chunks, comm.size)
 
-        data_file_in.open(mode='r+')
-
         if comm.rank == 0:
-            to_explore = get_tqdm_progressbar(to_explore)
+            to_explore = get_tqdm_progressbar(params, to_explore)
+
+        if data_file_in == data_file_out:
+            data_file_in.open(mode='r+')
+        else:
+            data_file_in.open(mode='r')
+            data_file_out.open(mode='r+')
 
         for count, gidx in enumerate(to_explore):
 
             is_first = data_file_in.is_first_chunk(gidx, nb_chunks)
             is_last = data_file_in.is_last_chunk(gidx, nb_chunks)
 
-            if is_first:
-                padding = (0, duration)
-            elif is_last:
-                padding = (-duration, 0)
+            if not (is_first and is_last):
+                if is_first:
+                    padding = (0, duration)
+                elif is_last:
+                    padding = (-duration, 0)
+                else:
+                    padding = (-duration, duration)
             else:
-                padding = (-duration, duration)
+                padding = (0, 0)
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
 
             if do_filtering:
                 local_chunk = signal.filtfilt(b, a, local_chunk, axis=0)
-                local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
                 local_chunk -= numpy.median(local_chunk, 0)
+                if not is_last:
+                    local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
+                else:
+                    local_chunk = local_chunk[numpy.abs(padding[0]):]
+            else:
+                local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
 
             if do_remove_median:
                 if not process_all_channels:
@@ -254,7 +266,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(to_write, 'default', logger)
             if not os.path.exists(plot_path):
                 os.makedirs(plot_path)
-            local_labels = get_tqdm_progressbar(local_labels)
+            local_labels = get_tqdm_progressbar(params, local_labels)
 
         comm.Barrier()
         # First we need to get the average artefacts
@@ -337,7 +349,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if comm.rank == 0:
             to_write = ["Removing artefacts from %d stimuli" % nb_stimuli]
             print_and_log(to_write, 'default', logger)
-            all_times = get_tqdm_progressbar(all_times)
+            all_times = get_tqdm_progressbar(params, all_times)
 
         comm.Barrier()
 
@@ -397,6 +409,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         description['dtype_offset'] = 0
         description['data_offset'] = 0
 
+        comm.Barrier()
         data_file_out = params.get_data_file(is_empty=not has_been_created, params=description)
 
         if comm.rank == 0:
@@ -431,7 +444,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if params.getboolean('data', 'overwrite'):
         data_file_in.open(mode='r+')
     else:
-        data_file_in.open()
+        data_file_in.open(mode='r')
         data_file_out.open(mode='r+')
 
     if do_filter or remove_median or remove_ground:
