@@ -735,6 +735,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                                                 if smart_searches[loc_peak][elec] > 0:
 
+                                                    ext_amp = sub_mat[template_shift, elec_positions[elec]]
                                                     if ext_amp < result['bounds_%s_' % loc_peak + str(elec)][1]:
                                                         idx_2 = 0
                                                     elif ext_amp > result['bounds_%s_' % loc_peak + str(elec)][-2]:
@@ -955,6 +956,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ratio = nb_chunks / float(result['nb_chunks_%s_' % p + str(ielec)])
                         ampmin = numpy.min(result['tmp_%s_' % p + str(ielec)])
                         ampmax = numpy.max(result['tmp_%s_' % p + str(ielec)])
+
                         if nb_ss_bins == 'auto':
                             try:
                                 local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 50, 250)
