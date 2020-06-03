@@ -2221,16 +2221,21 @@ def load_sp_memshared(file_name, nb_temp):
         data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
         indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(nb_data,))
 
-        win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
-        buf_data_noise, _ = win_data_noise.Shared_query(0)
-        buf_data_noise = numpy.array(buf_data_noise, dtype='B', copy=False)
+        if nb_noise_data > 0:
+            win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
+            buf_data_noise, _ = win_data_noise.Shared_query(0)
+            buf_data_noise = numpy.array(buf_data_noise, dtype='B', copy=False)
 
-        win_indices_noise = MPI.Win.Allocate_shared(nb_noise_data * intsize, intsize, comm=sub_comm)
-        buf_indices_noise, _ = win_indices_noise.Shared_query(0)
-        buf_indices_noise = numpy.array(buf_indices_noise, dtype='B', copy=False)
+            win_indices_noise = MPI.Win.Allocate_shared(nb_noise_data * intsize, intsize, comm=sub_comm)
+            buf_indices_noise, _ = win_indices_noise.Shared_query(0)
+            buf_indices_noise = numpy.array(buf_indices_noise, dtype='B', copy=False)
 
-        data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
-        indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+            data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
+            indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+        else:
+            data_noise = numpy.ndarray(dtype=numpy.float32, shape=(nb_noise_data,))
+            indices_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
+
 
         sub_comm.Barrier()
 
@@ -2262,7 +2267,11 @@ def load_sp_memshared(file_name, nb_temp):
 
 
         sub_comm.Barrier()
-        return results, (win_data, win_indices, win_data_noise, win_indices_noise)
+        pointers = (win_data, win_indices)
+        if nb_noise_data > 0:
+            pointers += (win_data_noise, win_indices_noise)
+
+        return results, pointers
 
 def load_sp(file_name, nb_temp):
 
