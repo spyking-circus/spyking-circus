@@ -55,6 +55,14 @@ At the end of that step, a single HDF5_ file ``mydata.result.hdf5`` is produced,
 .. note:: Spike times are saved in time steps
 
 
+Thresholding
+------------
+
+At the end of the thresholding step, a single HDF5_ file ``mydata.mua.hdf5`` is produced, containing several objects
+
+    * ``/spiketimes/elec_i`` for the electrode *i*, the times at which there was a threshold crossing, thus MUA activity.
+    * ``/amplitudes/elec_i`` for the electrode *i*, the amplitudes of the signal at the given times.
+
 Converting
 ----------
 
