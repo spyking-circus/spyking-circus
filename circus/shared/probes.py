@@ -59,6 +59,13 @@ def read_probe(parser, radius_in_probe=True):
             if comm.rank == 0:
                 print_and_log(["%s is missing in the probe file" % key], 'error', logger)
             sys.exit(0)
+
+    for key, value in probe['channel_groups'].items():
+        if numpy.any(numpy.array(value['channels']) < 0):
+            if comm.rank == 0:
+                print_and_log(["Negative channels in channel group %d are not allowed" %key], 'error', logger)
+            sys.exit(0)
+
     return probe
 
 

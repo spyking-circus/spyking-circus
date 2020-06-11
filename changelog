@@ -1,4 +1,10 @@
 =============
+Release 1.0.0
+=============
+
+* prevent the use of negative indices for channels
+
+=============
 Release 0.9.9
 =============
 
