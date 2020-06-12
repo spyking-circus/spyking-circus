@@ -79,6 +79,7 @@ def indices_for_dead_times(start, end):
         i[lens[:-1]] += start[1:]
         i[lens[:-1]] -= end[:-1]
         np.cumsum(i, out=i)
+        i = numpy.unique(i)
     else:
         i = np.zeros(0, dtype=numpy.int64)
     return i
