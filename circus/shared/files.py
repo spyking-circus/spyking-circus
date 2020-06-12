@@ -243,7 +243,7 @@ def get_dead_times(params):
             data[:] = dead_times
 
         sub_comm.Barrier()
-        return data
+        return data, win_data
 
 
 def get_stas_memshared(

@@ -23,6 +23,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     n_e = params.getint('data', 'N_e')
     n_total = params.nb_channels
     n_t = params.getint('detection', 'N_t')
+    SHARED_MEMORY = get_shared_memory_flag(params)
     dist_peaks = params.getint('detection', 'dist_peaks')
     template_shift = params.getint('detection', 'template_shift')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -191,7 +192,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             matched_thresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params)
+        if SHARED_MEMORY:
+            all_dead_times, mpi_memory_3 = get_dead_times(params)
+        else:
+            all_dead_times = get_dead_times(params)
     else:
         all_dead_times = None  # default assignment (for PyCharm code inspection)
 
@@ -1706,3 +1710,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
     gc.collect()
     sys.stderr.flush()
+
+    if SHARED_MEMORY and ignore_dead_times:
+        mpi_memory_3.Free()
