@@ -160,6 +160,7 @@ class MergeWindow(QMainWindow):
         self.min_spikes = params.getint('merging', 'min_spikes')
         self.adapted_cc = params.getboolean('clustering', 'adapted_cc')
         self.adapted_thr = params.getint('clustering', 'adapted_thr')
+        self.low_channels_thr = params.getint('detection', 'low_channels_thr')
 
         self.duration = io.load_data(params, 'duration')
         self.nb_bhatta_bins = 100
@@ -168,7 +169,7 @@ class MergeWindow(QMainWindow):
         if self.has_support:
             self.supports = io.load_data(params, 'supports', self.ext_in)
             self.mean_channels = numpy.mean(numpy.sum(self.supports, 1))
-            if self.mean_channels < 3:
+            if self.mean_channels < self.low_channels_thr:
                 self.low_channel_count = True
                 if comm.rank == 0:
                     print_and_log(["Templates on few channels only, taking norm into account"], 'debug', logger)

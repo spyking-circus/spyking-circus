@@ -104,6 +104,7 @@ class CircusParser(object):
                           ['data', 'custom_spikes', 'string', ''],
                           ['data', 'auto_cluster', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
+                          ['detection', 'low_channels_thr', 'int', '3'],
                           ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '10'],
                           ['detection', 'matched-filter', 'bool', 'False'],
