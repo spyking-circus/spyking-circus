@@ -65,7 +65,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             matched_tresholds_pos = io.load_data(params, 'matched-thresholds-pos')
 
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params)
+        if SHARED_MEMORY:
+            all_dead_times, mpi_memory_3 = get_dead_times(params)
+        else:
+            all_dead_times = get_dead_times(params)
 
     thresholds = io.load_data(params, 'thresholds')
 
@@ -218,6 +221,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     comm.Barrier()
     
+    if SHARED_MEMORY and ignore_dead_times:
+        mpi_memory_3.Free()
+
     if comm.rank == 0:
         io.collect_mua(comm.size, params, erase=True)
 

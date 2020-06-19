@@ -72,12 +72,16 @@ def test_if_purity(params, extension):
 
 def indices_for_dead_times(start, end):
     lens = end - start
-    np.cumsum(lens, out=lens)
-    i = np.ones(lens[-1], dtype=numpy.int64)
-    i[0] = start[0]
-    i[lens[:-1]] += start[1:]
-    i[lens[:-1]] -= end[:-1]
-    np.cumsum(i, out=i)
+    if len(lens) > 0:
+        np.cumsum(lens, out=lens)
+        i = np.ones(lens[-1], dtype=numpy.int64)
+        i[0] = start[0]
+        i[lens[:-1]] += start[1:]
+        i[lens[:-1]] -= end[:-1]
+        np.cumsum(i, out=i)
+        i = numpy.unique(i)
+    else:
+        i = np.zeros(0, dtype=numpy.int64)
     return i
 
 

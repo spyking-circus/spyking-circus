@@ -203,6 +203,8 @@ def get_dead_times(params):
     def _get_dead_times(params):
         dead_times = numpy.loadtxt(fname=params.get('triggers', 'dead_file'), comments=['#', '//'])
         data_file = params.data_file
+        if len(dead_times) == 0:
+            dead_times = numpy.zeros((0, 2), dtype=numpy.int64)
         if len(dead_times.shape) == 1:
             dead_times = dead_times.reshape(1, 2)
         dead_in_ms = params.getboolean('triggers', 'dead_in_ms')
@@ -243,7 +245,7 @@ def get_dead_times(params):
             data[:] = dead_times
 
         sub_comm.Barrier()
-        return data
+        return data, win_data
 
 
 def get_stas_memshared(

@@ -302,6 +302,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     # Part 2: Basis
     numpy.random.seed(422)
 
+    SHARED_MEMORY = get_shared_memory_flag(params)
     #################################################################
     file_out = params.get('data', 'file_out')
     alignment = params.getboolean('detection', 'alignment')
@@ -327,7 +328,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     if ignore_dead_times:
-        all_dead_times = get_dead_times(params)
+        if SHARED_MEMORY:
+            all_dead_times, mpi_memory_3 = get_dead_times(params)
+        else:
+            all_dead_times = get_dead_times(params)
     data_file.open()
     #################################################################
 
@@ -712,3 +716,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 comm.Barrier()
 
     data_file.close()
+
+    if SHARED_MEMORY and ignore_dead_times:
+        mpi_memory_3.Free()
