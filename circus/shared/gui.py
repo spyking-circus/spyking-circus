@@ -161,7 +161,13 @@ class MergeWindow(QMainWindow):
         self.adapted_cc = params.getboolean('clustering', 'adapted_cc')
         self.adapted_thr = params.getint('clustering', 'adapted_thr')
 
-        self.duration = io.load_data(params, 'duration')
+        try:
+            self.duration = io.load_data(params, 'duration')
+        except Exception:
+            if comm.rank == 0:
+                print_and_log(['No results file found: either no templates found or no fitting'], 'error', logger)
+            sys.exit(0)
+
         self.nb_bhatta_bins = 100
         self.bhattas_level = ((self.nb_bhatta_bins - 1)/self.duration)/self.nb_bhatta_bins
         self.has_support = test_if_support(params, self.ext_in)
