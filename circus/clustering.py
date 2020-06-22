@@ -1534,7 +1534,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if comm.rank == 0:
             idx = numpy.where(gdata4 != 0)[0]
-            mean_channels = numpy.mean(gdata4[idx])
+            if len(idx) > 0:
+                mean_channels = numpy.mean(gdata4[idx])
+            else:
+                mean_channels = 0
             if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
                 print_and_log(["Templates on few channels only, cc_merge set to 1 automatically"], 'info', logger)
         else:
