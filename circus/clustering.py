@@ -98,6 +98,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     rejection_threshold = params.getfloat('detection', 'rejection_threshold')
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
+    low_channels_thr = params.getint('detection', 'low_channels_thr')
     data_file.open()
     #################################################################
 
@@ -1545,7 +1546,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         mean_channels = comm.bcast(numpy.array([int(mean_channels)], dtype=numpy.int32), root=0)[0]
 
-        if mean_channels < 3:
+        if mean_channels < low_channels_thr:
             params.set('clustering', 'cc_merge', 1)
 
         # We need to gather the sparse arrays.
@@ -1691,6 +1692,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(lines, 'info', logger)
 
     comm.Barrier()
+
+    supports = io.load_data(params, 'supports')
+    mean_channels = numpy.mean(numpy.sum(supports, 1))
+    if mean_channels < low_channels_thr:
+        templates_normalization = False
+        if comm.rank == 0:
+            print_and_log(['Templates defined on few channels (%g), turning off normalization' %mean_channels], 'debug', logger)
 
     if (fine_amplitude) or (debug_plots not in ['None', '']):
 

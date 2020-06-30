@@ -56,6 +56,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     data_file.open()
+    supports = io.load_data(params, 'supports')
+    low_channels_thr = params.getint('detection', 'low_channels_thr')
+    mean_channels = numpy.mean(numpy.sum(supports, 1))
+    if mean_channels < low_channels_thr:
+        normalization = False
+        if comm.rank == 0:
+            print_and_log(['Templates defined on few channels (%g), turning off normalization' %mean_channels], 'debug', logger)
+
+
     #################################################################
 
     if use_gpu:

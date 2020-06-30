@@ -263,6 +263,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'dtype_offset', '0')
         new_params.write('data', 'stream_mode', 'None')
         new_params.write('data', 'overwrite', 'True')
+        new_params.write('triggers', 'ignore_times', 'False')
         new_params.write('data', 'sampling_rate', str(params.rate))
         new_params.write('whitening', 'safety_time', '0')
         new_params.write('clustering', 'safety_time', '0')

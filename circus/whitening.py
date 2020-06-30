@@ -238,7 +238,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             spatial_whitening = numpy.sum(all_res_spac, 0)
             to_write['spatial'] = spatial_whitening
 
-            print_and_log(["Found %gs without spikes for whitening matrices..." % (numpy.mean(all_silences) / params.rate)], 'default', logger)
+            if ignore_spikes:
+                print_and_log(["Found %gs without spikes to compute the whitening matrix..." % (numpy.mean(all_silences) / params.rate)], 'default', logger)
+            else:
+                print_and_log(["Found %gs to compute the whitening matrix..." % (numpy.mean(all_silences) / params.rate)], 'default', logger)
 
             have_nans = numpy.sum(numpy.isnan(spatial_whitening))
 

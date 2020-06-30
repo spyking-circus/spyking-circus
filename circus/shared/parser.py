@@ -101,7 +101,10 @@ class CircusParser(object):
                           ['data', 'is_cluster', 'bool', 'False'],
                           ['data', 'shared_memory', 'bool', 'True'],
                           ['data', 'status_bars', 'bool', 'True'],
+                          ['data', 'custom_spikes', 'string', ''],
+                          ['data', 'auto_cluster', 'bool', 'True'],
                           ['detection', 'alignment', 'bool', 'True'],
+                          ['detection', 'low_channels_thr', 'int', '3'],
                           ['detection', 'hanning', 'bool', 'True'],
                           ['detection', 'oversampling_factor', 'int', '10'],
                           ['detection', 'matched-filter', 'bool', 'False'],
@@ -485,7 +488,10 @@ class CircusParser(object):
                 print_and_log(["Common ground in filtering section should be a valid electrode"], 'error', logger)
             sys.exit(0)
 
-        is_cluster = check_if_cluster()
+        if self.parser.getboolean('data', 'auto_cluster'):
+          is_cluster = check_if_cluster()
+        else:
+          is_cluster = False
 
         self.parser.set('data', 'is_cluster', str(is_cluster))
 

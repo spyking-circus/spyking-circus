@@ -84,6 +84,14 @@ def indices_for_dead_times(start, end):
         i = np.zeros(0, dtype=numpy.int64)
     return i
 
+def get_custom_spikes(data, t_start, t_stop, nb_channels):
+    start, end = numpy.searchsorted(data[:, 0], [t_start, t_stop])
+    spike_times = data[:, 0][start:end]
+    channel_ids = data[:, 1][start:end]
+    res = {}
+    for i in range(nb_channels):
+        res[i] = spike_times[numpy.where(channel_ids == i)[0]]
+    return res
 
 def apply_patch_for_similarities(params, extension):
 
