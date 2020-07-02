@@ -55,7 +55,7 @@ def data_stats(params, show=True, export_times=False):
         "Number of analyzed channels : %d" % params.getint('data', 'N_e'),
         "File format                 : %s" % params.get('data', 'file_format').upper(),
         "Data type                   : %s" % str(data_file.data_dtype),
-        "Sampling rate               : %d kHz" % (params.rate//1000.0),
+        "Sampling rate               : %d Hz" % params.rate,
         "Duration of the recording   : %d min %s s %s ms" % (nb_chunks, int(nb_seconds), last_chunk_len),
         "Width of the templates      : %d ms" % N_t,
         "Spatial radius considered   : %d um" % params.getint('detection', 'radius'),

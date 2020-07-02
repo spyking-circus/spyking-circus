@@ -174,11 +174,11 @@ class MergeWindow(QMainWindow):
         self.has_support = test_if_support(params, self.ext_in)
         if self.has_support:
             self.supports = io.load_data(params, 'supports', self.ext_in)
-            self.mean_channels = numpy.mean(numpy.sum(self.supports, 1))
-            if self.mean_channels < self.low_channels_thr:
+            self.median_channels = numpy.median(numpy.sum(self.supports, 1))
+            if self.median_channels < self.low_channels_thr:
                 self.low_channel_count = True
                 if comm.rank == 0:
-                    print_and_log(["Templates on few channels only, taking norm into account"], 'debug', logger)
+                    print_and_log(["Templates on few channels only (%g), taking norm into account" % self.median_channels], 'debug', logger)
             else:
                 self.low_channel_count = False
         self.bin_size = int(self.cc_bin * self.sampling_rate * 1e-3)

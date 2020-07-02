@@ -1239,8 +1239,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     gdata2 = gather_array(numpy.array([local_mergings], dtype=numpy.float32), comm, 0)
     gdata3 = gather_array(numpy.array([local_nb_clusters], dtype=numpy.float32), comm, 0)
 
-    mean_channels = 0
-
     if comm.rank == 0:
         # total_hits = int(numpy.sum(gdata))
         total_mergings = int(numpy.sum(gdata2))
@@ -1360,13 +1358,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         tmp_slow = scipy.signal.savgol_filter(first_component, 3 * savgol_window, 3, axis=1)
                         first_component = savgol_filter * tmp_fast + (1 - savgol_filter) * tmp_slow
 
-                    mean_channels += len(indices)
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
                         to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
                         first_component[to_delete, :] = 0
                         sub_data_raw[:, to_delete, :] = 0
-                        mean_channels -= len(to_delete)
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
 
@@ -1525,29 +1521,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         comm.Barrier()
 
-        if local_nb_clusters > 0:
-            mean_channels /= local_nb_clusters
-
-        gdata4 = gather_array(numpy.array([mean_channels], dtype=numpy.float32), comm)
-
         templates_to_remove = np.concatenate(templates_to_remove)  # i.e. concatenate once for efficiency
         templates_to_remove = all_gather_array(templates_to_remove, comm, 0, dtype='int32')
-
-        if comm.rank == 0:
-            idx = numpy.where(gdata4 != 0)[0]
-            if len(idx) > 0:
-                mean_channels = numpy.mean(gdata4[idx])
-            else:
-                mean_channels = 0
-            if mean_channels < 3 and params.getfloat('clustering', 'cc_merge') != 1:
-                print_and_log(["Templates on few channels only, cc_merge set to 1 automatically"], 'info', logger)
-        else:
-            mean_channels = 0
-
-        mean_channels = comm.bcast(numpy.array([int(mean_channels)], dtype=numpy.int32), root=0)[0]
-
-        if mean_channels < low_channels_thr:
-            params.set('clustering', 'cc_merge', 1)
 
         # We need to gather the sparse arrays.
         temp_x = gather_array(temp_x, comm, dtype='uint32', compress=blosc_compress)
@@ -1664,6 +1639,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if total_nb_clusters > 0:
 
+        supports = io.load_data(params, 'supports')
+        median_channels = numpy.median(numpy.sum(supports, 1))
+        if median_channels < low_channels_thr:
+            #templates_normalization = False
+            params.set('clustering', 'cc_merge', 1)
+
+            if comm.rank == 0:
+                #print_and_log(['Templates on few channels only (%g), turning off normalization' %median_channels], 'info', logger)
+                print_and_log(["Templates on few channels only (%g), cc_merge set to 1 automatically" %median_channels], 'info', logger)
+
         if comm.rank == 0 and (params.getfloat('clustering', 'cc_merge') < 1):
             print_and_log(["Merging similar templates..."], 'default', logger)
 
@@ -1692,13 +1677,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         print_and_log(lines, 'info', logger)
 
     comm.Barrier()
-
-    supports = io.load_data(params, 'supports')
-    mean_channels = numpy.mean(numpy.sum(supports, 1))
-    if mean_channels < low_channels_thr:
-        templates_normalization = False
-        if comm.rank == 0:
-            print_and_log(['Templates defined on few channels (%g), turning off normalization' %mean_channels], 'debug', logger)
 
     if (fine_amplitude) or (debug_plots not in ['None', '']):
 

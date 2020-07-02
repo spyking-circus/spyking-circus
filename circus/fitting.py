@@ -58,11 +58,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     data_file.open()
     supports = io.load_data(params, 'supports')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
-    mean_channels = numpy.mean(numpy.sum(supports, 1))
-    if mean_channels < low_channels_thr:
-        normalization = False
-        if comm.rank == 0:
-            print_and_log(['Templates defined on few channels (%g), turning off normalization' %mean_channels], 'debug', logger)
+    median_channels = numpy.median(numpy.sum(supports, 1))
+    # if median_channels < low_channels_thr:
+    #     normalization = False
+    #     if comm.rank == 0:
+    #         print_and_log(['Templates defined on few channels (%g), turning off normalization' %median_channels], 'debug', logger)
 
 
     #################################################################
