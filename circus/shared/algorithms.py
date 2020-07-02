@@ -1190,7 +1190,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # ax.set_xticklabels([])
             ax[0].set_xticks([])
             ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
-            ymin, ymax = ax[0].ylim()
+            ymin, ymax = ax[0].get_ylim()
             ax[0].set_ylim(-1, ymax)
 
             ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
