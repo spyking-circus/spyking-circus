@@ -8,7 +8,6 @@ Release 1.0.0
 * fix for recent versions of MPI (if dead times used)
 * fix if dead times are not sorted or overlapping
 * add the auto_cluster param in [data] to force gobal_tmp if needed
-* normalization of the templates is turned off when only on few channels
 
 =============
 Release 0.9.9

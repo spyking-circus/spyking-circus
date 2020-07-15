@@ -11,7 +11,7 @@ Installing MATLAB
 
 SpyKING CIRUCS will assume that you have a valid installation of MATLAB, and that the matlab command can be found in the system $PATH. For windows user, please have a look to this `howto <https://helpdeskgeek.com/windows-10/add-windows-path-environment-variable/>`_. For unix users (mac or linux), simply add the following line to your .bash_profile or .bashrc file, in your $HOME directory::
 
-    export $PATH=$PATH:/PATH_TO_YOUR_MATLAB/bin/matlab
+    export PATH=$PATH:/PATH_TO_YOUR_MATLAB/bin
 
 Then relaunch the terminal
 
