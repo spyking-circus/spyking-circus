@@ -629,7 +629,7 @@ def slice_clusters(
 
         myfile.close()
         if method == 'safe':
-            result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete))
+            result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete).astype(numpy.int32))
         elif method == 'new':
             result['electrodes'] = result['electrodes'][to_keep]
         else:
