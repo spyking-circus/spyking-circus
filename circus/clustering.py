@@ -1117,13 +1117,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         # Now we perform a merging step, for clusters that look too similar.
                         old_allocation = np.copy(cluster_results[p][ielec]['groups'])
-                        cluster_results[p][ielec]['groups'], merged, merge_history = algo.merging(
+                        cluster_results[p][ielec]['groups'], merged, merge_history, c = algo.merging(
                             cluster_results[p][ielec]['groups'], merging_method,
-                            merging_param, result['sub_%s_' % p + str(ielec)]
+                            merging_param, result['sub_%s_' % p + str(ielec)], c
                         )
-
-                        for history in merge_history['merge']:
-                            c = numpy.delete(c, history[1])
 
                         # Remove clusters without a sufficient number of points.
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)

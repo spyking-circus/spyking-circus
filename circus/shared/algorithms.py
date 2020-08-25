@@ -267,9 +267,9 @@ def halo_assign(labels, rhos, n_min, halo_rejection=3):
     return halolabels
 
 
-def merging(groups, merging_method, merging_param, data):
+def merging(groups, merging_method, merging_param, data, centers):
 
-    def perform_merging(groups_, merging_method_, merging_param_, data_):
+    def perform_merging(groups_, merging_method_, merging_param_, data_, centers_):
         mask_ = numpy.where(groups_ > -1)[0]
         clusters_ = numpy.unique(groups_[mask_])
         dmin_ = numpy.inf
@@ -355,10 +355,11 @@ def merging(groups, merging_method, merging_param, data):
             c1, c2 = clusters_[ic1], clusters_[ic2]
             selection = numpy.where(groups_ == c2)[0]
             groups_[selection] = c1
+            centers_ = numpy.delete(centers_, ic2)
             merge_ = (c1, c2)
-            return True, groups_, merge_, dmin_
+            return True, groups_, merge_, dmin_, centers_
 
-        return False, groups_, None, None
+        return False, groups_, None, None, centers_
 
     has_been_merged = True
     mask = numpy.where(groups > -1)[0]
@@ -382,13 +383,13 @@ def merging(groups, merging_method, merging_param, data):
     }
 
     while has_been_merged:
-        has_been_merged, groups, merge, dmin = perform_merging(groups, merging_method, merging_param, data)
+        has_been_merged, groups, merge, dmin, centers = perform_merging(groups, merging_method, merging_param, data, centers)
         if has_been_merged:
             merged[1] += 1
             merge_history['merge'].append(merge)
             merge_history['distance'].append(dmin)
 
-    return groups, merged, merge_history
+    return groups, merged, merge_history, centers
 
 
 def slice_templates(params, to_remove=None, to_merge=None, extension='', input_extension=''):
