@@ -227,14 +227,18 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
     # Assign each point to one cluster.
     if method == 'nearest_centroid':
         # Custom (and naive) method.
-        if nb_clusters <= 1:
+        if nb_clusters == 0:
+            labels = numpy.zeros(nb_points, dtype=numpy.int)
+        elif nb_clusters == 1:
             labels = numpy.ones(nb_points, dtype=numpy.int)  # all points in one cluster
         else:
             distances_to_centroids = dist.get_rows(centroid_indices)
             labels = numpy.argmin(distances_to_centroids, axis=0) + 1
     elif method == 'nearest_denser_point':
         # Method described in [Rodriguez & Laio (2014)](https://science.sciencemag.org/content/344/6191/1492.full).
-        if nb_clusters <= 1:
+        if nb_clusters == 0:
+            labels = numpy.zeros(nb_points, dtype=numpy.int)
+        elif nb_clusters == 1:
             labels = numpy.ones(nb_points, dtype=numpy.int)  # all points in one cluster
         else:
             labels = numpy.copy(centroids)

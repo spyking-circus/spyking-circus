@@ -1122,16 +1122,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             merging_param, result['sub_%s_' % p + str(ielec)]
                         )
 
+                        for history in merge_history['merge']:
+                            c = numpy.delete(c, history[1])
+
                         # Remove clusters without a sufficient number of points.
                         idx_clusters, counts = numpy.unique(cluster_results[p][ielec]['groups'], return_counts=True)
                         count = 0
                         to_remove = []
+
                         for label, cluster_size in zip(idx_clusters, counts):
                             if (label > -1) and (cluster_size < n_min):
                                 tmp = cluster_results[p][ielec]['groups'] == label
                                 cluster_results[p][ielec]['groups'][tmp] = -1
                                 to_remove += [count]
                             count += 1
+
                         c = numpy.delete(c, to_remove)  # update the cluster labels
 
                         # Sanity plots for clusters.
