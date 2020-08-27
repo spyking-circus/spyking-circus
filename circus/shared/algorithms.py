@@ -894,8 +894,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     blosc_compress = params.getboolean('data', 'blosc_compress')
     tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out_suff')), 'tmp')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
+    max_snippets = params.getint('clustering', 'nb_amplitude_snippets')
 
-    max_snippets = 250
     max_noise_snippets = min(max_snippets, 10000 // N_e)
     # thr_similarity = 0.25
 
