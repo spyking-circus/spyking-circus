@@ -409,7 +409,7 @@ else
             handles.Amplitudes{id}  = data(:, 1);
             handles.Amplitudes2{id} = data(:, 2);
         else
-%             handles.Amplitudes{id}  = [];
+            handles.Amplitudes{id}  = [];
             handles.Amplitudes2{id} = [];
         end
     end
