@@ -12,6 +12,7 @@ from .rhd import RHDFile
 from .neuralynx import NeuraLynxFile
 from .blackrock import BlackRockFile
 from .mda import MdaFile
+from .maxwell import MaxwellFile
 
 try:
     import neuroshare
@@ -40,6 +41,7 @@ __supported_data_files__ = {
     NeuraLynxFile.description: NeuraLynxFile,
     BlackRockFile.description: BlackRockFile,
     MdaFile.description: MdaFile,
+    MaxwellFile.description: MaxwellFile,
 }
 
 
