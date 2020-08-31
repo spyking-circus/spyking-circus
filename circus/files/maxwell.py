@@ -26,7 +26,7 @@ class MaxwellFile(H5File):
             header['sampling_rate'] = 20000
             header['dtype_offset'] = 'auto'
         else:
-            pass
+            header['h5_key'] = self.h5_key
             header['sampling_rate'] = 10000
             header['dtype_offset'] = 512
         
