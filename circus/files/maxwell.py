@@ -25,12 +25,13 @@ class MaxwellFile(H5File):
             header['h5_key'] = 'sig'
             header['sampling_rate'] = 20000
             header['dtype_offset'] = 'auto'
-        else:
-            header['h5_key'] = self.h5_key
-            header['sampling_rate'] = 10000
+            header['gain'] = my_file.get('settings/lsb')[0]
+        elif header['version'] == b'20190530':
+            header['h5_key'] = '/data_store/data0000/groups/routed/raw'
+            header['sampling_rate'] = my_file.get('/data_store/data0000/settings/sampling')[0]
             header['dtype_offset'] = 512
+            header['gain'] = my_file.get('/data_store/data0000/settings/lsb')[0]
         
-        header['gain'] = my_file.get('settings/lsb')[0]
         header['data_dtype'] = my_file.get(header['h5_key']).dtype
         self.compression = my_file.get(header['h5_key']).compression
 
