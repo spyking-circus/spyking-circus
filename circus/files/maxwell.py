@@ -27,13 +27,13 @@ class MaxwellFile(H5File):
             header['dtype_offset'] = 'auto'
             header['gain'] = my_file.get('settings/lsb')[0]
         elif header['version'] == b'20190530':
-            if not 'data%s' %well in my_file['data_store'].keys():
-                print_and_log('Well %s not found!' %well, 'error', logger)
+            if not 'data%s' %self.params['well'] in list(my_file['data_store'].keys()):
+                print_and_log(['Well %s not found!' %self.params['well']], 'error', logger)
                 sys.exit(0)
-            header['h5_key'] = '/data_store/data%s/groups/routed/raw' %well
-            header['sampling_rate'] = my_file.get('/data_store/data%s/settings/sampling' %well)[0]
+            header['h5_key'] = '/data_store/data%s/groups/routed/raw' %self.params['well']
+            header['sampling_rate'] = my_file.get('/data_store/data%s/settings/sampling' %self.params['well'])[0]
             header['dtype_offset'] = 512
-            header['gain'] = my_file.get('/data_store/data%s/settings/lsb' %well)[0]
+            header['gain'] = my_file.get('/data_store/data%s/settings/lsb' %self.params['well'])[0]
         
         header['data_dtype'] = my_file.get(header['h5_key']).dtype
         self.compression = my_file.get(header['h5_key']).compression
