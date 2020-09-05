@@ -10,6 +10,7 @@ Release 1.0.0
 * add the auto_cluster param in [data] to force gobal_tmp if needed
 * fix when no cluster are found on some electrodes
 * fix in the MATLAB Gui if no spikes are found
+* support for the maxwell file format (MaxOne and MaxTwo)
 
 =============
 Release 0.9.9
