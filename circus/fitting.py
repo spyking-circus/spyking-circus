@@ -478,6 +478,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
+                best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+
                 if numerous_argmax:
                     if len(best_indices) == 0:
                         best_indices = largest_indices(flatten_data, nb_argmax)
@@ -572,13 +574,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mask = to_add[:n_tm, :] != 0
                     modified = idx_lookup[:, is_neighbor][mask]
-                    best_indices = best_indices[~np.in1d(best_indices, modified)]
 
-                    if len(best_indices) > 0:
-                        tmp = modified[np.argmax(flatten_data[modified])]
-                        modified_max = flatten_data[tmp]
-                        if modified_max > flatten_data[best_indices[0]]:
-                            best_indices = np.concatenate(([tmp], best_indices))
+                    best_indices = np.union1d(best_indices, modified)
+                    best_indices = best_indices[largest_indices(flatten_data[best_indices], nb_argmax)]
+
+                    #if len(best_indices) > 0:
+                    #    tmp = modified[np.argmax(flatten_data[modified])]
+                    #    modified_max = flatten_data[tmp]
+                    #    if modified_max > flatten_data[best_indices[0]]:
+                    #        best_indices = np.concatenate(([tmp], best_indices))
 
                     # Save debug data.
                     if debug:
@@ -603,7 +607,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
 
-                    best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+                    #best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
 
                     # Save debug data.
                     if debug:
