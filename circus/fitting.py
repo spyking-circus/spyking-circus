@@ -462,13 +462,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            local_max = 0
-            numerous_argmax = False
+            numerous_argmax = True
             nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
             flatten_data = data.ravel()
+            idx_lookup = numpy.arange(flatten_data.size).reshape(n_tm, nb_local_peak_times)
 
             while numpy.mean(failure) < total_nb_chances:
 
@@ -560,9 +560,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         to_add = tmp1.toarray()[:, idx_neighbor]
                         b[:, is_neighbor] += to_add
 
-                    numerous_argmax = False
-                    best_indices = numpy.zeros(0, dtype=numpy.int32)
-
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
 
@@ -572,6 +569,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['templates'] += [best_template_index]
                     # Mark current matching as tried.
                     b[best_template_index, peak_index] = -numpy.inf
+
+                    mask = to_add[:n_tm, :] != 0
+                    modified = idx_lookup[:, is_neighbor][mask]
+                    best_indices = best_indices[~np.in1d(best_indices, modified)]
+
+                    if len(best_indices) > 0:
+                        tmp = modified[np.argmax(flatten_data[modified])]
+                        modified_max = flatten_data[tmp]
+                        if modified_max > flatten_data[best_indices[0]]:
+                            best_indices = np.concatenate(([tmp], best_indices))
+
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -584,8 +592,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [True]
                 else:
-                    # Reject the matching.
-                    numerous_argmax = True
 
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
