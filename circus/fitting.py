@@ -463,7 +463,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             numerous_argmax = True
-            nb_argmax = n_tm
+            nb_argmax = int(numpy.ceil(0.001*n_tm*nb_local_peak_times))
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
@@ -574,15 +574,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mask = to_add[:n_tm, :] != 0
                     modified = idx_lookup[:, is_neighbor][mask]
+                    best_indices = best_indices[~numpy.in1d(best_indices, modified)]
 
-                    best_indices = np.union1d(best_indices, modified)
-                    best_indices = best_indices[largest_indices(flatten_data[best_indices], nb_argmax)]
-
+                    #best_indices = best_indices[1:]
                     #if len(best_indices) > 0:
-                    #    tmp = modified[np.argmax(flatten_data[modified])]
-                    #    modified_max = flatten_data[tmp]
-                    #    if modified_max > flatten_data[best_indices[0]]:
-                    #        best_indices = np.concatenate(([tmp], best_indices))
+                    #    best_indices = np.union1d(best_indices, modified)
+                    #    #best_indices = best_indices[flatten_data[best_indices] > min_scalar_product]
+                    #    best_indices = best_indices[largest_indices(flatten_data[best_indices], min(len(best_indices), nb_argmax))]
+                    #    print flatten_data[best_indices]
+
+                    if len(best_indices) > 0:
+                        tmp = modified[numpy.argmax(flatten_data[modified])]
+                        modified_max = flatten_data[tmp]
+                        if modified_max > flatten_data[best_indices[0]]:
+                            best_indices = numpy.concatenate(([tmp], best_indices))
 
                     # Save debug data.
                     if debug:
@@ -608,6 +613,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         b[best_template_index, peak_index] = -numpy.inf
 
                     #best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+
 
                     # Save debug data.
                     if debug:
