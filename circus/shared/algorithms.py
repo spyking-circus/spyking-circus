@@ -1149,74 +1149,98 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         if debug_plots not in ['None', '']:
 
             import matplotlib.pyplot as plt
+            from matplotlib.gridspec import GridSpec
+            fig = plt.figure()
+            gs = GridSpec(2, 5)
 
-            fig, ax = plt.subplots(2)
             s = 2 ** 2
             # ...
+
+            axs = fig.add_subplot(gs[0,0:4])
             linewidth = 0.3
-            ax[0].axhline(y=0.0, color='gray', linewidth=linewidth)
-            ax[0].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-            ax[0].axhline(y=center, color='gray', linewidth=linewidth)
-            ax[0].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+            axs.axhline(y=0.0, color='gray', linewidth=linewidth)
+            axs.axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+            axs.axhline(y=center, color='gray', linewidth=linewidth)
+            axs.axhline(y=a_max, color='tab:blue', linewidth=linewidth)
             # Plot neutral amplitudes.
             x = numpy.random.uniform(size=all_neutral_values.size)
             y = all_neutral_values
             color = 'gray'
-            ax[0].scatter(x, y, s=s, color=color, alpha=0.1)
+            axs.scatter(x, y, s=s, color=color, alpha=0.1)
             # Plot good amplitudes.
             x1 = numpy.random.uniform(size=good_values.size)
             y = good_values
             color = 'tab:green'
-            ax[0].scatter(x1, y, s=s, color=color)
+            axs.scatter(x1, y, s=s, color=color)
             # ...
             color = 'tab:green'
             for x_, y_ in zip(x1, y):
                 if y_ > a_max:
-                    ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                    axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
                 if y_ < a_min:
-                    ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+                    axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
             # ...
             x2 = numpy.random.uniform(size=all_bad_values.size)
             y = all_bad_values
             color = 'tab:red'
-            ax[0].scatter(x2, y, s=s, color=color)
+            axs.scatter(x2, y, s=s, color=color)
             # ...
             color = 'tab:red'
             for x_, y_ in zip(x2, y):
                 if center < y_ < a_max:
-                    ax[0].plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+                    axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
                 if a_min < y_ < center:
-                    ax[0].plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+                    axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
             # Hide the right and top spines
-            ax[0].spines['right'].set_visible(False)
-            ax[0].spines['top'].set_visible(False)
+            axs.spines['right'].set_visible(False)
+            axs.spines['top'].set_visible(False)
             # ...
-            ax[0].set_ylabel("amplitude")
+            axs.set_ylabel("amplitude")
             # ax.set_xticklabels([])
-            ax[0].set_xticks([])
-            ax[0].set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
-            ymin, ymax = ax[0].get_ylim()
-            ax[0].set_ylim(-1, ymax)
+            axs.set_xticks([])
+            axs.set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
+            ymin, ymax = axs.get_ylim()
+            axs.set_ylim(-1, ymax)
 
-            ax[1].axhline(y=0.0, color='gray', linewidth=linewidth)
-            ax[1].axhline(y=a_min, color='tab:blue', linewidth=linewidth)
-            ax[1].axhline(y=center, color='gray', linewidth=linewidth)
-            ax[1].axhline(y=a_max, color='tab:blue', linewidth=linewidth)
 
-            
+            axs = fig.add_subplot(gs[0,4])
+            nbins = 50
+            ybins = numpy.linspace(-1, ymax, nbins)
+            x = numpy.histogram(good_values, ybins, density=True)
+            y = numpy.histogram(all_bad_values, ybins, density=True)
+            bin_size = ybins[1] - ybins[0]
+            axs.barh(x[1][1:], x[0], bin_size, color='tab:green', alpha=0.5)
+            axs.barh(y[1][1:], y[0], bin_size, color='tab:red', alpha=0.5)
+            axs.set_ylim(-1, ymax)
+            xmin, xmax = axs.get_xlim()
+            axs.plot([xmin, xmax], [a_min, a_min], color='gray')
+            axs.plot([xmin, xmax], [a_max, a_max], color='gray')
+            axs.spines['right'].set_visible(False)
+            axs.spines['top'].set_visible(False)
+            axs.spines['bottom'].set_visible(False)
+            axs.set_yticks([], [])
+            axs.set_xticks([], [])
+
+            axs = fig.add_subplot(gs[1,0:5])
+            axs.axhline(y=0.0, color='gray', linewidth=linewidth)
+            axs.axhline(y=a_min, color='tab:blue', linewidth=linewidth)
+            axs.axhline(y=center, color='gray', linewidth=linewidth)
+            axs.axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+
+
             # Plot good amplitudes.
             y = good_values
-            r = ax[1].scatter(x1, y, s=s, c=nb_chances)
-            fig.colorbar(r, ax=ax[1])
+            r = axs.scatter(x1, y, s=s, c=nb_chances)
+            fig.colorbar(r, ax=axs)
 
             # Hide the right and top spines
-            ax[1].spines['right'].set_visible(False)
-            ax[1].spines['top'].set_visible(False)
-            ax[1].set_title('Average nb_chances %g' %numpy.mean(nb_chances))
+            axs.spines['right'].set_visible(False)
+            axs.spines['top'].set_visible(False)
+            axs.set_title('Average nb_chances %g' %numpy.mean(nb_chances))
             # ...
-            ax[1].set_ylabel("amplitude")
+            axs.set_ylabel("amplitude")
             # ax.set_xticklabels([])
-            ax[1].set_xticks([])
+            axs.set_xticks([])
 
             plt.tight_layout()
             # Save and close figure.
