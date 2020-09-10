@@ -463,7 +463,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             numerous_argmax = True
-            nb_argmax = n_tm #int(numpy.ceil(0.001*n_tm*nb_local_peak_times))
+            nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
@@ -573,28 +573,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     # Mark current matching as tried.
                     b[best_template_index, peak_index] = -numpy.inf
 
-                    mask = to_add[:n_tm, :] != 0
-                    modified = idx_lookup[:, is_neighbor][mask]
+                    mask_modified = to_add[:n_tm, :] != 0
+                    mask_increased = to_add[:n_tm, :] > 0
 
-                    ## Solution 1. Fast, but approximation
-
-                    #best_indices = best_indices[~numpy.in1d(best_indices, modified)]
-                    #if len(best_indices) > 0:
-                    #    tmp = modified[numpy.argmax(flatten_data[modified])]
-                    #    modified_max = flatten_data[tmp]
-                    #    if modified_max > flatten_data[best_indices[0]]:
-                    #        best_indices = numpy.concatenate(([tmp], best_indices))
+                    modified = idx_lookup[:, is_neighbor][mask_modified]
+                    increased = idx_lookup[:, is_neighbor][mask_increased]
 
                     ## Solution 2. Slower but accurate
                     best_indices = best_indices[1:]
-                    
                     modified_best = best_indices[numpy.in1d(best_indices, modified)]
-                    modified_elsewhere = modified[~numpy.in1d(modified, best_indices)]
-
                     nb_candidates = len(best_indices) - len(modified_best)
 
-                    if len(modified_best) == 0:
-                        tmp = modified[numpy.argmax(flatten_data[modified])]
+                    if len(modified_best) == 0 and len(increased) > 0:
+                        tmp = increased[numpy.argmax(flatten_data[increased])]
                         modified_max = flatten_data[tmp]
                         if modified_max > flatten_data[best_indices[0]]:
                             best_indices = numpy.concatenate(([tmp], best_indices))
@@ -603,8 +594,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         best_indices = largest_indices(flatten_data, nb_argmax)
                     else:
                         # We still have one best max that is not modified, so higher than
-                        # the rest of the not modified matrix
-                        candidates = numpy.concatenate((best_indices, modified_elsewhere))
+                        # the rest of the non modified matrix
+                        increased_elsewhere = increased[~numpy.in1d(increased, best_indices)]
+                        candidates = numpy.concatenate((best_indices, increased_elsewhere))
                         best_indices = candidates[largest_indices(flatten_data[candidates], nb_candidates)]
 
                     # Save debug data.
