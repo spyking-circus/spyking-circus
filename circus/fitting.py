@@ -463,12 +463,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             numerous_argmax = True
-            nb_argmax = int(numpy.ceil(0.001*n_tm*nb_local_peak_times))
+            nb_argmax = n_tm #int(numpy.ceil(0.001*n_tm*nb_local_peak_times))
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
             flatten_data = data.ravel()
-            idx_lookup = numpy.arange(flatten_data.size).reshape(n_tm, nb_local_peak_times)
+            idx_flatten = numpy.arange(flatten_data.size)
+            idx_lookup = idx_flatten.reshape(n_tm, nb_local_peak_times)
 
             while numpy.mean(failure) < total_nb_chances:
 
@@ -481,7 +482,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
 
                 if numerous_argmax:
-                    if len(best_indices) == 0:
+                    if len(best_indices) < 2:
                         best_indices = largest_indices(flatten_data, nb_argmax)
 
                     best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
@@ -574,20 +575,37 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     mask = to_add[:n_tm, :] != 0
                     modified = idx_lookup[:, is_neighbor][mask]
-                    best_indices = best_indices[~numpy.in1d(best_indices, modified)]
 
-                    #best_indices = best_indices[1:]
+                    ## Solution 1. Fast, but approximation
+
+                    #best_indices = best_indices[~numpy.in1d(best_indices, modified)]
                     #if len(best_indices) > 0:
-                    #    best_indices = np.union1d(best_indices, modified)
-                    #    #best_indices = best_indices[flatten_data[best_indices] > min_scalar_product]
-                    #    best_indices = best_indices[largest_indices(flatten_data[best_indices], min(len(best_indices), nb_argmax))]
-                    #    print flatten_data[best_indices]
+                    #    tmp = modified[numpy.argmax(flatten_data[modified])]
+                    #    modified_max = flatten_data[tmp]
+                    #    if modified_max > flatten_data[best_indices[0]]:
+                    #        best_indices = numpy.concatenate(([tmp], best_indices))
 
-                    if len(best_indices) > 0:
+                    ## Solution 2. Slower but accurate
+                    best_indices = best_indices[1:]
+                    
+                    modified_best = best_indices[numpy.in1d(best_indices, modified)]
+                    modified_elsewhere = modified[~numpy.in1d(modified, best_indices)]
+
+                    nb_candidates = len(best_indices) - len(modified_best)
+
+                    if len(modified_best) == 0:
                         tmp = modified[numpy.argmax(flatten_data[modified])]
                         modified_max = flatten_data[tmp]
                         if modified_max > flatten_data[best_indices[0]]:
                             best_indices = numpy.concatenate(([tmp], best_indices))
+                    elif nb_candidates < 2:
+                        # Old max candidates are modified, we need to resort everything
+                        best_indices = largest_indices(flatten_data, nb_argmax)
+                    else:
+                        # We still have one best max that is not modified, so higher than
+                        # the rest of the not modified matrix
+                        candidates = numpy.concatenate((best_indices, modified_elsewhere))
+                        best_indices = candidates[largest_indices(flatten_data[candidates], nb_candidates)]
 
                     # Save debug data.
                     if debug:
