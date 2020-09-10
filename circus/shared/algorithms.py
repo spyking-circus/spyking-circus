@@ -1198,7 +1198,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.set_ylabel("amplitude")
             # ax.set_xticklabels([])
             axs.set_xticks([])
-            axs.set_title('%g good / %g bad / %g error' %(len(good_values), len(all_bad_values), error))
+            axs.set_title('%g good / %g bad / %g purity' %(len(good_values), len(all_bad_values), purity_level[count]))
             ymin, ymax = axs.get_ylim()
             axs.set_ylim(-1, ymax)
 
