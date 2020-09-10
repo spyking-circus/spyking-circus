@@ -462,13 +462,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            local_max = 0
-            numerous_argmax = False
+            numerous_argmax = True
             nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
             data = b[:n_tm, :]
             flatten_data = data.ravel()
+            idx_flatten = numpy.arange(flatten_data.size)
+            idx_lookup = idx_flatten.reshape(n_tm, nb_local_peak_times)
 
             while numpy.mean(failure) < total_nb_chances:
 
@@ -478,8 +479,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
+                best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+
                 if numerous_argmax:
-                    if len(best_indices) == 0:
+                    if len(best_indices) < 2:
                         best_indices = largest_indices(flatten_data, nb_argmax)
 
                     best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
@@ -560,9 +563,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         to_add = tmp1.toarray()[:, idx_neighbor]
                         b[:, is_neighbor] += to_add
 
-                    numerous_argmax = False
-                    best_indices = numpy.zeros(0, dtype=numpy.int32)
-
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
 
@@ -572,6 +572,33 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['templates'] += [best_template_index]
                     # Mark current matching as tried.
                     b[best_template_index, peak_index] = -numpy.inf
+
+                    mask_modified = to_add[:n_tm, :] != 0
+                    mask_increased = to_add[:n_tm, :] > 0
+
+                    modified = idx_lookup[:, is_neighbor][mask_modified]
+                    increased = idx_lookup[:, is_neighbor][mask_increased]
+
+                    ## Solution 2. Slower but accurate
+                    best_indices = best_indices[1:]
+                    modified_best = best_indices[numpy.in1d(best_indices, modified)]
+                    nb_candidates = len(best_indices) - len(modified_best)
+
+                    if len(modified_best) == 0 and len(increased) > 0:
+                        tmp = increased[numpy.argmax(flatten_data[increased])]
+                        modified_max = flatten_data[tmp]
+                        if modified_max > flatten_data[best_indices[0]]:
+                            best_indices = numpy.concatenate(([tmp], best_indices))
+                    elif nb_candidates < 2:
+                        # Old max candidates are modified, we need to resort everything
+                        best_indices = largest_indices(flatten_data, nb_argmax)
+                    else:
+                        # We still have one best max that is not modified, so higher than
+                        # the rest of the non modified matrix
+                        increased_elsewhere = increased[~numpy.in1d(increased, best_indices)]
+                        candidates = numpy.concatenate((best_indices, increased_elsewhere))
+                        best_indices = candidates[largest_indices(flatten_data[candidates], nb_candidates)]
+
                     # Save debug data.
                     if debug:
                         result_debug['chunk_nbs'] += [gidx]
@@ -584,8 +611,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [True]
                 else:
-                    # Reject the matching.
-                    numerous_argmax = True
 
                     # Update failure counter of the peak.
                     failure[peak_index] += 1
@@ -597,7 +622,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
 
-                    best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+                    #best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+
 
                     # Save debug data.
                     if debug:

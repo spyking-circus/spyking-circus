@@ -11,6 +11,7 @@ Release 1.0.0
 * fix when no cluster are found on some electrodes
 * fix in the MATLAB Gui if no spikes are found
 * support for the maxwell file format (MaxOne and MaxTwo)
+* optimizations for faster fitting
 
 =============
 Release 0.9.9
