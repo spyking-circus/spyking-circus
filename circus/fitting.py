@@ -149,6 +149,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
 
+    #N_tm, x = templates.shape    
+    #sparsity_factor = templates.nnz / (N_tm * x)
+    #if sparsity_factor > 0.2:
+    #    templates = templates.toarray()
+
     info_string = ''
 
     if comm.rank == 0:
@@ -471,6 +476,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             idx_flatten = numpy.arange(flatten_data.size)
             idx_lookup = idx_flatten.reshape(n_tm, nb_local_peak_times)
 
+            to_add_test = np.zeros((b.shape[0], s_over), dtype=np.float32)
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -539,11 +546,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peak_time_step = local_peaktimes[peak_index]
 
                     peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
-                    is_neighbor = np.where(np.abs(peak_data) <= temp_2_shift)[0]
+                    is_neighbor = np.abs(peak_data) <= temp_2_shift
                     idx_neighbor = peak_data[is_neighbor] + temp_2_shift
-                    nb_neighbors = len(is_neighbor)
-                    indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
-                    indices[idx_neighbor, np.arange(nb_neighbors)] = 1
 
                     if full_gpu:
                         indices = cmt.CUDAMatrix(indices, copy_on_host=False)
