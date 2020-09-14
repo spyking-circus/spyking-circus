@@ -25,6 +25,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     # spike_thresh = params.getfloat('detection', 'spike_thresh')
     ratio_thresh = params.getfloat('fitting', 'ratio_thresh')
     two_components = params.getboolean('fitting', 'two_components')
+    sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
     # spike_width = params.getfloat('detection', 'spike_width')
     # dist_peaks = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -149,10 +150,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
 
-    #N_tm, x = templates.shape    
-    #sparsity_factor = templates.nnz / (N_tm * x)
-    #if sparsity_factor > 0.2:
-    #    templates = templates.toarray()
+    N_tm, x = templates.shape
+    sparsity_factor = templates.nnz / (N_tm * x)
+    if sparsity_factor > sparse_threshold:
+        if comm.rank == 0:
+            print_and_log(['Templates are not sparse enough, we densify them for speedup'], 'default', logger)
+        templates = templates.toarray()
 
     info_string = ''
 
