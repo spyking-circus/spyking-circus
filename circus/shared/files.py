@@ -504,7 +504,7 @@ def load_data_memshared(
             if is_sparse:
                 to_return = (win_data, win_indices)
             else:
-                to_return = (win_data)
+                to_return = (win_data, )
 
             return templates, to_return
         else:
