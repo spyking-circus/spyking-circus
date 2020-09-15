@@ -12,6 +12,7 @@ Release 1.0.0
 * fix in the MATLAB Gui if no spikes are found
 * support for the maxwell file format (MaxOne and MaxTwo)
 * optimizations for faster fitting
+* templates are densified dring fitting if not enough sparse (faster)
 
 =============
 Release 0.9.9

@@ -90,6 +90,7 @@ class CircusParser(object):
                           ['fitting', 'ratio_thresh', 'float', '0.9'],
                           ['fitting', 'two_components', 'bool', 'True'],
                           ['fitting', 'auto_nb_chances', 'bool', 'True'],
+                          ['fitting', 'sparse_thresh', 'float', '0.2'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],

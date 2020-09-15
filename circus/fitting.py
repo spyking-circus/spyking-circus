@@ -25,6 +25,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     # spike_thresh = params.getfloat('detection', 'spike_thresh')
     ratio_thresh = params.getfloat('fitting', 'ratio_thresh')
     two_components = params.getboolean('fitting', 'two_components')
+    sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
     # spike_width = params.getfloat('detection', 'spike_width')
     # dist_peaks = params.getint('detection', 'dist_peaks')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -79,11 +80,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
+        templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True, sparse_threshold=sparse_threshold)
         N_tm, x = templates.shape
     else:
         templates = io.load_data(params, 'templates')
         x, N_tm = templates.shape
+        sparsity = templates.nnz / (x * N_tm)
+        is_sparse = sparsity < sparse_threshold
+        if not is_sparse:
+            if comm.rank == 0:
+                print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
+            templates = templates.toarray()
 
     temp_2_shift = 2 * template_shift
     temp_3_shift = 3 * template_shift
@@ -108,9 +115,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if not SHARED_MEMORY:
         # Normalize templates (if necessary).
         if templates_normalization:
-            for idx in range(templates.shape[1]):
-                myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-                templates.data[myslice] /= norm_templates[idx]
+            if is_sparse:
+                for idx in range(templates.shape[1]):
+                    myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+                    templates.data[myslice] /= norm_templates[idx]
+            else:
+                for idx in range(templates.shape[1]):
+                    templates[:, idx] /= norm_templates[idx]
         # Transpose templates.
         templates = templates.T
 
@@ -148,6 +159,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
+
+    #N_tm, x = templates.shape
+    #sparsity_factor = templates.nnz / (N_tm * x)
+    #if sparsity_factor > sparse_threshold:
+    #    if comm.rank == 0:
+    #        print_and_log(['Templates are not sparse enough, we densify them for'], 'default', logger)
+    #    templates = templates.toarray()
 
     info_string = ''
 
@@ -471,6 +489,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             idx_flatten = numpy.arange(flatten_data.size)
             idx_lookup = idx_flatten.reshape(n_tm, nb_local_peak_times)
 
+            to_add_test = np.zeros((b.shape[0], s_over), dtype=np.float32)
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -539,13 +559,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peak_time_step = local_peaktimes[peak_index]
 
                     peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
-                    is_neighbor = np.where(np.abs(peak_data) <= temp_2_shift)[0]
+                    is_neighbor = np.abs(peak_data) <= temp_2_shift
                     idx_neighbor = peak_data[is_neighbor] + temp_2_shift
-                    nb_neighbors = len(is_neighbor)
-                    indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
-                    indices[idx_neighbor, np.arange(nb_neighbors)] = 1
 
                     if full_gpu:
+                        nb_neighbors = numpy.sum(is_neighbor)
+                        indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
+                        indices[idx_neighbor, np.arange(nb_neighbors)] = 1
                         indices = cmt.CUDAMatrix(indices, copy_on_host=False)
                         if patch_gpu:
                             b_lines = b.get_col_slice(0, b.shape[0])
