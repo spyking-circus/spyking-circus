@@ -80,11 +80,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         cmt.cuda_sync_threads()
 
     if SHARED_MEMORY:
-        templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True)
+        templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True, sparse_threshold=sparse_threshold)
         N_tm, x = templates.shape
     else:
         templates = io.load_data(params, 'templates')
         x, N_tm = templates.shape
+        sparsity = templates.nnz / (x * N_tm)
+        is_sparse = sparsity < sparse_threshold
+        if not is_sparse:
+            if comm.rank == 0:
+                print_and_log(['Templates not sparse enough (%g), densify to speedup the algorithm' %sparsity], 'default', logger)
+            templates = templates.toarray()
 
     temp_2_shift = 2 * template_shift
     temp_3_shift = 3 * template_shift
@@ -109,9 +115,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if not SHARED_MEMORY:
         # Normalize templates (if necessary).
         if templates_normalization:
-            for idx in range(templates.shape[1]):
-                myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-                templates.data[myslice] /= norm_templates[idx]
+            if is_sparse:
+                for idx in range(templates.shape[1]):
+                    myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+                    templates.data[myslice] /= norm_templates[idx]
+            else:
+                for idx in range(templates.shape[1]):
+                    templates[:, idx] /= norm_templates[idx]
         # Transpose templates.
         templates = templates.T
 

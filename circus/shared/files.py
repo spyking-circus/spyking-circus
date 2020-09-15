@@ -388,7 +388,7 @@ def get_artefact(params, times_i, tau, nodes):
 
 def load_data_memshared(
         params, data, extension='', normalize=False, transpose=False,
-        nb_cpu=1, nb_gpu=0, use_gpu=False):
+        nb_cpu=1, nb_gpu=0, use_gpu=False, sparse_threshold = 0.2):
 
     file_out = params.get('data', 'file_out')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -406,64 +406,104 @@ def load_data_memshared(
         file_name = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(file_name):
 
-            nb_data = 0
+            nb_data = len(h5py.File(file_name, 'r', libver='earliest').get('temp_data'))
+            nb_templates = h5py.File(file_name, 'r', libver='earliest').get('norms').shape[0]
+            sparsity = nb_data / (N_e * N_t * nb_templates)
+            is_sparse = sparsity < sparse_threshold
+
             nb_ptr = 0
             indptr_bytes = 0
             indices_bytes = 0
             data_bytes = 0
-            nb_templates = h5py.File(file_name, 'r', libver='earliest').get('norms').shape[0]
 
             if local_rank == 0:
                 temp_x = h5py.File(file_name, 'r', libver='earliest').get('temp_x')[:].ravel()
                 temp_y = h5py.File(file_name, 'r', libver='earliest').get('temp_y')[:].ravel()
                 temp_data = h5py.File(file_name, 'r', libver='earliest').get('temp_data')[:].ravel()
-                sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
+
+                if not is_sparse:
+                    print_and_log(['Templates not sparse enough (%g), densify to speedup the algorithm' %sparsity], 'default', logger)
+                    sparse_mat = numpy.zeros((N_e*N_t, nb_templates), dtype=numpy.float32)
+                    sparse_mat[temp_x, temp_y] = temp_data
+                else:
+                    sparse_mat = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e*N_t, nb_templates))
+
                 if normalize:
                     norm_templates = load_data(params, 'norm-templates')
-                    for idx in range(sparse_mat.shape[1]):
-                        myslice = numpy.arange(sparse_mat.indptr[idx], sparse_mat.indptr[idx+1])
-                        sparse_mat.data[myslice] /= norm_templates[idx]
+                    if is_sparse:
+                        for idx in range(sparse_mat.shape[1]):
+                            myslice = numpy.arange(sparse_mat.indptr[idx], sparse_mat.indptr[idx+1])
+                            sparse_mat.data[myslice] /= norm_templates[idx]
+                    else:
+                        for idx in range(sparse_mat.shape[1]):
+                            sparse_mat[:, idx] /= norm_templates[idx]
+
                 if transpose:
                     sparse_mat = sparse_mat.T
 
-                nb_data = len(sparse_mat.data)
-                nb_ptr = len(sparse_mat.indptr)
+                if is_sparse:
+                    nb_data = len(sparse_mat.data)
+                else:
+                    nb_data = sparse_mat.size
+
+                if is_sparse:
+                    nb_ptr = len(sparse_mat.indptr)
 
             long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-            short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.int32), root=0)[0])
+
+            if is_sparse:
+                short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.int32), root=0)[0])
 
             if local_rank == 0:
-                indices_bytes = short_size * intsize
+                if is_sparse:
+                    indices_bytes = short_size * intsize
                 data_bytes = long_size * floatsize
 
             win_data = MPI.Win.Allocate_shared(data_bytes, floatsize, comm=sub_comm)
-            win_indices = MPI.Win.Allocate_shared(indices_bytes + indptr_bytes, intsize, comm=sub_comm)
+            if is_sparse:
+                win_indices = MPI.Win.Allocate_shared(indices_bytes + indptr_bytes, intsize, comm=sub_comm)
 
             buf_data, _ = win_data.Shared_query(0)
-            buf_indices, _ = win_indices.Shared_query(0)
+            if is_sparse:
+                buf_indices, _ = win_indices.Shared_query(0)
 
             buf_data = numpy.array(buf_data, dtype='B', copy=False)
-            buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
+            if is_sparse:
+                buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
 
             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
-            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(short_size,))
+            if is_sparse:
+                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(short_size,))
 
             if local_rank == 0:
-                data[:] = sparse_mat.data
-                indices[:long_size] = sparse_mat.indices
-                indices[long_size:] = sparse_mat.indptr
+                if is_sparse:
+                    data[:] = sparse_mat.data
+                    indices[:long_size] = sparse_mat.indices
+                    indices[long_size:] = sparse_mat.indptr
+                else:
+                    data[:] = sparse_mat.ravel()
                 del sparse_mat
 
             if not transpose:
-                templates = scipy.sparse.csc_matrix((N_e * N_t, nb_templates), dtype=numpy.float32)
+                if is_sparse:
+                    templates = scipy.sparse.csc_matrix((N_e * N_t, nb_templates), dtype=numpy.float32)
             else:
-                templates = scipy.sparse.csr_matrix((nb_templates, N_e * N_t), dtype=numpy.float32)
+                if is_sparse:
+                    templates = scipy.sparse.csr_matrix((nb_templates, N_e * N_t), dtype=numpy.float32)
 
-            templates.data = data
-            templates.indices = indices[:long_size]
-            templates.indptr = indices[long_size:]
+            if is_sparse:
+                templates.data = data
+                templates.indices = indices[:long_size]
+                templates.indptr = indices[long_size:]
+            else:
+                templates = data.reshape(N_e*N_t, nb_templates)
 
-            return templates, (win_data, win_indices)
+            if is_sparse:
+                to_return = (win_data, win_indices)
+            else:
+                to_return = (win_data)
+
+            return templates, to_return
         else:
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
