@@ -150,12 +150,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu:
         templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
 
-    N_tm, x = templates.shape
-    sparsity_factor = templates.nnz / (N_tm * x)
-    if sparsity_factor > sparse_threshold:
-        if comm.rank == 0:
-            print_and_log(['Templates are not sparse enough, we densify them for speedup'], 'default', logger)
-        templates = templates.toarray()
+    #N_tm, x = templates.shape
+    #sparsity_factor = templates.nnz / (N_tm * x)
+    #if sparsity_factor > sparse_threshold:
+    #    if comm.rank == 0:
+    #        print_and_log(['Templates are not sparse enough, we densify them for'], 'default', logger)
+    #    templates = templates.toarray()
 
     info_string = ''
 
@@ -553,6 +553,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     idx_neighbor = peak_data[is_neighbor] + temp_2_shift
 
                     if full_gpu:
+                        nb_neighbors = numpy.sum(is_neighbor)
+                        indices = np.zeros((s_over, nb_neighbors), dtype=np.int32)
+                        indices[idx_neighbor, np.arange(nb_neighbors)] = 1
                         indices = cmt.CUDAMatrix(indices, copy_on_host=False)
                         if patch_gpu:
                             b_lines = b.get_col_slice(0, b.shape[0])
