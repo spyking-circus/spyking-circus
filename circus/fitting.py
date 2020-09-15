@@ -89,7 +89,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         is_sparse = sparsity < sparse_threshold
         if not is_sparse:
             if comm.rank == 0:
-                print_and_log(['Templates not sparse enough (%g), densify to speedup the algorithm' %sparsity], 'default', logger)
+                print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
             templates = templates.toarray()
 
     temp_2_shift = 2 * template_shift

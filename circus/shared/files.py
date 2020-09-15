@@ -388,7 +388,7 @@ def get_artefact(params, times_i, tau, nodes):
 
 def load_data_memshared(
         params, data, extension='', normalize=False, transpose=False,
-        nb_cpu=1, nb_gpu=0, use_gpu=False, sparse_threshold = 0.2):
+        nb_cpu=1, nb_gpu=0, use_gpu=False, sparse_threshold = 1):
 
     file_out = params.get('data', 'file_out')
     file_out_suff = params.get('data', 'file_out_suff')
@@ -422,7 +422,7 @@ def load_data_memshared(
                 temp_data = h5py.File(file_name, 'r', libver='earliest').get('temp_data')[:].ravel()
 
                 if not is_sparse:
-                    print_and_log(['Templates not sparse enough (%g), densify to speedup the algorithm' %sparsity], 'default', logger)
+                    print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
                     sparse_mat = numpy.zeros((N_e*N_t, nb_templates), dtype=numpy.float32)
                     sparse_mat[temp_x, temp_y] = temp_data
                 else:
@@ -496,7 +496,10 @@ def load_data_memshared(
                 templates.indices = indices[:long_size]
                 templates.indptr = indices[long_size:]
             else:
-                templates = data.reshape(N_e*N_t, nb_templates)
+                if transpose:
+                    templates = data.reshape(nb_templates, N_e*N_t)
+                else:
+                    templates = data.reshape(N_e*N_t, nb_templates)
 
             if is_sparse:
                 to_return = (win_data, win_indices)
@@ -989,7 +992,8 @@ def load_data(params, data, extension=''):
             temp_data = myfile.get('temp_data')[:].ravel()
             N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel().astype(numpy.int32)
             myfile.close()
-            return scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e * N_t, nb_templates))
+            templates = scipy.sparse.csc_matrix((temp_data, (temp_x, temp_y)), shape=(N_e * N_t, nb_templates))
+            return templates
         else:
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
@@ -1936,12 +1940,12 @@ def get_overlaps(
 
     if maxoverlap:
         if SHARED_MEMORY:
-            templates, mpi_memory_1 = load_data_memshared(params, 'templates', extension=extension, normalize=normalize)
+            templates, mpi_memory_1 = load_data_memshared(params, 'templates', extension=extension, normalize=normalize, sparse_threshold=1)
         else:
             templates = load_data(params, 'templates', extension=extension)
     else:
         if SHARED_MEMORY:
-            templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=normalize)
+            templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=normalize, sparse_threshold=1)
         else:
             templates = load_data(params, 'templates')
 
