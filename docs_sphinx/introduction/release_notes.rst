@@ -34,6 +34,42 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 1.0.0
+=============
+
+* prevent the use of negative indices for channels
+* fix if no templates are found
+* fix if the dead file is empty
+* fix for recent versions of MPI (if dead times used)
+* fix if dead times are not sorted or overlapping
+* add the auto_cluster param in [data] to force gobal_tmp if needed
+* fix when no cluster are found on some electrodes
+* fix in the MATLAB Gui if no spikes are found
+* support for the maxwell file format (MaxOne and MaxTwo)
+* optimizations for faster fitting
+* templates are densified dring fitting if not enough sparse (faster)
+
+=============
+Release 0.9.9
+=============
+
+* fix for shanks (because of optimization in 0.9.8)
+* fix for clusters (if global tmp is not created)
+* fix for recent versions of MPI (shared memory issues)
+* still speeding up the fitting procedure, as a final bottleneck
+* fix in the smart search and chunks exploration
+
+=============
+Release 0.9.8
+=============
+
+* fix a bug while filtering HDF5 file with overwrite set to False
+* fix a bug for windows and Intel MPI
+* speeding up the fitting procedure
+* reducing the memory footprint while optimizing amplitudes for large number of templates
+* changing the way of saving overlaps, making use of internal symmetry. Lot of memory saved
+
+=============
 Release 0.9.7
 =============
 
