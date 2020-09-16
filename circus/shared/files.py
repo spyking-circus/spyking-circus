@@ -2233,15 +2233,23 @@ def load_sp_memshared(file_name, nb_temp):
         if local_rank == 0:
             over_x = c_overlap.get('all/over_x')[:]
             over_data = c_overlap.get('all/over_data')[:]
+            over_time = c_overlap.get('all/over_times')[:]
+            
             noise_x = c_overlap.get('noise/over_x')[:]
             noise_data = c_overlap.get('noise/over_data')[:]
+            noise_time = c_overlap.get('noise/over_times')[:]
             nb_data = len(over_x)
             nb_noise_data = len(noise_x)
             
             indices_bytes = nb_data * intsize
             data_bytes = nb_data * floatsize
+
             indices_noise_bytes = nb_noise_data * intsize
             data_noise_bytes = nb_noise_data * floatsize
+
+            time_bytes = nb_data * intsize
+            time_noise_bytes = nb_noise_data * intsize
+
         else:
             indices_bytes = 0
             data_bytes = 0
@@ -2249,7 +2257,8 @@ def load_sp_memshared(file_name, nb_temp):
             nb_noise_data = 0
             data_noise_bytes = 0
             indices_noise_bytes = 0
-
+            time_bytes = 0
+            time_noise_bytes = 0
 
         c_overlap.close()
 
@@ -2264,8 +2273,13 @@ def load_sp_memshared(file_name, nb_temp):
         buf_indices, _ = win_indices.Shared_query(0)
         buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
 
+        win_times = MPI.Win.Allocate_shared(nb_data * intsize, intsize, comm=sub_comm)
+        buf_times, _ = win_times.Shared_query(0)
+        buf_times = numpy.array(buf_times, dtype='B', copy=False)
+
         data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
         indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(nb_data,))
+        times = numpy.ndarray(buffer=buf_times, dtype=numpy.int32, shape=(nb_data,))
 
         if nb_noise_data > 0:
             win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
@@ -2276,11 +2290,17 @@ def load_sp_memshared(file_name, nb_temp):
             buf_indices_noise, _ = win_indices_noise.Shared_query(0)
             buf_indices_noise = numpy.array(buf_indices_noise, dtype='B', copy=False)
 
+            win_times_noise = MPI.Win.Allocate_shared(nb_noise_data * intsize, intsize, comm=sub_comm)
+            buf_times_noise, _ = win_times_noise.Shared_query(0)
+            buf_times_noise = numpy.array(buf_times_noise, dtype='B', copy=False)
+
             data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
             indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(buffer=buf_times_noise, dtype=numpy.int32, shape=(nb_noise_data,))
         else:
             data_noise = numpy.ndarray(dtype=numpy.float32, shape=(nb_noise_data,))
             indices_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
 
 
         sub_comm.Barrier()
@@ -2290,6 +2310,8 @@ def load_sp_memshared(file_name, nb_temp):
             indices[:] = over_x
             data_noise[:] = noise_data
             indices_noise[:] = noise_x
+            times[:] = over_time
+            times_noise[:] = noise_time
 
         sub_comm.Barrier()
 
@@ -2301,7 +2323,9 @@ def load_sp_memshared(file_name, nb_temp):
             i = c // nb_temp
             j = numpy.mod(c, nb_temp)
             
-            results[i, j] = data[x_min:x_max]
+            results[i, j] = {}
+            results[i, j]['data'] = data[x_min:x_max]
+            results[i, j]['times'] = times[x_min:x_max]
 
         bounds = numpy.searchsorted(indices_noise, numpy.arange(nb_temp + 1), 'left')
 
@@ -2309,13 +2333,15 @@ def load_sp_memshared(file_name, nb_temp):
 
             x_min, x_max = bounds[c], bounds[c+1]
             
-            results[c, 'noise'] = data_noise[x_min:x_max]
+            results[c, 'noise'] = {}
+            results[c, 'noise']['data'] = data_noise[x_min:x_max]
+            results[c, 'noise']['times'] = times_noise[x_min:x_max]
 
 
         sub_comm.Barrier()
-        pointers = (win_data, win_indices)
+        pointers = (win_data, win_indices, win_times)
         if nb_noise_data > 0:
-            pointers += (win_data_noise, win_indices_noise)
+            pointers += (win_data_noise, win_indices_noise, win_times_noise)
 
         return results, pointers
 
@@ -2324,12 +2350,14 @@ def load_sp(file_name, nb_temp):
     if os.path.exists(file_name):
 
         c_overlap = h5py.File(file_name, 'r')
-        results = {}
+        results = {'data' : {}, 'time' : {}}
 
         over_x = c_overlap.get('all/over_x')[:]
         over_data = c_overlap.get('all/over_data')[:]
         noise_x = c_overlap.get('noise/over_x')[:]
         noise_data = c_overlap.get('noise/over_data')[:]
+        times = c_overlap.get('all/over_times')[:]
+        noise_times = c_overlap.get('noise/over_times')[:]
 
         bounds = numpy.searchsorted(over_x, numpy.arange(nb_temp**2 + 1), 'left')
 
@@ -2338,13 +2366,17 @@ def load_sp(file_name, nb_temp):
             x_min, x_max = bounds[c], bounds[c+1]
             i = c // nb_temp
             j = numpy.mod(c, nb_temp)
-            results[i, j] = over_data[x_min:x_max]
+            results[i, j] = {}
+            results[i, j]['data'] = over_data[x_min:x_max]
+            results[i, j]['times'] = times[x_min:x_max]
 
         bounds = numpy.searchsorted(noise_x, numpy.arange(nb_temp + 1), 'left')
 
         for c in range(nb_temp):
 
             x_min, x_max = bounds[c], bounds[c+1]
-            results[c, 'noise'] = noise_data[x_min:x_max]
+            results[c, 'noise'] = {}
+            results[c, 'noise']['data'] = noise_data[x_min:x_max]
+            results[c, 'noise']['times'] = noise_times[x_min:x_max]
 
         return results
