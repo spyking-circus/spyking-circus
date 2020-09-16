@@ -499,8 +499,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     b_array = None
 
-                best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
-
                 if numerous_argmax:
                     if len(best_indices) < 2:
                         best_indices = largest_indices(flatten_data, nb_argmax)
@@ -642,8 +640,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         # Mark current matching as tried.
                         b[best_template_index, peak_index] = -numpy.inf
 
-                    #best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
-
+                    best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
 
                     # Save debug data.
                     if debug:

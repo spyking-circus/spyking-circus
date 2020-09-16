@@ -141,7 +141,7 @@ def main(argv=None):
         gain = 1
     else:
         if data_file.gain != 1:
-            print_and_log(["Gain of %g is not supported by phy. Expecting a scaling mismatch" % data_file.gain], 'info', logger)
+            print_and_log(["Gain is not supported by phy. Expecting a scaling mismatch"], 'info', logger)
             gain = data_file.gain
 
     probe = params.probe
