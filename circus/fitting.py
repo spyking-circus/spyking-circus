@@ -151,8 +151,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     neighbors = {}
     if collect_all:
+        is_sparse = not isinstance(templates, numpy.ndarray)
         for i in range(0, n_tm):
-            tmp = templates[i, :].toarray().reshape(n_e, n_t)
+            if is_sparse:
+                tmp = templates[i, :].toarray().reshape(n_e, n_t)
+            else:
+                tmp = templates[i].reshape(n_e, n_t)
             if templates_normalization:
                 tmp = tmp * norm_templates[i]
             neighbors[i] = numpy.where(numpy.sum(tmp, axis=1) != 0.0)[0]
