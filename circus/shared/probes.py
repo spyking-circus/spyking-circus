@@ -200,3 +200,18 @@ def parse_dead_channels(channels):
         sys.exit(0) 
     else:
         return dead_channels
+
+def parse_common_grounds(channels):
+    is_correct = False
+    try:
+        common_grounds = ast.literal_eval(channels)
+        is_correct = True
+    except Exception:
+        pass
+
+    if not is_correct:
+        if comm.rank == 0:
+            print_and_log(["The syntax for common_grounds is not correct!"], 'error', logger)
+        sys.exit(0) 
+    else:
+        return common_grounds

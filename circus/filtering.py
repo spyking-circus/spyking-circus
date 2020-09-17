@@ -74,9 +74,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ground_done = check_if_done(params, 'ground_done', logger)
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median = params.getboolean('filtering', 'remove_median')
-    common_ground = params.getint('filtering', 'common_ground')
-    remove_ground = common_ground >= 0
+    common_ground = params.common_ground
+    remove_ground = len(common_ground) > 0
     nodes, edges = get_nodes_and_edges(params)
+    inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     #################################################################
 
     def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
@@ -141,7 +143,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_remove_median:
                 to_write += ["Median over all channels is subtracted to each channels"]
             if do_remove_ground:
-                to_write += ["Channel %s is used as a reference channel" % common_ground]
+                to_write += ["Channels %s are used as reference channels in respective shanks" % common_ground]
 
             print_and_log(to_write, 'default', logger)
 
@@ -196,9 +198,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         global_median = numpy.median(numpy.take(local_chunk, shank_channels, axis=1), 1)
                         local_chunk[:, shank_channels] -= global_median[:, numpy.newaxis]
 
-            if common_ground > -1:
-                ground = local_chunk[:, common_ground]
-                local_chunk -= ground[:, numpy.newaxis]
+            if do_remove_ground:
+                for i in params.probe['channel_groups'].keys():
+                    shank_channels = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32)
+                    ground = local_chunk[:, common_ground[i]]
+                    local_chunk[:, shank_channels] -= ground[:, numpy.newaxis]                    
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
