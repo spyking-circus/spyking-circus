@@ -77,8 +77,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     common_ground = params.common_ground
     remove_ground = len(common_ground) > 0
     nodes, edges = get_nodes_and_edges(params)
-    inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
-    inv_nodes[nodes] = numpy.arange(len(nodes))
     #################################################################
 
     def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
@@ -133,6 +131,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         loc_nb_chunks = len(to_process)
         N_total = params.nb_channels
         nb_shanks = len(params.probe['channel_groups'])
+
+        if nb_shanks > 1:
+            shank_channels = {}
+            for i in params.probe['channel_groups'].keys():
+                shank_channels[i] = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32) 
+
         process_all_channels = numpy.all(nodes == numpy.arange(N_total))
         duration = int(0.1*params.rate)
 
@@ -194,15 +198,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     local_chunk -= global_median[:, numpy.newaxis]
                 else:
                     for i in params.probe['channel_groups'].keys():
-                        shank_channels = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32)
-                        global_median = numpy.median(numpy.take(local_chunk, shank_channels, axis=1), 1)
-                        local_chunk[:, shank_channels] -= global_median[:, numpy.newaxis]
+                        global_median = numpy.median(numpy.take(local_chunk, shank_channels[i], axis=1), 1)
+                        local_chunk[:, shank_channels[i]] -= global_median[:, numpy.newaxis]
 
             if do_remove_ground:
                 for i in params.probe['channel_groups'].keys():
-                    shank_channels = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32)
                     ground = local_chunk[:, common_ground[i]]
-                    local_chunk[:, shank_channels] -= ground[:, numpy.newaxis]                    
+                    local_chunk[:, shank_channels[i]] -= ground[:, numpy.newaxis]
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
