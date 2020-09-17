@@ -130,6 +130,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_process = all_chunks[comm.rank::comm.size]
         loc_nb_chunks = len(to_process)
         N_total = params.nb_channels
+        nb_shanks = len(params.probe['channel_groups'])
         process_all_channels = numpy.all(nodes == numpy.arange(N_total))
         duration = int(0.1*params.rate)
 
@@ -183,12 +184,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
 
             if do_remove_median:
-                if not process_all_channels:
-                    global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
+                if nb_shanks == 1:
+                    if not process_all_channels:
+                        global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
+                    else:
+                        global_median = numpy.median(local_chunk, 1)
+                    local_chunk -= global_median[:, numpy.newaxis]
                 else:
-                    global_median = numpy.median(local_chunk, 1)
-
-                local_chunk -= global_median[:, numpy.newaxis]
+                    for i in params.probe['channel_groups'].keys():
+                        shank_channels = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32)
+                        global_median = numpy.median(numpy.take(local_chunk, shank_channels, axis=1), 1)
+                        local_chunk[:, shank_channels] -= global_median[:, numpy.newaxis]
 
             if common_ground > -1:
                 ground = local_chunk[:, common_ground]
