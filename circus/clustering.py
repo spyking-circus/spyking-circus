@@ -996,7 +996,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         a, b = numpy.histogram(result['tmp_%s_' % p + str(ielec)], bins)
                         nb_spikes = numpy.sum(a)
                         a = a / float(nb_spikes)
-
                         z = a[a > 0]
                         c = 1.0 / numpy.min(z)
                         d = 1. / (c * a)
@@ -1004,11 +1003,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         d /= numpy.sum(d)
                         twist = numpy.sum(a * d)
                         factor = twist * c
-                        rejection_curve = numpy.minimum(0.95, factor * a)
-
-                        if ratio > 1:
-                            target_max = 1 - (1 - rejection_curve.max()) / ratio
-                            rejection_curve *= target_max / (rejection_curve.max())
+                        reject_factor = (1 - 1/(2*ratio**2))
+                        rejection_curve = numpy.maximum(reject_factor - d*factor, 0)
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b

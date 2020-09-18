@@ -868,7 +868,7 @@ def compute_error(good_values, bad_values, bounds):
 
     return mcc
 
-def score(x, good_values, bad_values, max_amplitude=4, alpha=1e-3):
+def score(x, good_values, bad_values, max_amplitude=2, alpha=1e-3):
     # We want a minimal error, with the larger bounds that are possible
     cost = compute_error(good_values, bad_values, x) - alpha*(x[1] - x[0])
     return cost
@@ -899,7 +899,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
 
     max_noise_snippets = min(max_snippets, 10000 // N_e)
-    max_amplitude = 4
+    max_amplitude = 2
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
