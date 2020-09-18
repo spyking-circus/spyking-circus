@@ -74,6 +74,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     test_clusters = params.getboolean('clustering', 'test_clusters')
     fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     sparsify = params.getfloat('clustering', 'sparsify')
+    ss_scale = params.getfloat('clustering', 'smart_search_scale')
     debug = params.getboolean('clustering', 'debug')
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     _ = map(float, tmp_limits)
@@ -1010,7 +1011,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             return (numpy.maximum(1 - d*x, 0).mean() - target)**2
 
                         time_ratio = ratio * chunk_size / data_file.sampling_rate
-                        target_rejection = (1 - numpy.exp(-time_ratio/3600))
+                        target_rejection = (1 - numpy.exp(-time_ratio/ss_scale))
                         res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
                         rejection_curve = numpy.maximum(1 - d*res[0], 0)
 
