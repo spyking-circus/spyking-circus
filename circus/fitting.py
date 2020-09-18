@@ -85,8 +85,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         templates = io.load_data(params, 'templates')
         x, N_tm = templates.shape
-        sparsity = templates.nnz / (x * N_tm)
-        is_sparse = sparsity < sparse_threshold
+        if N_tm > 0:
+            sparsity = templates.nnz / (x * N_tm)
+            is_sparse = sparsity < sparse_threshold
+        else:
+            is_sparse = True
         if not is_sparse:
             if comm.rank == 0:
                 print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
