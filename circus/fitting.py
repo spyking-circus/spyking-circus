@@ -608,8 +608,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if len(modified_best) == 0 and len(increased) > 0:
                         tmp = increased[numpy.argmax(flatten_data[increased])]
                         modified_max = flatten_data[tmp]
-                        if modified_max > flatten_data[best_indices[0]]:
-                            best_indices = numpy.concatenate(([tmp], best_indices))
+                        if len(best_indices) > 1:
+                            if modified_max > flatten_data[best_indices[0]]:
+                                best_indices = numpy.concatenate(([tmp], best_indices))
                     elif nb_candidates < 2:
                         # Old max candidates are modified, we need to resort everything
                         best_indices = largest_indices(flatten_data, nb_argmax)
