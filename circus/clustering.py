@@ -11,6 +11,8 @@ from circus.shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
 from circus.shared.mpi import detect_memory
+import scipy
+import scipy.optimize
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
@@ -963,7 +965,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if nb_ss_bins == 'auto':
                             try:
-                                local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 50, 250)
+                                local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 10, 50)
                             except Exception:
                                 local_nb_bin = 50
                         else:
@@ -1003,8 +1005,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         d /= numpy.sum(d)
                         twist = numpy.sum(a * d)
                         factor = twist * c
-                        reject_factor = (1 - 1/(2*ratio**2))
-                        rejection_curve = numpy.maximum(reject_factor - d*factor, 0)
+
+                        def reject_rate(x, d, target):
+                            return (numpy.maximum(1 - d*x, 0).mean() - target)**2
+
+                        res = scipy.optimize.fmin(reject_rate, factor, args=(d, 0.1), disp=False)
+                        rejection_curve = numpy.maximum(1 - d*res[0], 0)
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b
