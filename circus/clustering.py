@@ -966,7 +966,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if nb_ss_bins == 'auto':
                             try:
-                                local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 10, 250)
+                                local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 50, 250)
                             except Exception:
                                 local_nb_bin = 250
                         else:
@@ -1010,7 +1010,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         def reject_rate(x, d, target):
                             return (numpy.maximum(1 - d*x, 0).mean() - target)**2
 
-                        time_ratio = ratio * chunk_size / data_file.sampling_rate
+                        time_ratio = ratio * chunk_size / float(data_file.sampling_rate)
                         target_rejection = (1 - numpy.exp(-time_ratio/ss_scale))
                         res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
                         rejection_curve = numpy.maximum(1 - d*res[0], 0)
