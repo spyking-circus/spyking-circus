@@ -452,10 +452,10 @@ def load_data_memshared(
                 if is_sparse:
                     nb_ptr = len(sparse_mat.indptr)
 
-            long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            long_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
 
             if is_sparse:
-                short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.int32), root=0)[0])
+                short_size = numpy.int64(sub_comm.bcast(numpy.array([nb_ptr + nb_data], dtype=numpy.uint32), root=0)[0])
 
             if local_rank == 0:
                 if is_sparse:
@@ -476,7 +476,7 @@ def load_data_memshared(
 
             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(long_size,))
             if is_sparse:
-                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(short_size,))
+                indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(short_size,))
 
             if local_rank == 0:
                 if is_sparse:
@@ -540,7 +540,7 @@ def load_data_memshared(
             indices_bytes = 0
             data_bytes = 0
 
-            nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
             win_data = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
             buf_data, _ = win_data.Shared_query(0)
             buf_data = numpy.array(buf_data, dtype='B', copy=False)
@@ -552,7 +552,7 @@ def load_data_memshared(
             buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
 
             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
-            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(factor,))
+            indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(factor,))
 
             global_offset_data = 0
             global_offset_ptr = 0
@@ -571,7 +571,7 @@ def load_data_memshared(
                 bounds = numpy.searchsorted(over_x, res, 'left')
                 sub_over = numpy.mod(over_x, N_over)
                 mask_duration = (over_y < duration)
-                over_sorted = numpy.argsort(sub_over).astype(numpy.int32)
+                over_sorted = numpy.argsort(sub_over).astype(numpy.uint32)
                 bounds_2 = numpy.searchsorted(sub_over[over_sorted], res2, 'left')
 
             import gc
@@ -595,8 +595,8 @@ def load_data_memshared(
                     local_nb_data = len(sparse_mat.data)
                     local_nb_ptr = len(sparse_mat.indptr)
 
-                local_nb_data = numpy.int64(sub_comm.bcast(numpy.array([local_nb_data], dtype=numpy.int32), root=0)[0])
-                local_nb_ptr = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.int32), root=0)[0])
+                local_nb_data = numpy.int64(sub_comm.bcast(numpy.array([local_nb_data], dtype=numpy.uint32), root=0)[0])
+                local_nb_ptr = numpy.int64(sub_comm.bcast(numpy.array([local_nb_ptr], dtype=numpy.uint32), root=0)[0])
 
                 boundary_data = global_offset_data + local_nb_data
                 boundary_ptr = global_offset_ptr + factor // 2
@@ -651,7 +651,7 @@ def load_data_memshared(
 
             c_overlap.close()
 
-            nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+            nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
 
             if local_rank == 0:
                 indices_bytes = nb_data * intsize
@@ -676,10 +676,10 @@ def load_data_memshared(
             buf_indices_sorted = numpy.array(buf_indices_sorted, dtype='B', copy=False)
 
             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
-            indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.int32, shape=(nb_data,))
-            indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.int32, shape=(nb_data,))
-            indices_sub = numpy.ndarray(buffer=buf_indices_sub, dtype=numpy.int32, shape=(nb_data,))
-            indices_sorted = numpy.ndarray(buffer=buf_indices_sorted, dtype=numpy.int32, shape=(nb_data,))
+            indices_x = numpy.ndarray(buffer=buf_indices_x, dtype=numpy.uint32, shape=(nb_data,))
+            indices_y = numpy.ndarray(buffer=buf_indices_y, dtype=numpy.uint32, shape=(nb_data,))
+            indices_sub = numpy.ndarray(buffer=buf_indices_sub, dtype=numpy.uint32, shape=(nb_data,))
+            indices_sorted = numpy.ndarray(buffer=buf_indices_sorted, dtype=numpy.uint32, shape=(nb_data,))
 
             sub_comm.Barrier()
 
@@ -688,7 +688,7 @@ def load_data_memshared(
                 indices_x[:] = over_x
                 indices_y[:] = over_y
                 indices_sub[:] = numpy.mod(over_x, N_over)
-                indices_sorted[:] = numpy.argsort(indices_sub).astype(numpy.int32)
+                indices_sorted[:] = numpy.argsort(indices_sub).astype(numpy.uint32)
                 del over_x, over_y, over_data
 
             sub_comm.Barrier()
@@ -718,7 +718,7 @@ def load_data_memshared(
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
 
-                    data_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
+                    data_size = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
                     type_size = 0
                     data_bytes = 0
 
@@ -729,15 +729,15 @@ def load_data_memshared(
                             type_size = 1
                         data_bytes = data_size * 4
                         
-                    type_size = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.int32), root=0)[0])
-                    empty = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.int32), root=0)[0])
+                    type_size = numpy.int64(sub_comm.bcast(numpy.array([type_size], dtype=numpy.uint32), root=0)[0])
+                    empty = numpy.int64(sub_comm.bcast(numpy.array([data_bytes], dtype=numpy.uint32), root=0)[0])
                     if empty > 0:
                         win_data = MPI.Win.Allocate_shared(data_bytes, 4, comm=sub_comm)
                         buf_data, _ = win_data.Shared_query(0)
 
                         buf_data = numpy.array(buf_data, dtype='B', copy=False)
                         if type_size == 0:
-                            data = numpy.ndarray(buffer=buf_data, dtype=numpy.int32, shape=(data_size,))
+                            data = numpy.ndarray(buffer=buf_data, dtype=numpy.uint32, shape=(data_size,))
                         elif type_size == 1:
                             data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(data_size,))
 
@@ -745,7 +745,7 @@ def load_data_memshared(
                             data[:] = locdata
                     else:
                         if type_size == 0:
-                            data = numpy.zeros(0, dtype=numpy.int32)
+                            data = numpy.zeros(0, dtype=numpy.uint32)
                         elif type_size == 1:
                             data = numpy.zeros(0, dtype=numpy.float32)
 
@@ -1048,7 +1048,7 @@ def load_data(params, data, extension=''):
 
             bounds = numpy.searchsorted(over_x, res, 'left')
             sub_over = numpy.mod(over_x, N_over)
-            over_sorted = numpy.argsort(sub_over).astype(numpy.int32)
+            over_sorted = numpy.argsort(sub_over).astype(numpy.uint32)
 
             bounds_2 = numpy.searchsorted(sub_over[over_sorted], res2, 'left')
 
@@ -1086,7 +1086,7 @@ def load_data(params, data, extension=''):
             over_data = myfile.get('over_data')[:].ravel()
             over_shape = myfile.get('over_shape')[:].ravel()
             over_sub = numpy.mod(over_x, int(numpy.sqrt(over_shape[0])))
-            over_sorted = numpy.argsort(over_sub).astype(numpy.int32)
+            over_sorted = numpy.argsort(over_sub).astype(numpy.uint32)
             myfile.close()
             return over_x, over_y, over_data, over_sub, over_sorted, over_shape
         else:
@@ -2079,7 +2079,7 @@ def get_overlaps(
         # We sort by x indices for faster retrieval later
         if comm.rank == 0:
             if key == 'x':
-                indices = numpy.argsort(data).astype(numpy.int32)
+                indices = numpy.argsort(data).astype(numpy.uint32)
             data = data[indices]
 
             if hdf5_compress:
@@ -2162,7 +2162,7 @@ def get_overlaps(
             indices = []
             for idx in range(comm.size):
                 indices += list(numpy.arange(idx, N_half, comm.size))
-            indices = numpy.argsort(indices).astype(numpy.int32)
+            indices = numpy.argsort(indices).astype(numpy.uint32)
 
             maxlags = maxlags[indices, :]
             maxlags[line, line] = 0
@@ -2180,7 +2180,7 @@ def get_overlaps(
             indices = []
             for idx in range(comm.size):
                 indices += list(numpy.arange(idx, N_half, comm.size))
-            indices = numpy.argsort(indices).astype(numpy.int32)
+            indices = numpy.argsort(indices).astype(numpy.uint32)
 
             maxoverlaps = maxoverlaps[indices, :]
             maxoverlaps[line, line] = 0
@@ -2265,8 +2265,8 @@ def load_sp_memshared(file_name, nb_temp):
 
         c_overlap.close()
 
-        nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.int32), root=0)[0])
-        nb_noise_data = numpy.int64(sub_comm.bcast(numpy.array([nb_noise_data], dtype=numpy.int32), root=0)[0])
+        nb_data = numpy.int64(sub_comm.bcast(numpy.array([nb_data], dtype=numpy.uint32), root=0)[0])
+        nb_noise_data = numpy.int64(sub_comm.bcast(numpy.array([nb_noise_data], dtype=numpy.uint32), root=0)[0])
 
         win_data = MPI.Win.Allocate_shared(nb_data * floatsize, floatsize, comm=sub_comm)
         buf_data, _ = win_data.Shared_query(0)
@@ -2281,8 +2281,8 @@ def load_sp_memshared(file_name, nb_temp):
         buf_times = numpy.array(buf_times, dtype='B', copy=False)
 
         data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
-        indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(nb_data,))
-        times = numpy.ndarray(buffer=buf_times, dtype=numpy.int32, shape=(nb_data,))
+        indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.uint32, shape=(nb_data,))
+        times = numpy.ndarray(buffer=buf_times, dtype=numpy.uint32, shape=(nb_data,))
 
         if nb_noise_data > 0:
             win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
@@ -2298,12 +2298,12 @@ def load_sp_memshared(file_name, nb_temp):
             buf_times_noise = numpy.array(buf_times_noise, dtype='B', copy=False)
 
             data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
-            indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
-            times_noise = numpy.ndarray(buffer=buf_times_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+            indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.uint32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(buffer=buf_times_noise, dtype=numpy.uint32, shape=(nb_noise_data,))
         else:
             data_noise = numpy.ndarray(dtype=numpy.float32, shape=(nb_noise_data,))
-            indices_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
-            times_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
+            indices_noise = numpy.ndarray(dtype=numpy.uint32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(dtype=numpy.uint32, shape=(nb_noise_data,))
 
 
         sub_comm.Barrier()
