@@ -2282,7 +2282,7 @@ def load_sp_memshared(file_name, nb_temp):
 
         data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
         indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(nb_data,))
-        times = numpy.ndarray(buffer=buf_times, dtype=numpy.int32, shape=(nb_data,))
+        times = numpy.ndarray(buffer=buf_times, dtype=numpy.uint32, shape=(nb_data,))
 
         if nb_noise_data > 0:
             win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
@@ -2299,11 +2299,11 @@ def load_sp_memshared(file_name, nb_temp):
 
             data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
             indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
-            times_noise = numpy.ndarray(buffer=buf_times_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(buffer=buf_times_noise, dtype=numpy.uint32, shape=(nb_noise_data,))
         else:
             data_noise = numpy.ndarray(dtype=numpy.float32, shape=(nb_noise_data,))
             indices_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
-            times_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(dtype=numpy.uint32, shape=(nb_noise_data,))
 
 
         sub_comm.Barrier()
