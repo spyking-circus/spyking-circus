@@ -874,6 +874,29 @@ def score(x, good_values, bad_values, max_amplitude=2, alpha=1e-3):
     return cost
 
 
+def interpolate(score, t_max, good_values, bad_values, nb_chances, good_times, bad_times, n_bins=10, max_amplitude=2, alpha=1e-3):
+
+    error = 0
+    time_boundaries = np.zeros((n_bins, 3), dtype=numpy.float32)
+    splits = np.linspace(0, t_max, n_bins)
+    for count in range(n_bins - 1):
+        mask_good = (good_times > splits[count]) & (good_times < splits[count + 1])
+        mask_bad = (bad_times > splits[count]) & (bad_times < splits[count + 1])
+
+        mask_good_values = nb_chances[mask_good] < max_trials
+        very_good_values = good_values[mask_good_values]
+
+        if len(very_good_values)/len(good_values) > 0.1:
+            res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values[mask_bad], max_amplitude, alpha))
+            time_boundaries[count, :2] = res.x
+            time_boundaries[count, 2] = (splits[count] + splits[count + 1])/2
+            a_min, a_max = time_boundaries[count, :2]
+        else:
+            a_min, a_max = 0.8, 1.2
+
+        error += compute_error(very_good_values, all_bad_values[mask_bad], [a_min, a_max])
+    return time_boundaries, error
+
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
     
     data_file = params.data_file
@@ -899,7 +922,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
 
     max_noise_snippets = min(max_snippets, 10000 // N_e)
-    max_amplitude = 2
+    max_amplitude = 4
+    n_bins = 10
+    do_interpolation = False
+    max_trials = params.getint('fitting', 'max_nb_chances')
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -959,9 +985,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     
     all_snippets = {'all' : {}, 'noise' : {}}
     for key in ['all', 'noise']:
-        all_snippets[key]['x'] = [numpy.zeros(0, dtype=numpy.int32)]
+        all_snippets[key]['x'] = [numpy.zeros(0, dtype=numpy.uint32)]
         all_snippets[key]['data'] = [numpy.zeros(0, dtype=numpy.float32)]
-        all_snippets[key]['times'] = [numpy.zeros(0, dtype=numpy.int32)]
+        all_snippets[key]['times'] = [numpy.zeros(0, dtype=numpy.uint32)]
 
     for i in to_explore:  # for each cluster...
 
@@ -987,7 +1013,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             raise ValueError("unexpected value {}".format(peaks[idx][0]))
 
         idx_i = numpy.random.permutation(idx)[:max_snippets]
-        times_i = times[idx_i].astype(numpy.int32)
+        times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
         snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
@@ -1000,7 +1026,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     data = templates[j].dot(snippets)[0].astype(numpy.float32)
                 else:
                     data = templates[j].reshape(1, nb_tpoints).dot(snippets)[0].astype(numpy.float32)
-                all_snippets['all']['x'].append((j*nb_temp + i)*numpy.ones(len(data), dtype=numpy.int32))
+                all_snippets['all']['x'].append((j*nb_temp + i)*numpy.ones(len(data), dtype=numpy.uint32))
                 all_snippets['all']['data'].append(data)
                 all_snippets['all']['times'].append(times_i)
 
@@ -1010,7 +1036,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     noise_times = {}
     for i in range(nb_temp):
         noise_amplitudes[i] = [numpy.zeros(0, dtype=numpy.float32)]
-        noise_times[i] = [numpy.zeros(0, dtype=numpy.int32)]
+        noise_times[i] = [numpy.zeros(0, dtype=numpy.uint32)]
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, all_elec)
@@ -1022,7 +1048,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         idx = len(times)
         idx_i = numpy.random.permutation(idx)[:max_noise_snippets]
-        times_i = times[idx_i].astype(numpy.int32)
+        times_i = times[idx_i].astype(numpy.uint32)
         labels_i = numpy.zeros(idx)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
@@ -1040,7 +1066,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     for i in range(nb_temp):
         amplitudes = numpy.concatenate(noise_amplitudes.pop(i))
         times = numpy.concatenate(noise_times.pop(i))
-        all_snippets['noise']['x'].append(i*numpy.ones(len(amplitudes), dtype=numpy.int32))
+        all_snippets['noise']['x'].append(i*numpy.ones(len(amplitudes), dtype=numpy.uint32))
         all_snippets['noise']['data'].append(amplitudes)
         all_snippets['noise']['times'].append(times)
 
@@ -1062,14 +1088,14 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             data = numpy.concatenate(all_snippets[k].pop(key))
 
             if key in ['x', 'times']:
-                data = gather_array(data, comm, dtype='int32', compress=blosc_compress)
+                data = gather_array(data, comm, dtype='uint32', compress=blosc_compress)
             else:
                 data = gather_array(data, comm, dtype='float32')
 
             # We sort by x indices for faster retrieval later
             if comm.rank == 0:
                 if key == 'x':
-                    indices = numpy.argsort(data).astype(numpy.int32)
+                    indices = numpy.argsort(data).astype(numpy.uint32)
 
                 data = data[indices]
 
@@ -1100,7 +1126,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
     max_nb_chances = numpy.zeros(len(all_temp), dtype=numpy.float32)
     if fine_amplitude:
-        bounds = numpy.zeros((len(all_temp), 2), dtype=numpy.float32)
+        if do_interpolation:
+            bounds = numpy.zeros((len(all_temp), n_bins, 3), dtype=numpy.float32)
+        else:
+            bounds = numpy.zeros((len(all_temp), 2), dtype=numpy.float32)
 
     for count, i in enumerate(all_temp):
 
@@ -1114,7 +1143,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         bad_values = {'data' : {}, 'times' : {}}
         neutral_values = {'data' : {}, 'times' : {}}
-        nb_chances = numpy.zeros(all_sizes[i], dtype=numpy.int32)
+        nb_chances = numpy.zeros(all_sizes[i], dtype=numpy.uint32)
         for j in range(nb_temp):
             # if (similarity[i, j] >= thr_similarity) and (i != j):
             if i != j and mask_intersect[i, j]:
@@ -1153,7 +1182,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             ])
         else:
             all_bad_values = numpy.zeros(0, dtype=numpy.float32)
-            all_bad_times =  numpy.zeros(0, dtype=numpy.float32)
+            all_bad_times =  numpy.zeros(0, dtype=numpy.uint32)
 
         if len(neutral_values['data']) > 0:
             all_neutral_values = numpy.concatenate([
@@ -1166,28 +1195,39 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             ])
         else:
             all_neutral_values = numpy.zeros(0, dtype=numpy.float32)
-            all_neutral_times = numpy.zeros(0, dtype=numpy.float32)
+            all_neutral_times = numpy.zeros(0, dtype=numpy.uint32)
 
         # Then we need to fix a_min and a_max to minimize the error
 
-        very_good_values = good_values['data']
+        mask_good_values = nb_chances < max_trials
+        very_good_values = good_values['data'][mask_good_values]
+        not_good_values = good_values['data'][~mask_good_values]
 
         if fine_amplitude:
-            res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values, max_amplitude))
-            a_min, a_max = res.x
-            bounds[count] = [a_min, a_max]
+            if do_interpolation:
+                res, error = interpolate(score, params.data_file.duration, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times)
+                bounds[count] = res
+            else:
+                if len(very_good_values)/len(good_values['data']) > 0.1:
+                    res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values, max_amplitude))
+                    a_min, a_max = res.x
+                    bounds[count] = [a_min, a_max]
+                else:
+                    a_min, a_max = 0.8, 1.2
+                error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
         else:
             a_min, a_max = limits[i]
 
-        error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
-
         purity_level[count] = min(1, 1 - error)
 
-        mask = (a_min <= good_values['data']) & (good_values['data'] <= a_max)
-        if numpy.sum(mask) > 0:
-            max_nb_chances[count] = numpy.median(nb_chances[mask])
+        if do_interpolation:
+            mask = "test"
         else:
-            max_nb_chances[count] = numpy.nan
+            mask = (a_min <= very_good_values) & (very_good_values <= a_max)
+            if numpy.sum(mask) > 0:
+                max_nb_chances[count] = numpy.median(nb_chances[mask_good_values][mask])
+            else:
+                max_nb_chances[count] = numpy.nan
 
         if debug_plots not in ['None', '']:
 
@@ -1211,10 +1251,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             color = 'gray'
             axs.scatter(x, y, s=s, color=color, alpha=0.1)
             # Plot good amplitudes.
-            x1 = good_values['times']
-            y = good_values['data']
+            x1 = good_values['times'][mask_good_values]
+            y = very_good_values
             color = 'tab:green'
             axs.scatter(x1, y, s=s, color=color)
+
             # ...
             color = 'tab:green'
             for x_, y_ in zip(x1, y):
@@ -1222,6 +1263,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
                 if y_ < a_min:
                     axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+            
+            x1 = good_values['times'][~mask_good_values]
+            y = not_good_values
+            color = 'orange'
+            axs.scatter(x1, y, s=s, color=color)
+
             # ...
             x2 = all_bad_times
             y = all_bad_values
@@ -1241,14 +1288,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.set_ylabel("amplitude")
             # ax.set_xticklabels([])
             axs.set_xticks([])
-            axs.set_title('%g good / %g bad / %g purity' %(len(good_values['data']), len(all_bad_values), purity_level[count]))
+            axs.set_title('%g good / %g bad / %g purity' %(len(very_good_values), len(all_bad_values), purity_level[count]))
             axs.set_ylim(-1, max_amplitude+1)
+            axmin, axmax = axs.get_xlim()
 
 
             axs = fig.add_subplot(gs[0,4])
             nbins = 50
             ybins = numpy.linspace(-1, max_amplitude+1, nbins)
-            x = numpy.histogram(good_values['data'], ybins, density=True)
+            x = numpy.histogram(very_good_values, ybins, density=True)
             y = numpy.histogram(all_bad_values, ybins, density=True)
             bin_size = ybins[1] - ybins[0]
             axs.barh(x[1][1:], x[0], bin_size, color='tab:green', alpha=0.5)
@@ -1271,6 +1319,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
 
             # Plot good amplitudes.
+            x1 = good_values['times']
             y = good_values['data']
             r = axs.scatter(x1, y, s=s, c=nb_chances)
             fig.colorbar(r, ax=axs)
@@ -1281,6 +1330,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.set_title('Average nb_chances %g' %numpy.mean(nb_chances))
             # ...
             axs.set_ylabel("amplitude")
+            axs.set_xlim(axmin, axmax)
             # ax.set_xticklabels([])
             axs.set_xticks([])
 
