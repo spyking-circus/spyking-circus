@@ -60,10 +60,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     supports = io.load_data(params, 'supports')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
     median_channels = numpy.median(numpy.sum(supports, 1))
-    # if median_channels < low_channels_thr:
-    #     normalization = False
-    #     if comm.rank == 0:
-    #         print_and_log(['Templates defined on few channels (%g), turning off normalization' %median_channels], 'debug', logger)
+    fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
+
+    if not fixed_amplitudes:
+        nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
+        splits = np.linspace(0, params.data_file.duration, nb_amp_bins)
+        interpolated_times = np.zeros(len(splits) - 1, dtype=numpy.float32)
+        for count in range(0, len(splits) - 1):
+            interpolated_times[count] = (splits[count] + splits[count + 1])/2
+        interpolated_times = numpy.concatenate(([0], interpolated_times, [params.data_file.duration]))
+        nb_amp_times = len(splits) + 1
 
 
     #################################################################
@@ -303,11 +309,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_explore = get_tqdm_progressbar(params, to_explore)
 
     if templates_normalization:
-        min_scalar_product = numpy.min(amp_limits[:, 0] * n_scalar * norm_templates[:n_tm])
-        max_scalar_product = numpy.max(amp_limits[:, 1] * n_scalar * norm_templates[:n_tm])
+        if not fixed_amplitudes:
+            min_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
+            max_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
+            for i in range(nb_amp_times):
+                min_scalar_product[i] = numpy.min(amp_limits[:, i, 0] * n_scalar * norm_templates[:n_tm])
+                max_scalar_product[i] = numpy.max(amp_limits[:, i, 1] * n_scalar * norm_templates[:n_tm])
+        else:
+            min_scalar_product = numpy.min(amp_limits[:, 0] * n_scalar * norm_templates[:n_tm])
+            max_scalar_product = numpy.max(amp_limits[:, 1] * n_scalar * norm_templates[:n_tm])
     else:
-        min_scalar_product = numpy.min(amp_limits[:, 0] * norm_templates_2[:n_tm])
-        max_scalar_product = numpy.max(amp_limits[:, 1] * norm_templates_2[:n_tm])
+        if not fixed_amplitudes:
+            min_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
+            max_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
+            for i in range(nb_amp_times):
+                min_scalar_product[i] = numpy.min(amp_limits[:, i, 0] * norm_templates_2[:n_tm])
+                max_scalar_product[i] = numpy.max(amp_limits[:, i, 1] * norm_templates_2[:n_tm])
+        else:
+            min_scalar_product = numpy.min(amp_limits[:, 0] * norm_templates_2[:n_tm])
+            max_scalar_product = numpy.max(amp_limits[:, 1] * norm_templates_2[:n_tm])
 
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -498,6 +518,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             to_add_test = np.zeros((b.shape[0], s_over), dtype=np.float32)
 
+            if not fixed_amplitudes:
+                amp_index = numpy.searchsorted(splits, local_restriction[0], 'right')
+
             while numpy.mean(failure) < total_nb_chances:
 
                 # Is there a way to update sub_b * mask at the same time?
@@ -518,7 +541,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
                 best_template2_index = best_template_index + n_tm
 
-                if peak_scalar_product < min_scalar_product:
+                if not fixed_amplitudes:
+                    not_valid = peak_scalar_product < min_scalar_product[amp_index]
+                else:
+                    not_valid = peak_scalar_product < min_scalar_product
+
+                if not_valid:
                     failure[:] = total_nb_chances
                     break
 
@@ -557,7 +585,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     best_amp2_n = best_amp2
 
                 # Verify amplitude constraint.
-                a_min, a_max = amp_limits[best_template_index, :]
+                if not fixed_amplitudes:
+                    scaling = 1/(splits[amp_index] - splits[amp_index - 1])
+                    a_min = amp_limits[best_template_index, amp_index, 0] + (amp_limits[best_template_index, amp_index, 0] - amp_limits[best_template_index, amp_index+1, 0])*scaling
+                    a_max = amp_limits[best_template_index, amp_index, 1] + (amp_limits[best_template_index, amp_index, 1] - amp_limits[best_template_index, amp_index+1, 0])*scaling
+                else:
+                    a_min, a_max = amp_limits[best_template_index, :]
 
                 if (a_min <= best_amp_n) & (best_amp_n <= a_max):
                     # Keep the matching.
