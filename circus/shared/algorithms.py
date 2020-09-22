@@ -874,29 +874,29 @@ def score(x, good_values, bad_values, max_amplitude=2, alpha=1e-3):
     return cost
 
 
-def interpolate(score, bins, good_values, bad_values, nb_chances, good_times, bad_times, max_amplitude=2, alpha=1e-3):
+def interpolate(score, bins, good_values, bad_values, nb_chances, good_times, bad_times, max_trials, max_amplitude=2, alpha=1e-3):
 
     error = 0
     n_bins = len(bins)
-    time_boundaries = np.zeros((n_bins - 1, 2), dtype=numpy.float32)
+    time_boundaries = numpy.zeros((n_bins - 1, 2), dtype=numpy.float32)
 
     for count in range(0, n_bins - 1):
-        mask_good = (good_times > splits[count]) & (good_times < splits[count + 1])
-        mask_bad = (bad_times > splits[count]) & (bad_times < splits[count + 1])
+        mask_good = (good_times > bins[count]) & (good_times < bins[count + 1])
+        mask_bad = (bad_times > bins[count]) & (bad_times < bins[count + 1])
 
         mask_good_values = nb_chances[mask_good] < max_trials
         very_good_values = good_values[mask_good][mask_good_values]
 
         if len(very_good_values)/len(good_values) > 0.1:
-            res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values[mask_bad], max_amplitude, alpha))
+            res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, bad_values[mask_bad], max_amplitude, alpha))
             a_min, a_max = res.x
         else:
-            a_min, a_max = 0.9, 1.1
+            a_min, a_max = 0.5, 1.5
 
         time_boundaries[count, :] = [a_min, a_max]
-        error += compute_error(very_good_values, all_bad_values[mask_bad], [a_min, a_max])
+        error += compute_error(very_good_values, bad_values[mask_bad], [a_min, a_max])
 
-    time_boundaries = np.vstack((time_boundaries[0], time_boundaries, time_boundaries[-1]))
+    time_boundaries = numpy.vstack((time_boundaries[0], time_boundaries, time_boundaries[-1]))
 
     return time_boundaries, error
 
@@ -931,8 +931,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
-        splits = np.linspace(0, params.data_file.duration, nb_amp_bins)
-        interpolated_times = np.zeros(len(splits) - 1, dtype=numpy.float32)
+        splits = numpy.linspace(0, params.data_file.duration, nb_amp_bins)
+        interpolated_times = numpy.zeros(len(splits) - 1, dtype=numpy.float32)
         for count in range(0, len(splits) - 1):
             interpolated_times[count] = (splits[count] + splits[count + 1])/2
         interpolated_times = numpy.concatenate(([0], interpolated_times, [params.data_file.duration]))
@@ -1218,7 +1218,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         if fine_amplitude:
             if not fixed_amplitudes:
-                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times)
+                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amplitude)
                 bounds[count] = res
             else:
                 if len(very_good_values)/len(good_values['data']) > 0.1:
@@ -1226,7 +1226,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     a_min, a_max = res.x
                     bounds[count] = [a_min, a_max]
                 else:
-                    a_min, a_max = 0.9, 1.1
+                    a_min, a_max = 0.5, 1.5
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
         else:
             a_min, a_max = limits[i]
@@ -1445,6 +1445,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     has_support = test_if_support(params, '')
     adapted_cc = params.getboolean('clustering', 'adapted_cc')
     adapted_thr = params.getint('clustering', 'adapted_thr')
+    fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
@@ -1542,8 +1543,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         [a1, a2] = [0, 0]
                     a1_lim = limits[i]
                     a2_lim = limits[j]
-                    is_a1 = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
-                    is_a2 = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
+                    if not fixed_amplitudes:
+                        is_a1 = numpy.any((a1_lim[:, 0] <= a1) & (a1 <= a1_lim[:, 1]))
+                        is_a2 = numpy.any((a2_lim[:, 0] <= a2) & (a2 <= a2_lim[:, 1]))
+                    else:
+                        is_a1 = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
+                        is_a2 = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
                     if is_a1 and is_a2:
                         if t_k is None:
                             t_k = templates[:, k].toarray().ravel()

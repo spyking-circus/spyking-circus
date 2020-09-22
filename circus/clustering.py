@@ -1447,7 +1447,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
 
                         if not fixed_amplitudes:
-                            amps_lims[g_count] = numpy.
+                            data = numpy.ones((nb_amp_times, 2), dtype=numpy.float32)
+                            data[:, 0] = 0.5
+                            data[:, 1] = 1.5
+                            amps_lims[g_count] = data
                         else:
                             amps_lims[g_count] = [amp_min, amp_max]
 
@@ -1590,11 +1593,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 )
                 if not fixed_amplitudes:
                     amplitudes = hfile.create_dataset(
-                        'limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True
+                        'limits', shape=(total_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True
                     )
                 else:
                     amplitudes = hfile.create_dataset(
-                        'limits', shape=(total_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True
+                        'limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True
                     )
                 supports = hfile.create_dataset(
                     'supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True
