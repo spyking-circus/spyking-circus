@@ -874,27 +874,30 @@ def score(x, good_values, bad_values, max_amplitude=2, alpha=1e-3):
     return cost
 
 
-def interpolate(score, t_max, good_values, bad_values, nb_chances, good_times, bad_times, n_bins=10, max_amplitude=2, alpha=1e-3):
+def interpolate(score, bins, good_values, bad_values, nb_chances, good_times, bad_times, max_amplitude=2, alpha=1e-3):
 
     error = 0
-    time_boundaries = np.zeros((n_bins, 3), dtype=numpy.float32)
-    splits = np.linspace(0, t_max, n_bins)
-    for count in range(n_bins - 1):
+    n_bins = len(bins)
+    time_boundaries = np.zeros((n_bins - 1, 2), dtype=numpy.float32)
+
+    for count in range(0, n_bins - 1):
         mask_good = (good_times > splits[count]) & (good_times < splits[count + 1])
         mask_bad = (bad_times > splits[count]) & (bad_times < splits[count + 1])
 
         mask_good_values = nb_chances[mask_good] < max_trials
-        very_good_values = good_values[mask_good_values]
+        very_good_values = good_values[mask_good][mask_good_values]
 
         if len(very_good_values)/len(good_values) > 0.1:
             res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values[mask_bad], max_amplitude, alpha))
-            time_boundaries[count, :2] = res.x
-            time_boundaries[count, 2] = (splits[count] + splits[count + 1])/2
-            a_min, a_max = time_boundaries[count, :2]
+            a_min, a_max = res.x
         else:
-            a_min, a_max = 0.8, 1.2
+            a_min, a_max = 0.9, 1.1
 
+        time_boundaries[count, :] = [a_min, a_max]
         error += compute_error(very_good_values, all_bad_values[mask_bad], [a_min, a_max])
+
+    time_boundaries = np.vstack((time_boundaries[0], time_boundaries, time_boundaries[-1]))
+
     return time_boundaries, error
 
 def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug_plots=''):
@@ -920,12 +923,21 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     low_channels_thr = params.getint('detection', 'low_channels_thr')
     max_snippets = params.getint('clustering', 'nb_amplitude_snippets')
     sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
+    fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
+    max_trials = params.getint('fitting', 'max_nb_chances')
 
     max_noise_snippets = min(max_snippets, 10000 // N_e)
     max_amplitude = 4
-    n_bins = 10
-    do_interpolation = False
-    max_trials = params.getint('fitting', 'max_nb_chances')
+
+    if not fixed_amplitudes:
+        nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
+        splits = np.linspace(0, params.data_file.duration, nb_amp_bins)
+        interpolated_times = np.zeros(len(splits) - 1, dtype=numpy.float32)
+        for count in range(0, len(splits) - 1):
+            interpolated_times[count] = (splits[count] + splits[count + 1])/2
+        interpolated_times = numpy.concatenate(([0], interpolated_times, [params.data_file.duration]))
+        nb_amp_times = len(splits) + 1
+
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1126,8 +1138,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     purity_level = numpy.zeros(len(all_temp), dtype=numpy.float32)
     max_nb_chances = numpy.zeros(len(all_temp), dtype=numpy.float32)
     if fine_amplitude:
-        if do_interpolation:
-            bounds = numpy.zeros((len(all_temp), n_bins, 3), dtype=numpy.float32)
+        if not fixed_amplitudes:
+            bounds = numpy.zeros((len(all_temp), nb_amp_times, 2), dtype=numpy.float32)
         else:
             bounds = numpy.zeros((len(all_temp), 2), dtype=numpy.float32)
 
@@ -1201,11 +1213,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         mask_good_values = nb_chances < max_trials
         very_good_values = good_values['data'][mask_good_values]
+        very_good_times  = good_values['times'][mask_good_values]
         not_good_values = good_values['data'][~mask_good_values]
 
         if fine_amplitude:
-            if do_interpolation:
-                res, error = interpolate(score, params.data_file.duration, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times)
+            if not fixed_amplitudes:
+                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times)
                 bounds[count] = res
             else:
                 if len(very_good_values)/len(good_values['data']) > 0.1:
@@ -1213,15 +1226,27 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     a_min, a_max = res.x
                     bounds[count] = [a_min, a_max]
                 else:
-                    a_min, a_max = 0.8, 1.2
+                    a_min, a_max = 0.9, 1.1
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
         else:
             a_min, a_max = limits[i]
 
         purity_level[count] = min(1, 1 - error)
 
-        if do_interpolation:
-            mask = "test"
+        if not fixed_amplitudes:
+            
+            res = numpy.zeros(0, dtype=numpy.int32)
+            for c in range(len(splits) - 1):
+                mask = numpy.logical_and(very_good_times > splits[c], very_good_times < splits[c + 1])
+                a_min = bounds[count][c, 0] + (bounds[count][c, 0] - bounds[count][c+1, 0])/(splits[c + 1] - splits[c])
+                a_max = bounds[count][c, 1] + (bounds[count][c, 1] - bounds[count][c+1, 1])/(splits[c + 1] - splits[c])
+                subgood = (a_min <= very_good_values[mask]) & (very_good_values[mask] <= a_max)
+                res = numpy.concatenate((res, nb_chances[mask_good_values][mask][subgood]))
+            if len(res) > 0:
+                max_nb_chances[count] = numpy.median(res)
+            else:
+                max_nb_chances[count] = 0
+
         else:
             mask = (a_min <= very_good_values) & (very_good_values <= a_max)
             if numpy.sum(mask) > 0:
@@ -1242,9 +1267,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs = fig.add_subplot(gs[0,0:4])
             linewidth = 0.3
             axs.axhline(y=0.0, color='gray', linewidth=linewidth)
-            axs.axhline(y=a_min, color='tab:blue', linewidth=linewidth)
             axs.axhline(y=center, color='gray', linewidth=linewidth)
-            axs.axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+    
+            if not fixed_amplitudes:
+                axs.fill_between(interpolated_times, bounds[count][:,0], bounds[count][:,1], color='tab:blue', linewidth=linewidth, alpha=0.25)
+            else:
+                axs.fill_between([0, params.data_file.duration], [a_min, a_min], [a_max, a_max], color='tab:blue', linewidth=linewidth, alpha=0.25)
             # Plot neutral amplitudes.
             x = all_neutral_times
             y = all_neutral_values
@@ -1257,12 +1285,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.scatter(x1, y, s=s, color=color)
 
             # ...
-            color = 'tab:green'
-            for x_, y_ in zip(x1, y):
-                if y_ > a_max:
-                    axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
-                if y_ < a_min:
-                    axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+            # color = 'tab:green'
+            # for x_, y_ in zip(x1, y):
+            #     if y_ > a_max:
+            #         axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+            #     if y_ < a_min:
+            #         axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
             
             x1 = good_values['times'][~mask_good_values]
             y = not_good_values
@@ -1275,12 +1303,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             color = 'tab:red'
             axs.scatter(x2, y, s=s, color=color)
             # ...
-            color = 'tab:red'
-            for x_, y_ in zip(x2, y):
-                if center < y_ < a_max:
-                    axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
-                if a_min < y_ < center:
-                    axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
+            # color = 'tab:red'
+            # for x_, y_ in zip(x2, y):
+            #     if center < y_ < a_max:
+            #         axs.plot([x_, x_], [a_max, y_], color=color, linewidth=0.3)
+            #     if a_min < y_ < center:
+            #         axs.plot([x_, x_], [a_min, y_], color=color, linewidth=0.3)
             # Hide the right and top spines
             axs.spines['right'].set_visible(False)
             axs.spines['top'].set_visible(False)
@@ -1303,8 +1331,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.barh(y[1][1:], y[0], bin_size, color='tab:red', alpha=0.5)
             axs.set_ylim(-1, max_amplitude+1)
             xmin, xmax = axs.get_xlim()
-            axs.plot([xmin, xmax], [a_min, a_min], color='gray')
-            axs.plot([xmin, xmax], [a_max, a_max], color='gray')
+            if fixed_amplitudes:
+                axs.plot([xmin, xmax], [a_min, a_min], color='gray')
+                axs.plot([xmin, xmax], [a_max, a_max], color='gray')
             axs.spines['right'].set_visible(False)
             axs.spines['top'].set_visible(False)
             axs.spines['bottom'].set_visible(False)
@@ -1313,9 +1342,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
             axs = fig.add_subplot(gs[1,0:5])
             axs.axhline(y=0.0, color='gray', linewidth=linewidth)
-            axs.axhline(y=a_min, color='tab:blue', linewidth=linewidth)
             axs.axhline(y=center, color='gray', linewidth=linewidth)
-            axs.axhline(y=a_max, color='tab:blue', linewidth=linewidth)
+            
+            if not fixed_amplitudes:
+                axs.fill_between(interpolated_times, bounds[count][:,0], bounds[count][:,1], color='tab:blue', linewidth=linewidth, alpha=0.25)
+            else:
+                axs.fill_between([0, params.data_file.duration], [a_min, a_min], [a_max, a_max], color='tab:blue', linewidth=linewidth, alpha=0.25)
+
 
 
             # Plot good amplitudes.
@@ -1351,8 +1384,15 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     comm.Barrier()
 
     if fine_amplitude:
-        bounds = gather_array(bounds, comm, shape=1)
-    
+        if not fixed_amplitudes:
+            x, y, z = bounds.shape
+            bounds = gather_array(bounds.reshape(x, y*z), comm, shape=1)
+            if comm.rank == 0:
+                bounds = bounds.reshape(nb_temp, y, z)
+
+        else:
+            bounds = gather_array(bounds, comm, shape=1)
+
     purity_level = gather_array(purity_level, comm)
     max_nb_chances = gather_array(max_nb_chances, comm)
 
