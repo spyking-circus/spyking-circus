@@ -3,6 +3,8 @@ import circus.shared.files as io
 import circus.shared.algorithms as algo
 from circus.shared import plot
 import warnings
+import scipy
+import scipy.optimize
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
@@ -99,6 +101,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
+    ss_scale = params.getfloat('clustering', 'smart_search_scale')
     data_file.open()
     #################################################################
 
@@ -996,7 +999,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         a, b = numpy.histogram(result['tmp_%s_' % p + str(ielec)], bins)
                         nb_spikes = numpy.sum(a)
                         a = a / float(nb_spikes)
-
                         z = a[a > 0]
                         c = 1.0 / numpy.min(z)
                         d = 1. / (c * a)
@@ -1004,11 +1006,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         d /= numpy.sum(d)
                         twist = numpy.sum(a * d)
                         factor = twist * c
-                        rejection_curve = numpy.minimum(0.95, factor * a)
 
-                        if ratio > 1:
-                            target_max = 1 - (1 - rejection_curve.max()) / ratio
-                            rejection_curve *= target_max / (rejection_curve.max())
+                        def reject_rate(x, d, target):
+                            return (numpy.maximum(1 - d*x, 0).mean() - target)**2
+
+                        time_ratio = ratio * chunk_size / float(data_file.sampling_rate)
+                        target_rejection = (1 - numpy.exp(-time_ratio/ss_scale))
+                        res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
+                        rejection_curve = numpy.maximum(1 - d*res[0], 0)
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b
