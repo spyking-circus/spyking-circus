@@ -2,6 +2,9 @@
 Release 1.0.1
 =============
 
+* median is now removed per shanks
+* common ground syntax slightly changed, to allow one ground per shank
+* fix a bug when collect_all and dense templates
 * fix if no templates are found
 * improvements of the smart search
 * fix the rhd wrapper

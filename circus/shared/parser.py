@@ -9,7 +9,7 @@ Contains the class to read *param files
 import ConfigParser as configparser
 
 from circus.shared.messages import print_and_log
-from circus.shared.probes import read_probe, parse_dead_channels
+from circus.shared.probes import read_probe, parse_dead_channels, parse_common_grounds
 from circus.shared.mpi import comm, check_if_cluster, check_valid_path
 from circus.files import __supported_data_files__
 
@@ -286,13 +286,13 @@ class CircusParser(object):
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item
             try:
-                if val_type is 'bool':
+                if val_type == 'bool':
                     self.parser.getboolean(section, name)
-                elif val_type is 'int':
+                elif val_type == 'int':
                     self.parser.getint(section, name)
-                elif val_type is 'float':
+                elif val_type == 'float':
                     self.parser.getfloat(section, name)
-                elif val_type is 'string':
+                elif val_type == 'string':
                     self.parser.get(section, name)
             except Exception:
                 self.parser.set(section, name, value)
@@ -353,7 +353,27 @@ class CircusParser(object):
                         n_after = len(self.probe["channel_groups"][key]['channels'])
                 else:
                     if comm.rank == 0:
-                        print_and_log(["Probe has no group named %s for dead channels" % key], 'debug', logger)
+                        print_and_log(["Probe has no group named %s for dead channels" % key], 'error', logger)
+                    sys.exit(0)
+
+        common_ground = self.parser.get('filtering', 'common_ground')
+        if common_ground != '':
+            self.common_ground = parse_common_grounds(common_ground)
+            if comm.rank == 0:
+                print_and_log(["Subtracting common grounds %s" % str(common_ground)], 'debug', logger)
+            for key in self.common_ground.keys():
+                if key in self.probe["channel_groups"].keys():
+                    g = self.common_ground[key]
+                    if not g in self.probe["channel_groups"][key]['channels']:
+                      if comm.rank == 0:
+                        print_and_log(["Probe has no channel %s grounds in shank %s" %(g, key)], 'error', logger)
+                      sys.exit(0)
+                else:
+                    if comm.rank == 0:
+                        print_and_log(["Probe has no group named %s for common grounds" % key], 'error', logger)
+                    sys.exit(0)
+        else:
+            self.common_ground = {}
 
         N_e = 0
         for key in self.probe['channel_groups'].keys():
@@ -468,27 +488,6 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["Only 3 detection modes for peaks in [detection]: negative, positive, both"], 'error', logger)
-            sys.exit(0)
-
-        common_ground = self.parser.get('filtering', 'common_ground')
-        if common_ground != '':
-            try:
-                self.parser.set('filtering', 'common_ground', str(int(common_ground)))
-            except Exception:
-                self.parser.set('filtering', 'common_ground', '-1')
-        else:
-            self.parser.set('filtering', 'common_ground', '-1')
-
-        common_ground = self.parser.getint('filtering', 'common_ground')
-
-        all_electrodes = []
-        for key in self.probe['channel_groups'].keys():
-            all_electrodes += self.probe['channel_groups'][key]['channels']
-
-        test = (common_ground == -1) or common_ground in all_electrodes
-        if not test:
-            if comm.rank == 0:
-                print_and_log(["Common ground in filtering section should be a valid electrode"], 'error', logger)
             sys.exit(0)
 
         if self.parser.getboolean('data', 'auto_cluster'):

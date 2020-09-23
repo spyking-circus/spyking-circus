@@ -21,8 +21,8 @@ dead_channels  =            # If not empty or specified in the probe, a dictiona
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
-remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
-common_ground  =            # If you want to use a particular channel as a reference ground: should be a channel number
+remove_median  = False      # If True, medians over all channels within shanks are substracted (movement artifacts)
+common_ground  =            # If you want to use channels as ground within shanks {channel_group : ground_channel}
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
