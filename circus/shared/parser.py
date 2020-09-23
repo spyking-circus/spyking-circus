@@ -211,6 +211,7 @@ class CircusParser(object):
                         ['clustering', 'nb_ss_bins', 'string', 'auto'],
                         ['clustering', 'nb_ss_rand', 'int', '10000'],
                         ['clustering', 'nb_snippets', 'int', '50'],
+                        ['clustering', 'smart_search_scale', 'float', '3600'],
                         ['clustering', 'fine_amplitude', 'bool', 'True'],
                         ['detection', 'jitter_range', 'float', '0.2'],
                         ['detection', 'smoothing_factor', 'float', '1.48'],
