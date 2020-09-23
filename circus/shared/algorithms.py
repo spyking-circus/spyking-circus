@@ -428,6 +428,16 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
     has_support = test_if_support(params, input_extension)
     has_purity = test_if_purity(params, input_extension)
     fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
+    fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
+
+    if not fixed_amplitudes:
+        nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
+        splits = numpy.linspace(0, params.data_file.duration, nb_amp_bins)
+        interpolated_times = numpy.zeros(len(splits) - 1, dtype=numpy.float32)
+        for count in range(0, len(splits) - 1):
+            interpolated_times[count] = (splits[count] + splits[count + 1])/2
+        interpolated_times = numpy.concatenate(([0], interpolated_times, [params.data_file.duration]))
+        nb_amp_times = len(splits) + 1
 
     if comm.rank == 0:
         print_and_log(['Node 0 is slicing templates'], 'debug', logger)
@@ -463,7 +473,10 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
         hfilename = file_out_suff + '.templates{}.hdf5'.format('-new')
         hfile = h5py.File(hfilename, 'w', libver='earliest')
         norms = hfile.create_dataset('norms', shape=(2 * len(to_keep), ), dtype=numpy.float32, chunks=True)
-        limits = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
+        if not fixed_amplitudes:
+            limits = hfile.create_dataset('limits', shape=(len(to_keep), nb_amp_times, 2), dtype=numpy.float32, chunks=True)
+        else:
+            limits = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         if has_support:
             supports = hfile.create_dataset('supports', shape=(len(to_keep), n_e), dtype=numpy.bool, chunks=True)
         else:
@@ -505,10 +518,15 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                     # be updated.
                     idx = numpy.unique(to_merge[subset].flatten())
                     ratios = norm_templates[idx] / norm_templates[keep]
-                    new_limits = [
-                        numpy.min(ratios * old_limits[idx][:, 0]),
-                        numpy.max(ratios * old_limits[idx][:, 1])
-                    ]
+                    if fixed_amplitudes:
+                        new_limits = [
+                            numpy.min(ratios * old_limits[idx][:, 0]),
+                            numpy.max(ratios * old_limits[idx][:, 1])
+                        ]
+                    else:
+                        new_limits = numpy.zeros((nb_amp_times, 2), dtype=numpy.float32)
+                        new_limits[:, 0] = numpy.min(ratios[:, numpy.newaxis] * old_limits[idx, :, 0], 0)
+                        new_limits[:, 1] = numpy.max(ratios[:, numpy.newaxis] * old_limits[idx, :, 1], 0)
                     if has_purity:
                         new_purity = numpy.mean(old_purity[idx])
                 else:
@@ -927,7 +945,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     max_trials = params.getint('fitting', 'max_nb_chances')
 
     max_noise_snippets = min(max_snippets, 10000 // N_e)
-    max_amplitude = 4
+    max_amplitude = 2
 
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
