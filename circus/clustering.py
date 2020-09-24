@@ -1008,11 +1008,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         factor = twist * c
 
                         def reject_rate(x, d, target):
-                            return (numpy.mean(100*a*numpy.maximum(1 - d*x, 0)) - target)**2
+                            return (numpy.mean(len(bins)*a*numpy.clip(1 - d*x, 0, 1)) - target)**2
 
                         target_rejection = 1 - 1/ratio
                         res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
-                        rejection_curve = numpy.maximum(1 - d*res[0], 0)
+                        rejection_curve = numpy.clip(1 - d*res[0], 0, 1)
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b
