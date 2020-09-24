@@ -275,7 +275,7 @@ class RHDFile(DataFile):
 
         for nb_blocks in numpy.arange(x_beg, x_end+1, dtype=numpy.int64):
             g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
-            data_slice += [int(g_offset)]
+            data_slice += [numpy.int64(g_offset)]
 
         return data_slice
 
@@ -291,7 +291,7 @@ class RHDFile(DataFile):
         self._open()
         count = 0
 
-        block_duration = int(self.bytes_per_block_div - self.block_offset_div)
+        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
 
         for inc, s in enumerate(data_slice):
             
