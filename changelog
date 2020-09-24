@@ -2,8 +2,13 @@
 Release 1.0.1
 =============
 
-* enhance the rejection function of the smart search
 * possibility for the amplitudes [a_min, a_max] to depend on time
+* median is now removed per shanks
+* common ground syntax slightly changed, to allow one ground per shank
+* fix a bug when collect_all and dense templates
+* fix if no templates are found
+* improvements of the smart search
+* fix the rhd wrapper
 
 =============
 Release 1.0.0
