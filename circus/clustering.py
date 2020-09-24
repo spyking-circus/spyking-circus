@@ -1008,10 +1008,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         factor = twist * c
 
                         def reject_rate(x, d, target):
-                            return (numpy.maximum(1 - d*x, 0).mean() - target)**2
+                            return (numpy.mean(100*a*numpy.maximum(1 - d*x, 0)) - target)**2
 
-                        time_ratio = ratio * chunk_size / float(data_file.sampling_rate)
-                        target_rejection = (1 - numpy.exp(-time_ratio/ss_scale))
+                        target_rejection = 1 - 1/ratio
                         res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
                         rejection_curve = numpy.maximum(1 - d*res[0], 0)
 
