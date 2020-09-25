@@ -145,6 +145,7 @@ The fitting section is::
     amp_auto       = True      # True if amplitudes are adjusted automatically for every templates
     collect_all    = False     # If True, one garbage template per electrode is created, to store unfitted spikes
     ratio_thresh   = 0.9       # Ratio of the spike_threshold used while fitting [0-1]. The lower the slower
+    mse_error      = False     # If True, RMS is collected over time, to assess quality of reconstruction
     
 Parameters that are most likely to be changed:
     * ``collect_all`` If you want to also collect all the spike times at which no templates were fitted. This is particularly useful to debug the algorithm, and understand if something is wrong on a given channel
