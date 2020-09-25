@@ -1161,6 +1161,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         else:
             bounds = numpy.zeros((len(all_temp), 2), dtype=numpy.float32)
 
+    confusion = numpy.zeros((len(all_temp), nb_temp), dtype=numpy.float32)
+
     for count, i in enumerate(all_temp):
 
         # First, we collect admissible snippets (according to their (normalized) scalar products).
@@ -1174,6 +1176,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         bad_values = {'data' : {}, 'times' : {}}
         neutral_values = {'data' : {}, 'times' : {}}
         nb_chances = numpy.zeros(all_sizes[i], dtype=numpy.uint32)
+
+        conf_vector = numpy.zeros(nb_temp, dtype=numpy.float32)
+
         for j in range(nb_temp):
             # if (similarity[i, j] >= thr_similarity) and (i != j):
             if i != j and mask_intersect[i, j]:
@@ -1197,6 +1202,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
                 selection = tgt_values <= ref2_values # i.e. snippets of i on which a fit with template j is tried *before* a fit with template i
                 nb_chances[selection] += 1
+
+                conf_vector[j] = selection.mean()
+
+        confusion[count] = conf_vector
 
         bad_values['data']['noise'] = all_snippets[i, 'noise']['data'] / norm_2[i]
         bad_values['times']['noise'] = all_snippets[i, 'noise']['times']
@@ -1413,6 +1422,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     purity_level = gather_array(purity_level, comm)
     max_nb_chances = gather_array(max_nb_chances, comm)
+    confusion = gather_array(confusion, comm, shape=1)
 
     if SHARED_MEMORY:
         for memory in mpi_memory_1 + mpi_memory_2:
@@ -1436,6 +1446,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         else:
             hfile['purity'][:] = purity_level[indices]
             hfile['nb_chances'][:] = max_nb_chances[indices]
+        if 'confusion' not in hfile.keys():
+            hfile.create_dataset('confusion', data=confusion[indices])
+        else:
+            hfile['confusion'][:] = confusion[indices]
         hfile.close()
 
     return
