@@ -51,6 +51,7 @@ At the end of that step, a single HDF5_ file ``mydata.result.hdf5`` is produced,
     * ``/spiketimes/temp_i`` for a template *i*, the times at which this particular template has been fitted.
     * ``/amplitudes/temp_i`` for a template *i*, the amplitudes used at the given spike times. Note that those amplitudes has two component, but only the first one is relevant. The second one is the one used for the orthogonal template, and does not need to be analyzed.
     * ``/gspikes/elec_i`` if the ``collect_all`` mode was activated, then for electrode *i*, the times at which spikes peaking there have not been fitted.
+    * ``/mse`` if the ``mse_error`` mode was activated, a 2D array with time on the first column, and normalized mean squared error between the raw signal and the reconstruction
 
 .. note:: Spike times are saved in time steps
 

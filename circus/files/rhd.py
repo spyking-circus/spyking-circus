@@ -275,7 +275,7 @@ class RHDFile(DataFile):
 
         for nb_blocks in numpy.arange(x_beg, x_end+1, dtype=numpy.int64):
             g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
-            data_slice += [int(g_offset)]
+            data_slice += [numpy.int64(g_offset)]
 
         return data_slice
 
@@ -291,7 +291,7 @@ class RHDFile(DataFile):
         self._open()
         count = 0
 
-        block_duration = int(self.bytes_per_block_div - self.block_offset_div)
+        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
 
         for inc, s in enumerate(data_slice):
             
@@ -331,12 +331,30 @@ class RHDFile(DataFile):
         data = self._unscale_data_from_float32(data)
         data_slice = self._get_slice_(t_start, t_stop)
 
+        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
+
         self._open(mode='r+')
         count = 0
-        for s in data_slice:
-            t_slice = len(s)//self.nb_channels
-            self.data[s] = data[count:count + t_slice, :].T.ravel()
-            count += t_slice
+
+        for inc, s in enumerate(data_slice):
+
+            if inc == 0:
+                s0 = s + numpy.mod(t_start, self.SAMPLES_PER_RECORD) * self.nb_channels
+            else:
+                s0 = s
+
+            if inc == len(data_slice) - 1:
+                s1 = s + numpy.mod(t_stop, self.SAMPLES_PER_RECORD) * self.nb_channels
+            else:
+                s1 = min(len(self.data), s + block_duration)
+
+            #s_max = min(len(self.data), s + block_duration)
+            block_slice = numpy.arange(s0, s1).astype(numpy.int32)
+            t_block_slice = len(block_slice)//self.nb_channels
+            t_slice = (s1 - s0)
+
+            self.data[block_slice] = data[count:count + t_block_slice, :].T.ravel()
+            count += t_block_slice
 
         self._close()
 
