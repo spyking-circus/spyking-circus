@@ -341,6 +341,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             'amplitudes': [],
             'templates': [],
         }
+
+        if mse_error:
+            mse_fit = {
+            'spiketimes': [],
+            'amplitudes': [],
+            'templates': [],
+        }
+
         result_debug = {
             'chunk_nbs': [],
             'iteration_nbs': [],
@@ -605,6 +613,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['spiketimes'] += [t_spike]
                         result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         result['templates'] += [best_template_index]
+                    elif mse_error:
+                        mse_fit['spiketimes'] += [t_spike]
+                        mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                        mse_fit['templates'] += [best_template_index]
                     # Mark current matching as tried.
                     b[best_template_index, peak_index] = -numpy.inf
 
@@ -682,22 +694,31 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             templates_file.write(templates_to_write.tostring())
 
             if mse_error:
-                curve = numpy.zeros((len_chunk - (padding[1] - padding[0]), n_e), dtype=numpy.float32)
+                curve = numpy.zeros((len_chunk, n_e), dtype=numpy.float32)
                 for spike, temp_id, amplitude in zip(result['spiketimes'], result['templates'], result['amplitudes']):
-                    spike -= g_offset
+                    spike = spike - t_offset - padding[0]
                     if is_sparse:
                         tmp1 = templates[temp_id].toarray().reshape(n_e, n_t)
                         tmp2 = templates[temp_id + n_tm].toarray().reshape(n_e, n_t)
                     else:
                         tmp1 = templates[temp_id].reshape(n_e, n_t)
                         tmp2 = templates[temp_id + n_tm].reshape(n_e, n_t)
-                    try:
-                        curve[int(spike) - template_shift:int(spike) + template_shift + 1, :] += amplitude[0] * tmp1 + amplitude[1] * tmp2
-                    except Exception:
-                        pass
 
-                mse = numpy.linalg.norm(curve - c_local_chunk[-padding[0]:-padding[1]])
-                mse_ratio = mse/(numpy.sqrt(len(curve))*stds_norm)
+                    curve[spike - template_shift:spike + template_shift + 1, :] += (amplitude[0] * tmp1 + amplitude[1] * tmp2).T
+
+                for spike, temp_id, amplitude in zip(mse_fit['spiketimes'], mse_fit['templates'], mse_fit['amplitudes']):
+                    spike = spike - t_offset + padding[0]
+                    if is_sparse:
+                        tmp1 = templates[temp_id].toarray().reshape(n_e, n_t)
+                        tmp2 = templates[temp_id + n_tm].toarray().reshape(n_e, n_t)
+                    else:
+                        tmp1 = templates[temp_id].reshape(n_e, n_t)
+                        tmp2 = templates[temp_id + n_tm].reshape(n_e, n_t)
+                    curve[int(spike) - template_shift:int(spike) + template_shift + 1, :] += (amplitude[0] * tmp1 + amplitude[1] * tmp2).T
+
+                mse = numpy.linalg.norm((curve - c_local_chunk)[-padding[0]:-padding[1]])
+                nb_points = len(curve) - (padding[1] - padding[0])
+                mse_ratio = mse/(numpy.sqrt(nb_points)*stds_norm)
                 mse_to_write = numpy.array([g_offset, mse_ratio], dtype=numpy.float32)
                 mse_file.write(mse_to_write.tostring())
 
