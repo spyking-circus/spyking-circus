@@ -682,7 +682,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             templates_file.write(templates_to_write.tostring())
 
             if mse_error:
-                curve = numpy.zeros((chunk_size, n_e), dtype=numpy.float32)
+                curve = numpy.zeros((len_chunk - (padding[1] - padding[0]), n_e), dtype=numpy.float32)
                 for spike, temp_id, amplitude in zip(result['spiketimes'], result['templates'], result['amplitudes']):
                     spike -= g_offset
                     if is_sparse:
@@ -696,7 +696,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     except Exception:
                         pass
 
-                mse = numpy.linalg.norm(curve - c_local_chunk[-padding[0]:-padding[0]+len(curve)])
+                mse = numpy.linalg.norm(curve - c_local_chunk[-padding[0]:-padding[1]])
                 mse_ratio = mse/(numpy.sqrt(len(curve))*stds_norm)
                 mse_to_write = numpy.array([g_offset, mse_ratio], dtype=numpy.float32)
                 mse_file.write(mse_to_write.tostring())
