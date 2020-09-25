@@ -13,7 +13,7 @@ import scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas, load_sp_memshared, load_sp
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
-    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity
+    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity, test_if_confusion
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.mpi import all_gather_array, comm, gather_array
@@ -427,6 +427,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
     template_shift = params.getint('detection', 'template_shift')
     has_support = test_if_support(params, input_extension)
     has_purity = test_if_purity(params, input_extension)
+    has_confusion = test_if_confusion(params, input_extension)
     fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
@@ -451,6 +452,10 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             old_purity = load_data(params, 'purity', extension=input_extension)
         else:
             old_purity = None  # default assignment
+        if has_confusion:
+            old_confusion = load_data(params, 'confusion', extension=input_extension)
+        else:
+            old_confusion = None  # default assignment
         _, n_tm = old_templates.shape
         norm_templates = load_data(params, 'norm-templates', extension=input_extension)
 
@@ -486,6 +491,12 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             purity = hfile.create_dataset('purity', shape=(len(to_keep), ), dtype=numpy.float32, chunks=True)
         else:
             purity = None
+
+        if has_confusion:
+            confusion = hfile.create_dataset('confusion', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32, chunks=True)
+        else:
+            confusion = None
+
         # For each index to keep.
         for count, keep in zip(positions, local_keep):
             # Copy template.
@@ -502,6 +513,8 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                 new_limits = old_limits[keep]
                 if has_purity:
                     new_purity = old_purity[keep]
+                if has_confusion:
+                    new_confusion = old_confusion[keep, to_keep]
             else:
                 subset = numpy.where(to_merge[:, 0] == keep)[0]
                 if len(subset) > 0:
@@ -529,16 +542,23 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                         new_limits[:, 1] = numpy.max(ratios[:, numpy.newaxis] * old_limits[idx, :, 1], 0)
                     if has_purity:
                         new_purity = numpy.mean(old_purity[idx])
+                    if has_confusion:
+                        new_confusion = numpy.mean(old_confusion[idx][:, to_keep], 0)
                 else:
                     new_limits = old_limits[keep]
                     if has_purity:
                         new_purity = old_purity[keep]
+                    if has_confusion:
+                        new_confusion = old_confusion[keep, to_keep]
+            
             if not fine_amplitude:
                 limits[count] = new_limits
             else:
                 limits[count] = [0.5, 1.5]
             if has_purity:
                 purity[count] = new_purity
+            if has_confusion:
+                confusion[count] = new_confusion
 
         # Copy templates to file.
         templates = templates.tocoo()

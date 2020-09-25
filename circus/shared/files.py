@@ -1138,6 +1138,20 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
+    elif data == 'confusion':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            if 'confusion' in myfile.keys():
+                confusion = myfile.get('confusion')[:]
+            else:
+                N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+                confusion = numpy.zeros((nb_templates//2, nb_templates//2), dtype=numpy.float32)
+            myfile.close()
+            return confusion
+        else:
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'maxoverlap':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
