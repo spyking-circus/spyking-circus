@@ -1023,7 +1023,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         def reject_rate(x, d, target):
                             return (numpy.mean(len(bins)*a*numpy.clip(1 - d*x, 0, 1)) - target)**2
 
-                        target_rejection = 1 - 1/ratio
+                        target_rejection = 1 - 1/(ratio**2)
                         res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
                         rejection_curve = numpy.clip(1 - d*res[0], 0, 1)
 
