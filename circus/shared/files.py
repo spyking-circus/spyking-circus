@@ -1534,6 +1534,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     refractory = params.getint('fitting', 'refractory')
     N_tm = len(templates)
     collect_all = params.getboolean('fitting', 'collect_all')
+    mse_error = params.getboolean('fitting', 'mse_error')
     debug = params.getboolean('fitting', 'debug')
 
     print_and_log(["Gathering spikes from %d nodes..." % nb_threads], 'default', logger)
@@ -1553,6 +1554,9 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     if collect_all:
         result['gspikes'] = {}
         result['gtemps'] = {}
+
+    if mse_error:
+        result['mse'] = [numpy.empty(shape=(0, 2), dtype=numpy.float32)]
 
     for i in range(N_tm // 2):
         result['spiketimes']['temp_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
@@ -1603,6 +1607,13 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             gspikes = numpy.fromfile(gspikes_file, dtype=numpy.uint32)
             gtemps_file = file_out_suff + '.gtemplates-%d.data' % node
             gtemps = numpy.fromfile(gtemps_file, dtype=numpy.uint32)
+
+        if mse_error:
+            mse_file = file_out_suff + '.mses-%d.data' % node
+            mse_values = numpy.fromfile(mse_file, dtype=numpy.float32)
+            N = len(mse_values)
+            mse_values = mse_values.reshape(N // 2, 2)
+            result['mse'].append(mse_values)
 
         if os.path.exists(amplitudes_file):
 
@@ -1684,6 +1695,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             idx = numpy.argsort(result['gspikes'][key])
             result['gspikes'][key] = result['gspikes'][key][idx]
 
+    if mse_error:
+        result['mse'] = numpy.concatenate(result['mse']).astype(numpy.float32)
+        idx = numpy.argsort(result['mse'][:, 0])
+        result['mse'] = result['mse'][idx]
+
     keys = ['spiketimes', 'amplitudes', 'info']
     if with_real_amps:
         keys += ['real_amps']
@@ -1702,6 +1718,12 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
             else:
                 mydata.create_dataset(tmp_path, data=result[key][temp])
+
+    if mse_error:
+        if hdf5_compress:
+            mydata.create_dataset('mse', data=result['mse'], compression='gzip')
+        else:
+            mydata.create_dataset('mse', data=result['mse'])
     mydata.close()
 
     if debug:
