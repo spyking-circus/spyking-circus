@@ -1258,6 +1258,15 @@ def load_data(params, data, extension=''):
             return limits
         else:
             raise Exception('No templates found! Check suffix?')
+    elif data == 'mse-error':
+        myfile = file_out_suff + '.result%s.hdf5' % extension
+        if os.path.exists(myfile):
+            myfile = h5py.File(myfile, 'r', libver='earliest')
+            mse = myfile.get('mse')[:]
+            myfile.close()
+            return mse
+        else:
+            raise Exception('No templates found! Check suffix?')
     elif data == 'injected_spikes':
         try:
             spikes = h5py.File(data_file_noext + '/injected/result.hdf5').get('spiketimes')
