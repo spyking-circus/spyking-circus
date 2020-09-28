@@ -1697,7 +1697,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if True:
 
         if comm.rank == 0:
-            print_and_log(["Searching putative drifts..."], 'default', logger)
+            print_and_log(["Identifying putative drifts for meta merging..."], 'default', logger)
 
         algo.search_drifts(
             params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
