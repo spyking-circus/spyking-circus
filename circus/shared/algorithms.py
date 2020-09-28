@@ -15,7 +15,7 @@ from circus.shared.files import load_data, write_datasets, get_overlaps, load_da
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
     batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity
 from circus.shared.messages import print_and_log
-from circus.shared.probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_and_edges, get_nodes_and_positions
 from circus.shared.mpi import all_gather_array, comm, gather_array
 
 import scipy.linalg
@@ -1289,6 +1289,111 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         hfile.close()
 
     return
+
+
+def search_drifts(params, nb_cpu, nb_gpu, use_gpu):
+
+    data_file = params.data_file
+    SHARED_MEMORY = get_shared_memory_flag(params)
+
+    if SHARED_MEMORY:
+        templates, mpi_memory_1 = load_data_memshared(params, 'templates', normalize=False, transpose=True)
+    else:
+        templates = load_data(params, 'templates')
+        templates = templates.T
+
+    norms = load_data(params, 'norm-templates')
+    nb_templates = templates.shape[0] // 2
+    _, positions = get_nodes_and_positions(params)
+    supports = load_data(params, 'supports')
+    N_e = params.getint('data', 'N_e')
+    N_t = params.getint('detection', 'N_t')
+    blosc_compress = params.getboolean('data', 'blosc_compress')
+    file_out_suff = params.get('data', 'file_out_suff')
+
+    decimation = True
+
+    mask_intersect = numpy.zeros((nb_templates, nb_templates), dtype=numpy.bool)
+    for i in range(nb_templates):
+        for j in range(i, nb_templates):
+            mask_intersect[i, j] = numpy.any(supports[i]*supports[j])
+
+    mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
+
+    if decimation:
+        center = N_t//2 + 1
+        sub_times = range(center - 2, center + 2 + 1)
+    else:
+        sub_times =  numpy.arange(N_t)
+
+    nb_times = len(sub_times)
+    times = numpy.tile(sub_times, N_e)
+    x = numpy.repeat(positions[:,0], nb_times)
+    y = numpy.repeat(positions[:,1], nb_times)
+    p = numpy.vstack((x, y)).T
+
+    all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
+
+    def get_difference(r, model, source):
+        new_templates = interp(x + r[0], y + r[1], times)
+        return numpy.linalg.norm(new_templates - source)
+
+    if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(params, all_temp)
+    else:
+        to_explore = all_temp
+
+    registration = numpy.zeros((len(to_explore), nb_templates, 3), dtype=numpy.float32)
+
+    for count, i in enumerate(to_explore):
+        target_template = templates[i].toarray()
+        if decimation:
+            target_template = target_template.reshape(N_e, N_t)
+            target_template = target_template[:, sub_times]
+        interp = scipy.interpolate.Rbf(x, y, times, target_template.ravel(), function='cubic')
+        for j in range(i+1, nb_templates):
+            if mask_intersect[i, j]:
+                source_template = templates[j].toarray()
+                if decimation:
+                    source_template = source_template.reshape(N_e, N_t)
+                    source_template = source_template[:, sub_times]
+                source_template = source_template.ravel()
+                registration[count, j, :2] = scipy.optimize.fmin(get_difference, [0, 0], args=(interp, source_template), disp=False)
+                registered = interp(x + registration[count, j, 0], y + registration[count, j, 1], times)
+                cc = (source_template * registered).sum() / (numpy.linalg.norm(source_template) * numpy.linalg.norm(registered))
+                registration[count, j, 2] = cc
+
+    registration = gather_array(registration.flatten(), comm, 0, 1, 'float32', compress=blosc_compress)
+
+    comm.Barrier()
+
+    if SHARED_MEMORY:
+        for memory in mpi_memory_1:
+            memory.Free()
+
+    if comm.rank == 0:
+        indices = []
+        registration = registration.reshape(nb_templates, nb_templates, 3)
+        for idx in range(comm.size):
+            indices += list(numpy.arange(idx, nb_templates, comm.size))
+        indices = numpy.argsort(indices).astype(numpy.int32)
+        registration = registration[indices, :]
+
+        registration[:,:,2] = numpy.maximum(registration[:,:,2], registration[:,:,2].T)
+        registration[:,:,0] = numpy.maximum(registration[:,:,0], registration[:,:,0].T)
+        registration[:,:,1] = numpy.maximum(registration[:,:,1], registration[:,:,1].T)
+        mask = numpy.tril(numpy.ones((nb_templates, nb_templates)), -1) > 0
+        registration[:,:,0][mask] *= -1
+        registration[:,:,1][mask] *= -1
+
+        file_name = file_out_suff + '.templates.hdf5'
+        hfile = h5py.File(file_name, 'r+', libver='earliest')
+
+        if 'drifts' not in hfile.keys():
+            hfile.create_dataset('drifts', data=registration)
+        else:
+            hfile['drifts'][:] = registration
+        hfile.close()
 
 
 def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):

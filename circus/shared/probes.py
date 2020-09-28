@@ -134,6 +134,53 @@ def get_nodes_and_edges(parser, validating=False, shank_with=None):
     return numpy.array(nodes, dtype=numpy.int32), edges
 
 
+def get_nodes_and_positions(parser, shank_with=None):
+    """
+    Retrieve the topology of the probe.
+
+    Other parameters
+    ----------------
+    radius : integer
+
+    Returns
+    -------
+    nodes : ndarray of integers
+        Array of channel ids retrieved from the description of the probe.
+    edges : dictionary
+        Dictionary which link each channel id to the ids of the channels whose
+        distance is less or equal than radius.
+
+    """
+
+    positions = []
+    nodes = []
+
+    def get_position(i, channel_groups):
+        position = channel_groups['geometry'][i]
+        if len(position) == 2:
+            pos_x, pos_y, pos_z = position[0], position[1], 0
+        elif len(position) == 1:
+            pos_x, pos_y, pos_z = position[0], 0, 0
+        elif len(position) == 3:
+            pos_x, pos_y, pos_z = position[0], position[1], position[2]
+
+        return [pos_x, pos_y, pos_z]
+
+    if shank_with is None:
+        for key in parser.probe['channel_groups'].keys():
+            for i in parser.probe['channel_groups'][key]['channels']:
+                positions += [get_position(i, parser.probe['channel_groups'][key])]
+                nodes += [i]
+    else:
+        for key in parser.probe['channel_groups'].keys():
+            if shank_with in parser.probe['channel_groups'][key]['channels']:
+                for i in parser.probe['channel_groups'][key]['channels']:
+                    positions += [get_position(i, parser.probe['channel_groups'][key])]
+                    nodes += [i]
+
+    return numpy.array(nodes, dtype=numpy.int32), numpy.array(positions, dtype=numpy.float32)
+
+
 def get_central_electrode(parser, node_i, node_j):
 
     for key in parser.probe['channel_groups'].keys():
