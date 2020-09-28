@@ -8,7 +8,7 @@ import scipy.optimize
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
-from circus.shared.probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_and_edges, get_nodes_and_positions
 from circus.shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
@@ -35,6 +35,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     over_factor = float(params.getint('detection', 'oversampling_factor'))
     nb_jitter = params.getint('detection', 'nb_jitter')
     matched_filter = params.getboolean('detection', 'matched-filter')
+    use_barycenter = params.getboolean('detection', 'use_barycenter')
     _ = params.getfloat('detection', 'spike_thresh')
     spike_width = params.getfloat('detection', 'spike_width')
     noise_thresh = params.getfloat('clustering', 'noise_thr')
@@ -52,6 +53,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     dispersion = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
     dispersion = [float(v) for v in dispersion]
     nodes, edges = get_nodes_and_edges(params)
+    _, positions = get_nodes_and_positions(params)
     chunk_size = detect_memory(params)
     max_elts_elec = params.getint('clustering', 'max_elts')
     two_components = params.getboolean('clustering', 'two_components')
@@ -601,11 +603,27 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
                         if sign_peaks == 'negative':
-                            elec = numpy.argmin(data)
+                            if n_e > 1:
+                                if use_barycenter:
+                                    weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
+                                    barycenter = weighed_position.sum(0)/data.sum()
+                                    elec = numpy.argmin(numpy.linalg.norm(barycenter - positions[all_elecs], axis=1))
+                                else:
+                                    elec = numpy.argmin(data)
+                            else:
+                                elec = 0
                             negative_peak = True
                             loc_peak = 'neg'
                         elif sign_peaks == 'positive':
-                            elec = numpy.argmax(data)
+                            if n_e > 1:
+                                if use_barycenter:
+                                    weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
+                                    barycenter = weighed_position.sum(0)/data.sum()
+                                    elec = numpy.argmin(numpy.linalg.norm(barycenter - positions[all_elecs], axis=1))
+                                else:
+                                    elec = numpy.argmax(data)
+                            else:
+                                elec = 0
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':

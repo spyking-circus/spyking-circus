@@ -9,6 +9,7 @@ Release 1.0.1
 * improvements of the smart search
 * add the option to collect normalized MSE during fitting. False by default
 * fix the rhd wrapper
+* divide and conquer assigment now based on barycenters instead of simple extremas
 
 =============
 Release 1.0.0

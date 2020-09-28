@@ -1,6 +1,6 @@
 from circus.shared.utils import *
 import circus.shared.files as io
-from circus.shared.probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_and_edges, get_nodes_and_positions
 from circus.shared.files import get_dead_times
 import warnings
 with warnings.catch_warnings():
@@ -313,8 +313,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nb_jitter = params.getint('detection', 'nb_jitter')
     spike_thresh = params.getfloat('detection', 'spike_thresh')
     nodes, edges = get_nodes_and_edges(params)
+    _, positions = get_nodes_and_positions(params)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    use_barycenter = params.getboolean('detection', 'use_barycenter')
     if matched_filter:
         chunk_size = detect_memory(params, whitening=True)
     else:
@@ -484,10 +486,26 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     #data = local_chunk[peak, all_elecs]
 
                     if sign_peaks == 'negative':
-                        elec = numpy.argmin(data)
+                        if N_e > 1:
+                            if use_barycenter:
+                                weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
+                                barycenter = weighed_position.sum(0)/data.sum()
+                                elec = numpy.argmin(numpy.linalg.norm(barycenter - positions[all_elecs], axis=1))
+                            else:
+                                elec = numpy.argmin(data)
+                        else:
+                            elec = 0
                         negative_peak = True
                     elif sign_peaks == 'positive':
-                        elec = numpy.argmax(data)
+                        if N_e > 1:
+                            if use_barycenter:
+                                weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
+                                barycenter = weighed_position.sum(0)/data[all_elecs].sum()
+                                elec = numpy.argmin(numpy.linalg.norm(barycenter - positions, axis=1))
+                            else:
+                                elec = numpy.argmax(data)
+                        else:
+                            elec = 0
                         negative_peak = False
                     elif sign_peaks == 'both':
                         if N_e == 1:
