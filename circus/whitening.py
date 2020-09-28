@@ -494,7 +494,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 elec = numpy.argmin(data)
                         else:
-                            elec = [0]
+                            elec = 0
                         negative_peak = True
                     elif sign_peaks == 'positive':
                         if N_e > 1:
@@ -505,7 +505,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             else:
                                 elec = numpy.argmax(data)
                         else:
-                            elec = [0]
+                            elec = 0
                         negative_peak = False
                     elif sign_peaks == 'both':
                         if N_e == 1:

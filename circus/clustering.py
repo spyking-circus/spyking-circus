@@ -611,7 +611,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     elec = numpy.argmin(data)
                             else:
-                                elec = [0]
+                                elec = 0
                             negative_peak = True
                             loc_peak = 'neg'
                         elif sign_peaks == 'positive':
@@ -623,7 +623,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 else:
                                     elec = numpy.argmax(data)
                             else:
-                                elec = [0]
+                                elec = 0
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':
