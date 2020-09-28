@@ -60,6 +60,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     supports = io.load_data(params, 'supports')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
     median_channels = numpy.median(numpy.sum(supports, 1))
+    mse_error = params.getboolean('fitting', 'mse_error')
+    if mse_error:
+        stds = io.load_data(params, 'stds')
+        stds_norm = numpy.linalg.norm(stds)
     # if median_channels < low_channels_thr:
     #     normalization = False
     #     if comm.rank == 0:
@@ -82,11 +86,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if SHARED_MEMORY:
         templates, mpi_memory_1 = io.load_data_memshared(params, 'templates', normalize=templates_normalization, transpose=True, sparse_threshold=sparse_threshold)
         N_tm, x = templates.shape
+        is_sparse = not isinstance(templates, numpy.ndarray)
     else:
         templates = io.load_data(params, 'templates')
         x, N_tm = templates.shape
-        sparsity = templates.nnz / (x * N_tm)
-        is_sparse = sparsity < sparse_threshold
+        if N_tm > 0:
+            sparsity = templates.nnz / (x * N_tm)
+            is_sparse = sparsity < sparse_threshold
+        else:
+            is_sparse = True
         if not is_sparse:
             if comm.rank == 0:
                 print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
@@ -151,8 +159,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     neighbors = {}
     if collect_all:
+        is_sparse = not isinstance(templates, numpy.ndarray)
         for i in range(0, n_tm):
-            tmp = templates[i, :].toarray().reshape(n_e, n_t)
+            if is_sparse:
+                tmp = templates[i, :].toarray().reshape(n_e, n_t)
+            else:
+                tmp = templates[i].reshape(n_e, n_t)
             if templates_normalization:
                 tmp = tmp * norm_templates[i]
             neighbors[i] = numpy.where(numpy.sum(tmp, axis=1) != 0.0)[0]
@@ -240,6 +252,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     templates_file = open(file_out_suff + '.templates-%d.data' % comm.rank, 'wb')
     comm.Barrier()
 
+
+    if mse_error:
+        mse_file = open(file_out_suff + '.mses-%d.data' % comm.rank, 'wb')
+        comm.Barrier()
+
     if collect_all:
         garbage_times_file = open(file_out_suff + '.gspiketimes-%d.data' % comm.rank, 'wb')
         comm.Barrier()
@@ -324,6 +341,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             'amplitudes': [],
             'templates': [],
         }
+
+        if mse_error:
+            mse_fit = {
+            'spiketimes': [],
+            'amplitudes': [],
+            'templates': [],
+        }
+
         result_debug = {
             'chunk_nbs': [],
             'iteration_nbs': [],
@@ -338,6 +363,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
         len_chunk = len(local_chunk)
+        if is_last:
+            my_chunk_size = last_chunk_size
+        else:
+            my_chunk_size = chunk_size
 
         if do_spatial_whitening:
             if use_gpu:
@@ -393,7 +422,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         g_offset = t_offset + padding[0]
 
         if ignore_dead_times:
-            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + chunk_size])
+            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + my_chunk_size])
             if dead_indices[0] != dead_indices[1]:
                 is_included = numpy.in1d(local_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                 local_peaktimes = local_peaktimes[~is_included]
@@ -431,7 +460,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if nb_local_peak_times > 0:
             # print "Computing the b (should full_gpu by putting all chunks on GPU if possible?)..."
 
-            if collect_all:
+            if collect_all or mse_error:
                 c_local_chunk = local_chunk.copy()
             else:
                 c_local_chunk = None  # default assignment (for PyCharm code inspection)
@@ -449,7 +478,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_restriction = (t_offset, t_offset + chunk_size)
+            local_restriction = (t_offset, t_offset + my_chunk_size)
             all_spikes = local_peaktimes + g_offset
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
@@ -588,6 +617,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result['spiketimes'] += [t_spike]
                         result['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         result['templates'] += [best_template_index]
+                    elif mse_error:
+                        mse_fit['spiketimes'] += [t_spike]
+                        mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                        mse_fit['templates'] += [best_template_index]
                     # Mark current matching as tried.
                     b[best_template_index, peak_index] = -numpy.inf
 
@@ -663,6 +696,37 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             spiketimes_file.write(spikes_to_write.tostring())
             amplitudes_file.write(amplitudes_to_write.tostring())
             templates_file.write(templates_to_write.tostring())
+
+            if mse_error:
+                curve = numpy.zeros((len_chunk, n_e), dtype=numpy.float32)
+                for spike, temp_id, amplitude in zip(result['spiketimes'], result['templates'], result['amplitudes']):
+                    spike = spike - t_offset - padding[0]
+                    if is_sparse:
+                        tmp1 = templates[temp_id].toarray().reshape(n_e, n_t)
+                        tmp2 = templates[temp_id + n_tm].toarray().reshape(n_e, n_t)
+                    else:
+                        tmp1 = templates[temp_id].reshape(n_e, n_t)
+                        tmp2 = templates[temp_id + n_tm].reshape(n_e, n_t)
+
+                    curve[spike - template_shift:spike + template_shift + 1, :] += (amplitude[0] * tmp1 + amplitude[1] * tmp2).T
+
+                for spike, temp_id, amplitude in zip(mse_fit['spiketimes'], mse_fit['templates'], mse_fit['amplitudes']):
+                    spike = spike - t_offset + padding[0]
+                    if is_sparse:
+                        tmp1 = templates[temp_id].toarray().reshape(n_e, n_t)
+                        tmp2 = templates[temp_id + n_tm].toarray().reshape(n_e, n_t)
+                    else:
+                        tmp1 = templates[temp_id].reshape(n_e, n_t)
+                        tmp2 = templates[temp_id + n_tm].reshape(n_e, n_t)
+                    try:
+                        curve[int(spike) - template_shift:int(spike) + template_shift + 1, :] += (amplitude[0] * tmp1 + amplitude[1] * tmp2).T
+                    except Exception:
+                        pass
+                mse = numpy.linalg.norm((curve - c_local_chunk)[-padding[0]:-padding[1]])
+                nb_points = len(curve) - (padding[1] - padding[0])
+                mse_ratio = mse/(numpy.sqrt(nb_points)*stds_norm)
+                mse_to_write = numpy.array([g_offset, mse_ratio], dtype=numpy.float32)
+                mse_file.write(mse_to_write.tostring())
 
             if collect_all:
 
@@ -748,6 +812,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         garbage_times_file.flush()
         os.fsync(garbage_times_file.fileno())
         garbage_times_file.close()
+
+    if mse_error:
+        mse_file.flush()
+        os.fsync(mse_file.fileno())
+        mse_file.close()
 
     if debug:
         # Close debug files.

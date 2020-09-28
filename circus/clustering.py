@@ -3,10 +3,12 @@ import circus.shared.files as io
 import circus.shared.algorithms as algo
 from circus.shared import plot
 import warnings
+import scipy
+import scipy.optimize
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
-from circus.shared.probes import get_nodes_and_edges
+from circus.shared.probes import get_nodes_and_edges, get_nodes_and_positions
 from circus.shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
@@ -33,6 +35,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     over_factor = float(params.getint('detection', 'oversampling_factor'))
     nb_jitter = params.getint('detection', 'nb_jitter')
     matched_filter = params.getboolean('detection', 'matched-filter')
+    use_barycenter = params.getboolean('detection', 'use_barycenter')
     _ = params.getfloat('detection', 'spike_thresh')
     spike_width = params.getfloat('detection', 'spike_width')
     noise_thresh = params.getfloat('clustering', 'noise_thr')
@@ -50,6 +53,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     dispersion = params.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
     dispersion = [float(v) for v in dispersion]
     nodes, edges = get_nodes_and_edges(params)
+    _, positions = get_nodes_and_positions(params)
     chunk_size = detect_memory(params)
     max_elts_elec = params.getint('clustering', 'max_elts')
     two_components = params.getboolean('clustering', 'two_components')
@@ -99,6 +103,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
+    ss_scale = params.getfloat('clustering', 'smart_search_scale')
     data_file.open()
     #################################################################
 
@@ -598,11 +603,27 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         negative_peak = None  # default assignment (for PyCharm code inspection)
                         loc_peak = None  # default assignment (for PyCharm code inspection)
                         if sign_peaks == 'negative':
-                            elec = numpy.argmin(data)
+                            if n_e > 1:
+                                if use_barycenter:
+                                    weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
+                                    barycenter = weighed_position.sum(0)/data.sum()
+                                    elec = numpy.argmin(numpy.linalg.norm(barycenter - positions[all_elecs], axis=1))
+                                else:
+                                    elec = numpy.argmin(data)
+                            else:
+                                elec = 0
                             negative_peak = True
                             loc_peak = 'neg'
                         elif sign_peaks == 'positive':
-                            elec = numpy.argmax(data)
+                            if n_e > 1:
+                                if use_barycenter:
+                                    weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
+                                    barycenter = weighed_position.sum(0)/data.sum()
+                                    elec = numpy.argmin(numpy.linalg.norm(barycenter - positions[all_elecs], axis=1))
+                                else:
+                                    elec = numpy.argmax(data)
+                            else:
+                                elec = 0
                             negative_peak = False
                             loc_peak = 'pos'
                         elif sign_peaks == 'both':
@@ -996,7 +1017,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         a, b = numpy.histogram(result['tmp_%s_' % p + str(ielec)], bins)
                         nb_spikes = numpy.sum(a)
                         a = a / float(nb_spikes)
-
                         z = a[a > 0]
                         c = 1.0 / numpy.min(z)
                         d = 1. / (c * a)
@@ -1004,11 +1024,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         d /= numpy.sum(d)
                         twist = numpy.sum(a * d)
                         factor = twist * c
-                        rejection_curve = numpy.minimum(0.95, factor * a)
 
-                        if ratio > 1:
-                            target_max = 1 - (1 - rejection_curve.max()) / ratio
-                            rejection_curve *= target_max / (rejection_curve.max())
+                        def reject_rate(x, d, target):
+                            return (numpy.mean(len(bins)*a*numpy.clip(1 - d*x, 0, 1)) - target)**2
+
+                        target_rejection = 1 - 1/(ratio**2)
+                        res = scipy.optimize.fmin(reject_rate, factor, args=(d, target_rejection), disp=False)
+                        rejection_curve = numpy.clip(1 - d*res[0], 0, 1)
 
                         result['hist_%s_' % p + str(ielec)] = rejection_curve
                         result['bounds_%s_' % p + str(ielec)] = b

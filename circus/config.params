@@ -21,8 +21,8 @@ dead_channels  =            # If not empty or specified in the probe, a dictiona
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
-remove_median  = False      # If True, median over all channels is substracted to each channels (movement artifacts)
-common_ground  =            # If you want to use a particular channel as a reference ground: should be a channel number
+remove_median  = False      # If True, medians over all channels within shanks are substracted (movement artifacts)
+common_ground  =            # If you want to use channels as ground within shanks {channel_group : ground_channel}
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
@@ -60,6 +60,7 @@ amp_limits     = (0.3, 5)   # Amplitudes for the templates during spike detectio
 amp_auto       = True       # True if amplitudes are adjusted automatically for every templates
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 ratio_thresh   = 0.9        # Ratio of the spike_threshold used while fitting [0-1]. The lower the slower
+mse_error      = False      # If True, RMS is collected over time, to assess quality of reconstruction
 
 [merging]
 erase_all      = True       # If False, a prompt will ask you to remerge if merged has already been done

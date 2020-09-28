@@ -136,8 +136,7 @@ def get_nodes_and_edges(parser, validating=False, shank_with=None):
 
 def get_nodes_and_positions(parser, shank_with=None):
     """
-    Retrieve the topology of the probe.
-
+    Retrieve the topology of the probe
     Other parameters
     ----------------
     radius : integer
@@ -149,12 +148,10 @@ def get_nodes_and_positions(parser, shank_with=None):
     edges : dictionary
         Dictionary which link each channel id to the ids of the channels whose
         distance is less or equal than radius.
-
     """
 
     positions = []
     nodes = []
-
     def get_position(i, channel_groups):
         position = channel_groups['geometry'][i]
         if len(position) == 2:
@@ -247,3 +244,18 @@ def parse_dead_channels(channels):
         sys.exit(0) 
     else:
         return dead_channels
+
+def parse_common_grounds(channels):
+    is_correct = False
+    try:
+        common_grounds = ast.literal_eval(channels)
+        is_correct = True
+    except Exception:
+        pass
+
+    if not is_correct:
+        if comm.rank == 0:
+            print_and_log(["The syntax for common_grounds is not correct!"], 'error', logger)
+        sys.exit(0) 
+    else:
+        return common_grounds

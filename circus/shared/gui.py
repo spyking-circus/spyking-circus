@@ -161,6 +161,8 @@ class MergeWindow(QMainWindow):
         self.adapted_cc = params.getboolean('clustering', 'adapted_cc')
         self.adapted_thr = params.getint('clustering', 'adapted_thr')
         self.low_channels_thr = params.getint('detection', 'low_channels_thr')
+        self.mse_error = params.getboolean('fitting', 'mse_error')
+        self.hdf5_compress = params.getboolean('data', 'hdf5_compress')
 
         try:
             self.duration = io.load_data(params, 'duration')
@@ -1483,7 +1485,17 @@ class MergeWindow(QMainWindow):
                 mydata.create_group(key)
                 for temp in new_result[key].keys():
                     tmp_path = '%s/%s' %(key, temp)
-                    mydata.create_dataset(tmp_path, data=new_result[key][temp])
+                    if self.hdf5_compress:
+                        mydata.create_dataset(tmp_path, data=new_result[key][temp], compression='gzip')
+                    else:
+                        mydata.create_dataset(tmp_path, data=new_result[key][temp])
+
+            if self.mse_error:
+                if self.hdf5_compress:
+                    mydata.create_dataset('mse', data=io.load_data(self.params, 'mse-error'), compression='gzip')
+                else:
+                    mydata.create_dataset('mse', data=io.load_data(self.params, 'mse-error'))
+
             mydata.close()
 
             mydata = h5py.File(self.file_out_suff + '.templates%s.hdf5' % self.ext_out, 'r+', libver='earliest')

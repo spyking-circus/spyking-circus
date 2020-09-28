@@ -269,25 +269,15 @@ class RHDFile(DataFile):
     def _get_slice_(self, t_start, t_stop):
 
         x_beg = numpy.int64(t_start // self.SAMPLES_PER_RECORD)
-        r_beg = numpy.mod(t_start, self.SAMPLES_PER_RECORD)
         x_end = numpy.int64(t_stop // self.SAMPLES_PER_RECORD)
-        r_end = numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
+        
+        data_slice = []
 
-        if x_beg == x_end:
-            g_offset = x_beg * self.bytes_per_block_div + self.block_offset_div
-            data_slice = numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + r_end * self.nb_channels, dtype=numpy.int64)
-            yield data_slice
-        else:
-            for count, nb_blocks in enumerate(numpy.arange(x_beg, x_end + 1, dtype=numpy.int64)):
-                g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
-                if count == 0:
-                    data_slice = numpy.arange(g_offset + r_beg * self.nb_channels, g_offset + self.block_size_div, dtype=numpy.int64)
-                elif count == (x_end - x_beg):
-                    data_slice = numpy.arange(g_offset, g_offset + r_end * self.nb_channels, dtype=numpy.int64)
-                else:
-                    data_slice = numpy.arange(g_offset, g_offset + self.block_size_div, dtype=numpy.int64)
+        for nb_blocks in numpy.arange(x_beg, x_end+1, dtype=numpy.int64):
+            g_offset = nb_blocks * self.bytes_per_block_div + self.block_offset_div
+            data_slice += [numpy.int64(g_offset)]
 
-                yield data_slice
+        return data_slice
 
     def read_chunk(self, idx, chunk_size, padding=(0, 0), nodes=None):
         
@@ -301,9 +291,25 @@ class RHDFile(DataFile):
         self._open()
         count = 0
 
-        for s in data_slice:
-            t_slice = len(s)//self.nb_channels
-            local_chunk[:, count:count + t_slice] = self.data[s].reshape(self.nb_channels, len(s)//self.nb_channels)
+        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
+
+        for inc, s in enumerate(data_slice):
+            
+            if inc == 0:
+                s0 = s + numpy.mod(t_start, self.SAMPLES_PER_RECORD)
+            else:
+                s0 = s
+
+            if inc == len(data_slice) - 1:
+                s1 = s + numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
+            else:
+                s1 = s + block_duration //self.nb_channels
+
+            s_max = min(len(self.data), s + block_duration)
+            block_slice = numpy.arange(s, s_max).astype(numpy.int32)
+            t_block_slice = len(block_slice)//self.nb_channels
+            t_slice = (s1 - s0)
+            local_chunk[:, count:count + t_slice] = self.data[block_slice].reshape(self.nb_channels, t_block_slice)[:, (s0-s):(s1-s)]
             count += t_slice
 
         local_chunk = local_chunk.T
@@ -325,12 +331,30 @@ class RHDFile(DataFile):
         data = self._unscale_data_from_float32(data)
         data_slice = self._get_slice_(t_start, t_stop)
 
+        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
+
         self._open(mode='r+')
         count = 0
-        for s in data_slice:
-            t_slice = len(s)//self.nb_channels
-            self.data[s] = data[count:count + t_slice, :].T.ravel()
-            count += t_slice
+
+        for inc, s in enumerate(data_slice):
+
+            if inc == 0:
+                s0 = s + numpy.mod(t_start, self.SAMPLES_PER_RECORD) * self.nb_channels
+            else:
+                s0 = s
+
+            if inc == len(data_slice) - 1:
+                s1 = s + numpy.mod(t_stop, self.SAMPLES_PER_RECORD) * self.nb_channels
+            else:
+                s1 = min(len(self.data), s + block_duration)
+
+            #s_max = min(len(self.data), s + block_duration)
+            block_slice = numpy.arange(s0, s1).astype(numpy.int32)
+            t_block_slice = len(block_slice)//self.nb_channels
+            t_slice = (s1 - s0)
+
+            self.data[block_slice] = data[count:count + t_block_slice, :].T.ravel()
+            count += t_block_slice
 
         self._close()
 

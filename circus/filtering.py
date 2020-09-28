@@ -74,8 +74,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ground_done = check_if_done(params, 'ground_done', logger)
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median = params.getboolean('filtering', 'remove_median')
-    common_ground = params.getint('filtering', 'common_ground')
-    remove_ground = common_ground >= 0
+    common_ground = params.common_ground
+    remove_ground = len(common_ground) > 0
     nodes, edges = get_nodes_and_edges(params)
     #################################################################
 
@@ -130,6 +130,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_process = all_chunks[comm.rank::comm.size]
         loc_nb_chunks = len(to_process)
         N_total = params.nb_channels
+        nb_shanks = len(params.probe['channel_groups'])
+
+        if nb_shanks > 1:
+            shank_channels = {}
+            for i in params.probe['channel_groups'].keys():
+                shank_channels[i] = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32) 
+
         process_all_channels = numpy.all(nodes == numpy.arange(N_total))
         duration = int(0.1*params.rate)
 
@@ -140,7 +147,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if do_remove_median:
                 to_write += ["Median over all channels is subtracted to each channels"]
             if do_remove_ground:
-                to_write += ["Channel %s is used as a reference channel" % common_ground]
+                to_write += ["Channels %s are used as reference channels in respective shanks" % common_ground]
 
             print_and_log(to_write, 'default', logger)
 
@@ -183,16 +190,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
 
             if do_remove_median:
-                if not process_all_channels:
-                    global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
+                if nb_shanks == 1:
+                    if not process_all_channels:
+                        global_median = numpy.median(numpy.take(local_chunk, nodes, axis=1), 1)
+                    else:
+                        global_median = numpy.median(local_chunk, 1)
+                    local_chunk -= global_median[:, numpy.newaxis]
                 else:
-                    global_median = numpy.median(local_chunk, 1)
+                    for i in params.probe['channel_groups'].keys():
+                        global_median = numpy.median(numpy.take(local_chunk, shank_channels[i], axis=1), 1)
+                        local_chunk[:, shank_channels[i]] -= global_median[:, numpy.newaxis]
 
-                local_chunk -= global_median[:, numpy.newaxis]
-
-            if common_ground > -1:
-                ground = local_chunk[:, common_ground]
-                local_chunk -= ground[:, numpy.newaxis]
+            if do_remove_ground:
+                for i in params.probe['channel_groups'].keys():
+                    ground = local_chunk[:, common_ground[i]]
+                    local_chunk[:, shank_channels[i]] -= ground[:, numpy.newaxis]
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
