@@ -363,6 +363,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         local_chunk, t_offset = data_file.get_data(gidx, chunk_size, padding, nodes=nodes)           
         len_chunk = len(local_chunk)
+        if is_last:
+            my_chunk_size = last_chunk_size
+        else:
+            my_chunk_size = chunk_size
 
         if do_spatial_whitening:
             if use_gpu:
@@ -418,7 +422,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         g_offset = t_offset + padding[0]
 
         if ignore_dead_times:
-            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + chunk_size])
+            dead_indices = numpy.searchsorted(all_dead_times, [t_offset, t_offset + my_chunk_size])
             if dead_indices[0] != dead_indices[1]:
                 is_included = numpy.in1d(local_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                 local_peaktimes = local_peaktimes[~is_included]
@@ -474,7 +478,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             del sub_mat
 
-            local_restriction = (t_offset, t_offset + chunk_size)
+            local_restriction = (t_offset, t_offset + my_chunk_size)
             all_spikes = local_peaktimes + g_offset
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
@@ -714,8 +718,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         tmp1 = templates[temp_id].reshape(n_e, n_t)
                         tmp2 = templates[temp_id + n_tm].reshape(n_e, n_t)
-                    curve[int(spike) - template_shift:int(spike) + template_shift + 1, :] += (amplitude[0] * tmp1 + amplitude[1] * tmp2).T
-
+                    try:
+                        curve[int(spike) - template_shift:int(spike) + template_shift + 1, :] += (amplitude[0] * tmp1 + amplitude[1] * tmp2).T
+                    except Exception:
+                        pass
                 mse = numpy.linalg.norm((curve - c_local_chunk)[-padding[0]:-padding[1]])
                 nb_points = len(curve) - (padding[1] - padding[0])
                 mse_ratio = mse/(numpy.sqrt(nb_points)*stds_norm)
