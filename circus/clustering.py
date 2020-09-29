@@ -1722,7 +1722,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             print_and_log(["Identifying putative drifts for meta merging..."], 'default', logger)
 
         algo.search_drifts(
-            params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu
+            params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu, debug_plots=debug_plots
         )
     comm.Barrier()
 

@@ -1314,7 +1314,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     return
 
 
-def search_drifts(params, nb_cpu, nb_gpu, use_gpu):
+def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     data_file = params.data_file
     SHARED_MEMORY = get_shared_memory_flag(params)
@@ -1333,32 +1333,33 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu):
     N_t = params.getint('detection', 'N_t')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     file_out_suff = params.get('data', 'file_out_suff')
+    plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
     decimation = True
 
     mask_intersect = numpy.zeros((nb_templates, nb_templates), dtype=numpy.bool)
     for i in range(nb_templates):
-        for j in range(i, nb_templates):
+        for j in range(i+1, nb_templates):
             mask_intersect[i, j] = numpy.any(supports[i]*supports[j])
 
     mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
 
     if decimation:
-        center = N_t//2 + 1
+        center = N_t//2
         sub_times = range(center - 2, center + 2 + 1)
     else:
         sub_times =  numpy.arange(N_t)
 
+    full_times = numpy.tile(numpy.arange(N_t), N_e)
+    full_x = numpy.repeat(positions[:,0], N_t)
+    full_y = numpy.repeat(positions[:,1], N_t)
     nb_times = len(sub_times)
-    times = numpy.tile(sub_times, N_e)
-    x = numpy.repeat(positions[:,0], nb_times)
-    y = numpy.repeat(positions[:,1], nb_times)
-    p = numpy.vstack((x, y)).T
+
 
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
 
-    def get_difference(r, model, source):
-        new_templates = interp(x + r[0], y + r[1], times)
+    def get_difference(r, model, source, x, y, times):
+        new_templates = model(x + r[0], y + r[1], times)
         return numpy.linalg.norm(new_templates - source)
 
     if comm.rank == 0:
@@ -1369,22 +1370,87 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu):
     registration = numpy.zeros((len(to_explore), nb_templates, 3), dtype=numpy.float32)
 
     for count, i in enumerate(to_explore):
-        target_template = templates[i].toarray()
+
+        target_template = templates[i].toarray().reshape(N_e, N_t)
         if decimation:
-            target_template = target_template.reshape(N_e, N_t)
             target_template = target_template[:, sub_times]
-        interp = scipy.interpolate.Rbf(x, y, times, target_template.ravel(), function='cubic')
+
         for j in range(i+1, nb_templates):
             if mask_intersect[i, j]:
-                source_template = templates[j].toarray()
+                source_template = templates[j].toarray().reshape(N_e, N_t)
                 if decimation:
-                    source_template = source_template.reshape(N_e, N_t)
                     source_template = source_template[:, sub_times]
-                source_template = source_template.ravel()
-                registration[count, j, :2] = scipy.optimize.fmin(get_difference, [0, 0], args=(interp, source_template), disp=False)
+                common_nodes = supports[i] | supports[j]
+                my_source    = source_template[common_nodes].ravel()
+                my_target    = target_template[common_nodes].ravel()
+
+                x = numpy.repeat(positions[common_nodes, 0], nb_times)
+                y = numpy.repeat(positions[common_nodes, 1], nb_times)
+                times = numpy.tile(sub_times, common_nodes.sum())
+
+                interp = scipy.interpolate.Rbf(x, y, times, my_target.ravel(), function='inverse')
+
+                registration[count, j, :2] = scipy.optimize.fmin(get_difference, [0, 0], args=(interp, my_source, x, y, times), disp=False)
                 registered = interp(x + registration[count, j, 0], y + registration[count, j, 1], times)
-                cc = (source_template * registered).sum() / (numpy.linalg.norm(source_template) * numpy.linalg.norm(registered))
+                cc = (my_source * registered).sum() / (numpy.linalg.norm(my_source) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
+
+            if debug_plots not in ['None', '']:
+
+                import matplotlib.pyplot as plt
+                from matplotlib.gridspec import GridSpec
+                fig = plt.figure()
+                gs = GridSpec(3, 4)
+
+                axs = fig.add_subplot(gs[0,:])
+                axs.plot(templates[j].toarray().ravel(), c='k')
+                axs.set_title('Template %d' %j)
+                axs.spines['right'].set_visible(False)
+                axs.spines['top'].set_visible(False)
+                axs.set_yticks([], [])
+                axs.set_xticks([], [])
+
+                axs = fig.add_subplot(gs[1,:])
+
+                axs.plot(templates[i].toarray().ravel())
+
+                interp = scipy.interpolate.Rbf(full_x, full_y, full_times, templates[i].toarray().ravel(), function='inverse')
+
+                registered = interp(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times)
+                axs.plot(registered)
+                axs.set_title('Template %d' %i)
+                axs.spines['right'].set_visible(False)
+                axs.spines['top'].set_visible(False)
+                axs.set_yticks([], [])
+                axs.set_xticks([], [])
+
+
+                axs = fig.add_subplot(gs[2,:])
+                tmp_1 = (templates[i].toarray().ravel() - templates[j].toarray().ravel())**2
+                tmp_2 = (registered - templates[j].toarray().ravel())**2
+                axs.plot(tmp_1)
+                axs.plot(tmp_2)
+                axs.set_title('Differences [%g, %g]' %(tmp_1.mean(), tmp_2.mean()))
+                axs.spines['right'].set_visible(False)
+                axs.spines['top'].set_visible(False)
+                axs.set_yticks([], [])
+                axs.set_xticks([], [])
+
+
+
+                # ...
+                plt.tight_layout()
+                # Save and close figure.
+                output_path = os.path.join(
+                    plot_path,
+                    "registration_t{}_t{}.{}".format(
+                        i,
+                        j,
+                        debug_plots
+                    )
+                )
+                fig.savefig(output_path)
+                plt.close(fig)
 
     registration = gather_array(registration.flatten(), comm, 0, 1, 'float32', compress=blosc_compress)
 
