@@ -1351,11 +1351,11 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     if decimation:
         center = N_t//2 + 1
-        offset = 3
+        offset = 1
         xmin = center - offset
         xmax = center + offset + 1
-        sub_times = list(range(0, xmin, 3)) + list(range(xmin, xmax)) + list(range(xmax, N_t, 3))
-        #sub_times = list(range(xmin, xmax))
+        #sub_times = list(range(0, xmin, 3)) + list(range(xmin, xmax)) + list(range(xmax, N_t, 3))
+        sub_times = list(range(xmin, xmax))
         time_mask[sub_times] = True
     else:
         time_mask[:] = True
@@ -1377,7 +1377,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         to_explore = all_temp
 
     registration = numpy.zeros((len(to_explore), nb_templates, 3), dtype=numpy.float32)
-    boundaries = [(-drift_space, drift_space), (-drift_space, drift_space), (-2, 2)]
+    boundaries = [(-drift_space, drift_space), (-drift_space, drift_space), (-5, 5)]
 
     for count, i in enumerate(to_explore):
 
@@ -1389,7 +1389,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             if mask_intersect[i, j]:
                 source_template = templates[j].toarray().ravel()
 
-                common_nodes = supports[i] | supports[j]
+                common_nodes = supports[j]
                 mask = numpy.tile(common_nodes, N_t) * time_mask
 
                 #optim = scipy.optimize.minimize(get_difference2, numpy.zeros(3), args=(source_template, target_template), options={'disp' : True})
@@ -1397,7 +1397,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 registration[count, j, :2] = optim.x[:2]
 
                 registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times + registration[count, j, 2])
-                cc = (templates[j].toarray() * registered).sum() / (numpy.linalg.norm(templates[j].toarray()) * numpy.linalg.norm(registered))
+                cc = (source_template * registered).sum() / (numpy.linalg.norm(source_template) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
 
                 if debug_plots not in ['None', '']:
