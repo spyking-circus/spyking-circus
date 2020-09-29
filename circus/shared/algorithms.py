@@ -527,7 +527,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                         new_purity = numpy.mean(old_purity[idx])
 
                     if has_drifts:
-                        new_drifts = old_drifts[idx]
+                        new_drifts = numpy.mean(old_drifts[idx], 0)
 
                 else:
                     new_limits = old_limits[keep]
