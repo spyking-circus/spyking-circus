@@ -1346,7 +1346,8 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     if decimation:
         center = N_t//2
-        sub_times = range(center - 2, center + 2 + 1)
+        offset = 3
+        sub_times = range(center - offset, center + offset + 1)
     else:
         sub_times =  numpy.arange(N_t)
 
@@ -1359,8 +1360,8 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
 
     def get_difference(r, model, source, x, y, times):
-        new_templates = model(x + r[0], y + r[1], times)
-        return numpy.linalg.norm(new_templates - source)
+        registered = model(x + r[0], y + r[1], times)
+        return numpy.linalg.norm(registered - source)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, all_temp)
@@ -1380,6 +1381,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 source_template = templates[j].toarray().reshape(N_e, N_t)
                 if decimation:
                     source_template = source_template[:, sub_times]
+
                 common_nodes = supports[i] | supports[j]
                 my_source    = source_template[common_nodes].ravel()
                 my_target    = target_template[common_nodes].ravel()
@@ -1388,9 +1390,10 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 y = numpy.repeat(positions[common_nodes, 1], nb_times)
                 times = numpy.tile(sub_times, common_nodes.sum())
 
-                interp = scipy.interpolate.Rbf(x, y, times, my_target.ravel(), function='inverse')
+                interp = scipy.interpolate.Rbf(x, y, times, my_target, function='inverse')
 
-                registration[count, j, :2] = scipy.optimize.fmin(get_difference, [0, 0], args=(interp, my_source, x, y, times), disp=False)
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-50, 50), (-50, 50)], args=(interp, my_source, x, y, times))
+                registration[count, j, :2] = optim.x
                 registered = interp(x + registration[count, j, 0], y + registration[count, j, 1], times)
                 cc = (my_source * registered).sum() / (numpy.linalg.norm(my_source) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
