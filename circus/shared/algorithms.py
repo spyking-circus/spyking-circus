@@ -1334,6 +1334,8 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     blosc_compress = params.getboolean('data', 'blosc_compress')
     file_out_suff = params.get('data', 'file_out_suff')
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
+    drift_space = numpy.abs(params.getfloat('clustering', 'drift_space'))
+    best_elecs = load_data(params, 'electrodes')
 
     decimation = True
 
@@ -1381,14 +1383,17 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, target_template, function='inverse')
 
         for j in range(i+1, nb_templates):
-            if mask_intersect[i, j]:
+
+            d_elec = numpy.linalg.norm(positions[best_elecs[i]] - positions[best_elecs[j]])
+
+            if d_elec <= drift_space and mask_intersect[i, j]:
                 source_template = templates[j].toarray().ravel()
 
                 common_nodes = supports[i] | supports[j]
                 mask = numpy.tile(common_nodes, N_t) * time_mask
 
                 #optim = scipy.optimize.minimize(get_difference, [0, 0], args=(interp, my_source, x, y, times))
-                optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-50, 50), (-50, 50)], args=(interp_full, source_template, mask))
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-drift_space, drift_space), (-drift_space, drift_space)], args=(interp_full, source_template, mask))
                 registration[count, j, :2] = optim.x
 
                 registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times)
