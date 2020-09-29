@@ -1392,10 +1392,13 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
                 interp = scipy.interpolate.Rbf(x, y, times, my_target, function='inverse')
 
+                #optim = scipy.optimize.minimize(get_difference, [0, 0], args=(interp, my_source, x, y, times))
                 optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-50, 50), (-50, 50)], args=(interp, my_source, x, y, times))
                 registration[count, j, :2] = optim.x
-                registered = interp(x + registration[count, j, 0], y + registration[count, j, 1], times)
-                cc = (my_source * registered).sum() / (numpy.linalg.norm(my_source) * numpy.linalg.norm(registered))
+
+                interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, templates[i].toarray(), function='inverse')
+                registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times)
+                cc = (templates[j].toarray() * registered).sum() / (numpy.linalg.norm(templates[j].toarray()) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
 
             if debug_plots not in ['None', '']:
