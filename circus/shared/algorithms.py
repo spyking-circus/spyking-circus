@@ -1326,6 +1326,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         templates = templates.T
 
     norms = load_data(params, 'norm-templates')
+    best_elecs = load_data(params, 'electrodes')
     nb_templates = templates.shape[0] // 2
     _, positions = get_nodes_and_positions(params)
     supports = load_data(params, 'supports')
@@ -1334,8 +1335,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     blosc_compress = params.getboolean('data', 'blosc_compress')
     file_out_suff = params.get('data', 'file_out_suff')
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
-    drift_space = numpy.abs(params.getfloat('clustering', 'drift_space'))
-    best_elecs = load_data(params, 'electrodes')
+    drift_space = params.getfloat('clustering', 'drift_space')
 
     decimation = True
 
@@ -1351,11 +1351,12 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     if decimation:
         center = N_t//2 + 1
-        offset = 1
+        offset = 3
         xmin = center - offset
         xmax = center + offset + 1
-        #sub_times = list(range(0, xmin, 3)) + list(range(xmin, xmax)) + list(range(xmax, N_t, 3))
-        time_mask[list(range(xmin, xmax))] = True
+        sub_times = list(range(0, xmin, 3)) + list(range(xmin, xmax)) + list(range(xmax, N_t, 3))
+        #sub_times = list(range(xmin, xmax))
+        time_mask[sub_times] = True
     else:
         time_mask[:] = True
 
@@ -1367,7 +1368,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
 
     def get_difference(r, model, source, mask):
-        registered = model(full_x[mask] + r[0], full_y[mask] + r[1], full_times[mask])
+        registered = model(full_x[mask] + r[0], full_y[mask] + r[1], full_times[mask] + r[2])
         return numpy.linalg.norm(source[mask] - registered)
 
     if comm.rank == 0:
@@ -1376,27 +1377,26 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         to_explore = all_temp
 
     registration = numpy.zeros((len(to_explore), nb_templates, 3), dtype=numpy.float32)
+    boundaries = [(-drift_space, drift_space), (-drift_space, drift_space), (-2, 2)]
 
     for count, i in enumerate(to_explore):
 
         target_template = templates[i].toarray().ravel()
-        interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, target_template, function='inverse')
+        interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, target_template, function='linear')
 
         for j in range(i+1, nb_templates):
 
-            d_elec = numpy.linalg.norm(positions[best_elecs[i]] - positions[best_elecs[j]])
-
-            if d_elec <= drift_space and mask_intersect[i, j]:
+            if mask_intersect[i, j]:
                 source_template = templates[j].toarray().ravel()
 
                 common_nodes = supports[i] | supports[j]
                 mask = numpy.tile(common_nodes, N_t) * time_mask
 
-                #optim = scipy.optimize.minimize(get_difference, [0, 0], args=(interp, my_source, x, y, times))
-                optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-drift_space, drift_space), (-drift_space, drift_space)], args=(interp_full, source_template, mask))
-                registration[count, j, :2] = optim.x
+                #optim = scipy.optimize.minimize(get_difference2, numpy.zeros(3), args=(source_template, target_template), options={'disp' : True})
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(interp_full, source_template, mask))
+                registration[count, j, :2] = optim.x[:2]
 
-                registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times)
+                registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times + registration[count, j, 2])
                 cc = (templates[j].toarray() * registered).sum() / (numpy.linalg.norm(templates[j].toarray()) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
 
@@ -1406,7 +1406,6 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                     from matplotlib.gridspec import GridSpec
                     fig = plt.figure()
                     gs = GridSpec(3, 4)
-
                     axs = fig.add_subplot(gs[0,:])
                     axs.plot(templates[j].toarray().ravel(), c='k')
                     axs.set_title('Template %d' %j)
@@ -1416,7 +1415,6 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                     axs.set_xticks([], [])
 
                     axs = fig.add_subplot(gs[1,:])
-
                     axs.plot(templates[i].toarray().ravel())
                     axs.plot(registered)
                     axs.set_title('Template %d [(%g,%g) Drift %g]' %(i, registration[count, j, 0], registration[count, j, 1], registration[count, j, 2]))
@@ -1435,8 +1433,6 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                     axs.spines['top'].set_visible(False)
                     axs.set_yticks([], [])
                     axs.set_xticks([], [])
-
-
 
                     # ...
                     plt.tight_layout()
@@ -1468,12 +1464,12 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         indices = numpy.argsort(indices).astype(numpy.int32)
         registration = registration[indices, :]
 
-        registration[:,:,2] = numpy.maximum(registration[:,:,2], registration[:,:,2].T)
-        registration[:,:,0] = numpy.maximum(registration[:,:,0], registration[:,:,0].T)
-        registration[:,:,1] = numpy.maximum(registration[:,:,1], registration[:,:,1].T)
+        for i in range(3):
+            registration[:,:,i] = numpy.maximum(registration[:,:,i], registration[:,:,i].T)
+
         mask = numpy.tril(numpy.ones((nb_templates, nb_templates)), -1) > 0
-        registration[:,:,0][mask] *= -1
-        registration[:,:,1][mask] *= -1
+        for i in range(2):
+            registration[:,:,i][mask] *= -1
 
         file_name = file_out_suff + '.templates.hdf5'
         hfile = h5py.File(file_name, 'r+', libver='earliest')
