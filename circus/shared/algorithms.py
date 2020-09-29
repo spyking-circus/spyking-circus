@@ -544,7 +544,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
                 purity[count] = new_purity
 
             if has_drifts:
-                drifts[count] = new_drifts[:, to_keep]
+                drifts[count] = new_drifts[to_keep, :]
         # Copy templates to file.
         templates = templates.tocoo()
         if hdf5_compress:
