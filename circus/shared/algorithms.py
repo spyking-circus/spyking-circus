@@ -1344,24 +1344,29 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
 
-    if decimation:
-        center = N_t//2
-        offset = 3
-        sub_times = range(center - offset, center + offset + 1)
-    else:
-        sub_times =  numpy.arange(N_t)
+    time_mask = numpy.zeros(N_t, dtype=numpy.bool)
+    times = numpy.arange(N_t)
 
-    full_times = numpy.tile(numpy.arange(N_t), N_e)
+    if decimation:
+        center = N_t//2 + 1
+        offset = 1
+        xmin = center - offset
+        xmax = center + offset + 1
+        #sub_times = list(range(0, xmin, 3)) + list(range(xmin, xmax)) + list(range(xmax, N_t, 3))
+        time_mask[list(range(xmin, xmax))] = True
+    else:
+        time_mask[:] = True
+
+    full_times = numpy.tile(times, N_e)
     full_x = numpy.repeat(positions[:,0], N_t)
     full_y = numpy.repeat(positions[:,1], N_t)
-    nb_times = len(sub_times)
-
+    time_mask = numpy.tile(time_mask, N_e)
 
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
 
-    def get_difference(r, model, source, x, y, times):
-        registered = model(x + r[0], y + r[1], times)
-        return numpy.linalg.norm(registered - source)
+    def get_difference(r, model, source, mask):
+        registered = model(full_x[mask] + r[0], full_y[mask] + r[1], full_times[mask])
+        return numpy.linalg.norm(source[mask] - registered)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, all_temp)
@@ -1372,91 +1377,75 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     for count, i in enumerate(to_explore):
 
-        target_template = templates[i].toarray().reshape(N_e, N_t)
-        if decimation:
-            target_template = target_template[:, sub_times]
+        target_template = templates[i].toarray().ravel()
+        interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, target_template, function='inverse')
 
         for j in range(i+1, nb_templates):
             if mask_intersect[i, j]:
-                source_template = templates[j].toarray().reshape(N_e, N_t)
-                if decimation:
-                    source_template = source_template[:, sub_times]
+                source_template = templates[j].toarray().ravel()
 
                 common_nodes = supports[i] | supports[j]
-                my_source    = source_template[common_nodes].ravel()
-                my_target    = target_template[common_nodes].ravel()
-
-                x = numpy.repeat(positions[common_nodes, 0], nb_times)
-                y = numpy.repeat(positions[common_nodes, 1], nb_times)
-                times = numpy.tile(sub_times, common_nodes.sum())
-
-                interp = scipy.interpolate.Rbf(x, y, times, my_target, function='inverse')
+                mask = numpy.tile(common_nodes, N_t) * time_mask
 
                 #optim = scipy.optimize.minimize(get_difference, [0, 0], args=(interp, my_source, x, y, times))
-                optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-50, 50), (-50, 50)], args=(interp, my_source, x, y, times))
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=[(-50, 50), (-50, 50)], args=(interp_full, source_template, mask))
                 registration[count, j, :2] = optim.x
 
-                interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, templates[i].toarray(), function='inverse')
                 registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times)
                 cc = (templates[j].toarray() * registered).sum() / (numpy.linalg.norm(templates[j].toarray()) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
 
-            if debug_plots not in ['None', '']:
+                if debug_plots not in ['None', '']:
 
-                import matplotlib.pyplot as plt
-                from matplotlib.gridspec import GridSpec
-                fig = plt.figure()
-                gs = GridSpec(3, 4)
+                    import matplotlib.pyplot as plt
+                    from matplotlib.gridspec import GridSpec
+                    fig = plt.figure()
+                    gs = GridSpec(3, 4)
 
-                axs = fig.add_subplot(gs[0,:])
-                axs.plot(templates[j].toarray().ravel(), c='k')
-                axs.set_title('Template %d' %j)
-                axs.spines['right'].set_visible(False)
-                axs.spines['top'].set_visible(False)
-                axs.set_yticks([], [])
-                axs.set_xticks([], [])
+                    axs = fig.add_subplot(gs[0,:])
+                    axs.plot(templates[j].toarray().ravel(), c='k')
+                    axs.set_title('Template %d' %j)
+                    axs.spines['right'].set_visible(False)
+                    axs.spines['top'].set_visible(False)
+                    axs.set_yticks([], [])
+                    axs.set_xticks([], [])
 
-                axs = fig.add_subplot(gs[1,:])
+                    axs = fig.add_subplot(gs[1,:])
 
-                axs.plot(templates[i].toarray().ravel())
+                    axs.plot(templates[i].toarray().ravel())
+                    axs.plot(registered)
+                    axs.set_title('Template %d [(%g,%g) Drift %g]' %(i, registration[count, j, 0], registration[count, j, 1], registration[count, j, 2]))
+                    axs.spines['right'].set_visible(False)
+                    axs.spines['top'].set_visible(False)
+                    axs.set_yticks([], [])
+                    axs.set_xticks([], [])
 
-                interp = scipy.interpolate.Rbf(full_x, full_y, full_times, templates[i].toarray().ravel(), function='inverse')
-
-                registered = interp(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times)
-                axs.plot(registered)
-                axs.set_title('Template %d' %i)
-                axs.spines['right'].set_visible(False)
-                axs.spines['top'].set_visible(False)
-                axs.set_yticks([], [])
-                axs.set_xticks([], [])
-
-
-                axs = fig.add_subplot(gs[2,:])
-                tmp_1 = (templates[i].toarray().ravel() - templates[j].toarray().ravel())**2
-                tmp_2 = (registered - templates[j].toarray().ravel())**2
-                axs.plot(tmp_1)
-                axs.plot(tmp_2)
-                axs.set_title('Differences [%g, %g]' %(tmp_1.mean(), tmp_2.mean()))
-                axs.spines['right'].set_visible(False)
-                axs.spines['top'].set_visible(False)
-                axs.set_yticks([], [])
-                axs.set_xticks([], [])
+                    axs = fig.add_subplot(gs[2,:])
+                    tmp_1 = (templates[i].toarray().ravel() - templates[j].toarray().ravel())**2
+                    tmp_2 = (registered - templates[j].toarray().ravel())**2
+                    axs.plot(tmp_1)
+                    axs.plot(tmp_2)
+                    axs.set_title('Differences [%g, %g]' %(tmp_1.mean(), tmp_2.mean()))
+                    axs.spines['right'].set_visible(False)
+                    axs.spines['top'].set_visible(False)
+                    axs.set_yticks([], [])
+                    axs.set_xticks([], [])
 
 
 
-                # ...
-                plt.tight_layout()
-                # Save and close figure.
-                output_path = os.path.join(
-                    plot_path,
-                    "registration_t{}_t{}.{}".format(
-                        i,
-                        j,
-                        debug_plots
+                    # ...
+                    plt.tight_layout()
+                    # Save and close figure.
+                    output_path = os.path.join(
+                        plot_path,
+                        "registration_t{}_t{}.{}".format(
+                            i,
+                            j,
+                            debug_plots
+                        )
                     )
-                )
-                fig.savefig(output_path)
-                plt.close(fig)
+                    fig.savefig(output_path)
+                    plt.close(fig)
 
     registration = gather_array(registration.flatten(), comm, 0, 1, 'float32', compress=blosc_compress)
 
