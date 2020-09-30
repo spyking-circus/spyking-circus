@@ -572,7 +572,9 @@ class MergeWindow(QMainWindow):
 
                 overlaps = numpy.zeros(len(self.to_consider), dtype=numpy.float32)
                 mask = self.drifts_distances[temp_id1, self.to_consider]
-                overlaps[mask] = self.drifts[temp_id1, self.to_consider[mask], 2]
+
+                overlaps[mask] = numpy.maximum(self.drifts[temp_id1, self.to_consider[mask], 2],
+                    self.overlap[temp_id1, self.to_consider[mask]])
                 overlaps[~mask] = self.overlap[temp_id1, self.to_consider[~mask]]
                 best_matches = self.to_consider[numpy.argsort(overlaps)[::-1]]
                 candidates = best_matches[self.drifts[temp_id1, best_matches, 2] >= self.cc_overlap]
