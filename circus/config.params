@@ -75,7 +75,7 @@ sparsity_limit = 0          # Sparsity level (in percentage) for selecting templ
 time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
 rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
 merge_drifts   = True       # Try to automatically merge drifts, i.e. non overlapping spiking neurons
-drift_limit    = 1          # Distance for drifts. The higher, the more non-overlapping the activities should be
+drift_limit    = 0.5        # Distance for drifts. The higher, the more non-overlapping the activities should be
 drift_space    = 50         # Maximal distance allowed for template translations during rigid registration [in um]
 
 [converting]

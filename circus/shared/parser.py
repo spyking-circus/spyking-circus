@@ -166,7 +166,7 @@ class CircusParser(object):
                           ['merging', 'noise_limit', 'float', '0.75'],
                           ['merging', 'sparsity_limit', 'float', '0.75'],
                           ['merging', 'merge_drifts', 'bool', 'True'],
-                          ['merging', 'drift_limit', 'float', '1'],
+                          ['merging', 'drift_limit', 'float', '0.5'],
                           ['merging', 'time_rpv', 'float', '5'],
                           ['merging', 'rpv_threshold', 'float', '0.02'],
                           ['merging', 'min_spikes', 'int', '20'],
