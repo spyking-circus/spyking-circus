@@ -210,7 +210,7 @@ class MergeWindow(QMainWindow):
         if self.has_drifts:
             drift_space = self.params.getfloat('merging', 'drift_space')
             self.drifts = io.load_data(params, 'drifts', self.ext_in)
-            self.drifts_distances = numpy.sqrt(numpy.sum(self.drifts[:,:,:2]**2, 2)) <= drift_space
+            self.drifts_distances = numpy.sqrt(numpy.sum(self.drifts[:,:,:3]**2, 2)) <= drift_space
 
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices = numpy.arange(self.shape[2] // 2)
@@ -570,14 +570,17 @@ class MergeWindow(QMainWindow):
             temp_id1 = self.to_consider[temp_id1]
             if self.has_drifts:
 
-                overlaps = numpy.zeros(len(self.to_consider), dtype=numpy.float32)
-                mask = self.drifts_distances[temp_id1, self.to_consider]
+                overlaps = numpy.zeros(self.nb_templates, dtype=numpy.float32)
+                mask = self.drifts_distances[temp_id1]
 
-                overlaps[mask] = numpy.maximum(self.drifts[temp_id1, self.to_consider[mask], 2],
-                    self.overlap[temp_id1, self.to_consider[mask]])
-                overlaps[~mask] = self.overlap[temp_id1, self.to_consider[~mask]]
-                best_matches = self.to_consider[numpy.argsort(overlaps)[::-1]]
-                candidates = best_matches[self.drifts[temp_id1, best_matches, 2] >= self.cc_overlap]
+                drift_scores = self.drifts[temp_id1, :, 3]
+                normal_scores = self.overlap[temp_id1, :]
+
+                overlaps[mask] = numpy.maximum(drift_scores, normal_scores)[mask]
+                overlaps[~mask] = self.overlap[temp_id1, ~mask]
+
+                best_matches = self.to_consider[numpy.argsort(overlaps[self.to_consider])[::-1]]
+                candidates = best_matches[overlaps[best_matches] >= self.cc_overlap]
             else:
                 best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
                 candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]

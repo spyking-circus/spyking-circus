@@ -30,12 +30,10 @@ def get_clouds(source, target, full_positions):
 
     z_source = source.reshape(len(source), 1)
     z_target = target.reshape(len(target), 1)
-    z_full = source.reshape(len(source), 1)
 
     cloud_source = numpy.hstack((full_positions, z_source))
     cloud_target = numpy.hstack((full_positions, z_target))
-    cloud_full = numpy.hstack((full_positions, z_full))
-    return cloud_source, cloud_target, cloud_full
+    return cloud_source, cloud_target
 
 def umeyama(P, Q):
     assert P.shape == Q.shape
@@ -63,9 +61,9 @@ def umeyama(P, Q):
     return c, R, t
 
 def register_template(source, target, full_positions):
-    source_cloud, target_cloud, cloud_full = get_clouds(source, target, full_positions)
+    source_cloud, target_cloud = get_clouds(source, target, full_positions)
     reg = umeyama(source_cloud, target_cloud)
-    return reg, cloud_full
+    return reg, source_cloud
 
 
 def largest_indices(ary, n):

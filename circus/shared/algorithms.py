@@ -480,7 +480,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             purity = None
 
         if has_drifts:
-            drifts = hfile.create_dataset('drifts', shape=(len(to_keep), len(to_keep), 3), dtype=numpy.float32, chunks=True)
+            drifts = hfile.create_dataset('drifts', shape=(len(to_keep), len(to_keep), 4), dtype=numpy.float32, chunks=True)
         else:
             drifts = None
 
@@ -1338,10 +1338,9 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
 
     times = numpy.arange(-N_t // 2, N_t//2) / data_file.sampling_rate
-    full_times = numpy.tile(times, N_e)
-    full_x = numpy.repeat(positions[:,0], N_t)*1e-6
-    full_y = numpy.repeat(positions[:,1], N_t)*1e-6
-    full_positions = numpy.vstack((full_x, full_y, full_times)).T
+    full_times = numpy.tile(times, N_e).reshape(N_e*N_t, 1)
+    full_xyz = numpy.repeat(positions, N_t, axis=0)*1e-6
+    full_positions = numpy.hstack((full_xyz, full_times))
 
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
 
@@ -1350,7 +1349,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     else:
         to_explore = all_temp
 
-    registration = numpy.zeros((len(to_explore), nb_templates, 3), dtype=numpy.float32)
+    registration = numpy.zeros((len(to_explore), nb_templates, 4), dtype=numpy.float32)
 
     for count, i in enumerate(to_explore):
 
@@ -1365,8 +1364,8 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                 registered = (source_cloud.dot(reg[0]*reg[1]) + reg[2])[:,-1]
 
                 cc = scipy.signal.correlate(target_template, registered, 'same').max() / (numpy.linalg.norm(target_template) * numpy.linalg.norm(registered))
-                registration[count, j, 2] = cc
-                registration[count, j, :2] = reg[2][:2]
+                registration[count, j, 3] = cc
+                registration[count, j, :3] = reg[2][:3]
 
                 if debug_plots not in ['None', '']:
 
@@ -1426,17 +1425,17 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     if comm.rank == 0:
         indices = []
-        registration = registration.reshape(nb_templates, nb_templates, 3)
+        registration = registration.reshape(nb_templates, nb_templates, 4)
         for idx in range(comm.size):
             indices += list(numpy.arange(idx, nb_templates, comm.size))
         indices = numpy.argsort(indices).astype(numpy.int32)
         registration = registration[indices, :]
 
-        for i in range(3):
+        for i in range(4):
             registration[:,:,i] = numpy.maximum(registration[:,:,i], registration[:,:,i].T)
 
         mask = numpy.tril(numpy.ones((nb_templates, nb_templates)), -1) > 0
-        for i in range(2):
+        for i in range(3):
             registration[:,:,i][mask] *= -1
 
         file_name = file_out_suff + '.templates.hdf5'
