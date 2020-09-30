@@ -44,7 +44,7 @@ from circus.shared.algorithms import slice_templates, slice_clusters
 from circus.shared.mpi import comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist, test_if_support
+from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist, test_if_support, test_if_drifts
 
 
 logger = logging.getLogger(__name__)
@@ -158,11 +158,10 @@ class MergeWindow(QMainWindow):
         self.noise_limit = params.getfloat('merging', 'noise_limit')
         self.sparsity_limit = params.getfloat('merging', 'sparsity_limit')
         self.min_spikes = params.getint('merging', 'min_spikes')
-        self.adapted_cc = params.getboolean('clustering', 'adapted_cc')
-        self.adapted_thr = params.getint('clustering', 'adapted_thr')
         self.low_channels_thr = params.getint('detection', 'low_channels_thr')
         self.mse_error = params.getboolean('fitting', 'mse_error')
         self.hdf5_compress = params.getboolean('data', 'hdf5_compress')
+        self.has_drifts = test_if_drifts(params, self.ext_in)
 
         try:
             self.duration = io.load_data(params, 'duration')
@@ -207,6 +206,9 @@ class MergeWindow(QMainWindow):
         else:
             self.templates = io.load_data(params, 'templates', self.ext_in)
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
+
+        if self.has_drifts:
+            self.drifts = io.load_data(params, 'drifts', self.ext_in)
 
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices = numpy.arange(self.shape[2] // 2)
@@ -257,10 +259,6 @@ class MergeWindow(QMainWindow):
         self.overlap /= self.shape[0] * self.shape[1]
         self.all_merges = numpy.zeros((0, 2), dtype=numpy.int32)
         self.mpi_wait = numpy.array([0], dtype=numpy.int32)
-
-        if self.adapted_cc:
-            common_supports = io.load_data(params, 'common-supports')
-            self.exponents = numpy.exp(-common_supports/self.adapted_thr)
 
         if comm.rank > 0:
             self.listen()
@@ -568,12 +566,13 @@ class MergeWindow(QMainWindow):
         for count, temp_id1 in enumerate(to_explore):
 
             temp_id1 = self.to_consider[temp_id1]
-            best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
-            if not self.adapted_cc:
-                candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            if self.has_drifts:
+                best_matches = self.to_consider[numpy.argsort(self.drifts[temp_id1, self.to_consider, 2])[::-1]]
+                candidates = best_matches[self.drifts[temp_id1, best_matches, 2] >= self.cc_overlap]
             else:
-                candidates = best_matches[self.overlap[temp_id1, best_matches]**self.exponents[temp_id1, best_matches] >= self.cc_overlap]
-
+                best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
+                candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            
             for temp_id2 in candidates:
 
                 spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')

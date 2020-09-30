@@ -53,6 +53,7 @@ sensitivity    = 3          # Single parameter for clustering sensitivity. The l
 cc_merge       = 0.95       # If CC between two templates is higher, they are merged
 dispersion     = (5, 5)     # Min and Max dispersion allowed for amplitudes [in MAD]
 fine_amplitude = True       # Optimize the amplitudes and compute a purity index for each template
+search_drifts  = True       # Search for putative drifts (by rigid registration) to improve meta merging
 make_plots     =            # Generate sanity plots of the clustering [Nothing or None if no plots]
 
 [fitting]

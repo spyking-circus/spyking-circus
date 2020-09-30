@@ -104,6 +104,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     noise_window = params.getint('detection', 'noise_time')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
     ss_scale = params.getfloat('clustering', 'smart_search_scale')
+    search_drifts = params.getboolean('clustering', 'search_drifts')
     data_file.open()
     #################################################################
 
@@ -1716,7 +1717,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     comm.Barrier()
     sys.stderr.flush()
 
-    if True:
+    if search_drifts:
 
         if comm.rank == 0:
             print_and_log(["Identifying putative drifts for meta merging..."], 'default', logger)
