@@ -13,7 +13,7 @@ import scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas, load_sp_memshared, load_sp
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
-    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity, test_if_drifts
+    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity, test_if_drifts, register_template
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges, get_nodes_and_positions
 from circus.shared.mpi import all_gather_array, comm, gather_array
@@ -1337,8 +1337,6 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     drift_space = params.getfloat('clustering', 'drift_space')
 
-    decimation = True
-
     mask_intersect = numpy.zeros((nb_templates, nb_templates), dtype=numpy.bool)
     for i in range(nb_templates):
         for j in range(i+1, nb_templates):
@@ -1346,30 +1344,13 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
 
-    time_mask = numpy.zeros(N_t, dtype=numpy.bool)
-    times = numpy.arange(N_t)
-
-    if decimation:
-        center = N_t//2 + 1
-        offset = 1
-        xmin = center - offset
-        xmax = center + offset + 1
-        #sub_times = list(range(0, xmin, 3)) + list(range(xmin, xmax)) + list(range(xmax, N_t, 3))
-        sub_times = list(range(xmin, xmax))
-        time_mask[sub_times] = True
-    else:
-        time_mask[:] = True
-
+    times = numpy.arange(-N_t // 2, N_t//2) / data_file.sampling_rate
     full_times = numpy.tile(times, N_e)
-    full_x = numpy.repeat(positions[:,0], N_t)
-    full_y = numpy.repeat(positions[:,1], N_t)
-    time_mask = numpy.tile(time_mask, N_e)
+    full_x = numpy.repeat(positions[:,0], N_t)*1e-6
+    full_y = numpy.repeat(positions[:,1], N_t)*1e-6
+    full_positions = numpy.vstack((full_x, full_y, full_times)).T
 
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
-
-    def get_difference(r, model, source, mask):
-        registered = model(full_x[mask] + r[0], full_y[mask] + r[1], full_times[mask] + r[2])
-        return numpy.linalg.norm(source[mask] - registered)
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, all_temp)
@@ -1377,28 +1358,22 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         to_explore = all_temp
 
     registration = numpy.zeros((len(to_explore), nb_templates, 3), dtype=numpy.float32)
-    boundaries = [(-drift_space, drift_space), (-drift_space, drift_space), (-5, 5)]
 
     for count, i in enumerate(to_explore):
 
-        target_template = templates[i].toarray().ravel()
-        interp_full = scipy.interpolate.Rbf(full_x, full_y, full_times, target_template, function='linear')
+        source_template = templates[i].toarray().ravel()
 
         for j in range(i+1, nb_templates):
 
             if mask_intersect[i, j]:
-                source_template = templates[j].toarray().ravel()
+                target_template = templates[j].toarray().ravel()
 
-                common_nodes = supports[j]
-                mask = numpy.tile(common_nodes, N_t) * time_mask
+                reg, source_cloud = register_template(source_template, target_template, full_positions)
+                registered = (source_cloud.dot(reg[0]*reg[1]) + reg[2])[:,-1]
 
-                #optim = scipy.optimize.minimize(get_difference2, numpy.zeros(3), args=(source_template, target_template), options={'disp' : True})
-                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(interp_full, source_template, mask))
-                registration[count, j, :2] = optim.x[:2]
-
-                registered = interp_full(full_x + registration[count, j, 0], full_y + registration[count, j, 1], full_times + registration[count, j, 2])
-                cc = (source_template * registered).sum() / (numpy.linalg.norm(source_template) * numpy.linalg.norm(registered))
+                cc = scipy.signal.correlate(target_template, registered, 'same').max() / (numpy.linalg.norm(target_template) * numpy.linalg.norm(registered))
                 registration[count, j, 2] = cc
+                registration[count, j, :2] = reg[2][:2]
 
                 if debug_plots not in ['None', '']:
 
@@ -1407,7 +1382,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                     fig = plt.figure()
                     gs = GridSpec(3, 4)
                     axs = fig.add_subplot(gs[0,:])
-                    axs.plot(templates[j].toarray().ravel(), c='k')
+                    axs.plot(target_template, c='k')
                     axs.set_title('Template %d' %j)
                     axs.spines['right'].set_visible(False)
                     axs.spines['top'].set_visible(False)
@@ -1415,17 +1390,17 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                     axs.set_xticks([], [])
 
                     axs = fig.add_subplot(gs[1,:])
-                    axs.plot(templates[i].toarray().ravel())
+                    axs.plot(source_template)
                     axs.plot(registered)
-                    axs.set_title('Template %d [(%g,%g) Drift %g]' %(i, registration[count, j, 0], registration[count, j, 1], registration[count, j, 2]))
+                    axs.set_title('Template %d [(%g,%g) Drift %g/ CC %g]' %(i, registration[count, j, 0], registration[count, j, 1], registration[count, j, 2], maxoverlap[i,j]))
                     axs.spines['right'].set_visible(False)
                     axs.spines['top'].set_visible(False)
                     axs.set_yticks([], [])
                     axs.set_xticks([], [])
 
                     axs = fig.add_subplot(gs[2,:])
-                    tmp_1 = (templates[i].toarray().ravel() - templates[j].toarray().ravel())**2
-                    tmp_2 = (registered - templates[j].toarray().ravel())**2
+                    tmp_1 = (source_template - target_template)**2
+                    tmp_2 = (registered - target_template)**2
                     axs.plot(tmp_1)
                     axs.plot(tmp_2)
                     axs.set_title('Differences [%g, %g]' %(tmp_1.mean(), tmp_2.mean()))
