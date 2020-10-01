@@ -26,21 +26,12 @@ import circus
 from distutils.version import StrictVersion
 from scipy.optimize import brenth, minimize
 
-def get_clouds(source, target, full_positions):
-
-    z_source = source.reshape(len(source), 1)
-    z_target = target.reshape(len(target), 1)
-
-    cloud_source = numpy.hstack((full_positions, z_source))
-    cloud_target = numpy.hstack((full_positions, z_target))
-    return cloud_source, cloud_target
-
 def umeyama(P, Q):
     assert P.shape == Q.shape
     n, dim = P.shape
 
-    centeredP = P - P.mean(axis=0)
-    centeredQ = Q - Q.mean(axis=0)
+    centeredP = (P - P.mean(axis=0))
+    centeredQ = (Q - Q.mean(axis=0))
 
     C = np.dot(np.transpose(centeredP), centeredQ) / n
 
@@ -59,12 +50,6 @@ def umeyama(P, Q):
     t = Q.mean(axis=0) - P.mean(axis=0).dot(c*R)
 
     return c, R, t
-
-def register_template(source, target, full_positions):
-    source_cloud, target_cloud = get_clouds(source, target, full_positions)
-    reg = umeyama(source_cloud, target_cloud)
-    return reg, source_cloud
-
 
 def largest_indices(ary, n):
     """Returns the n largest indices from a numpy array."""

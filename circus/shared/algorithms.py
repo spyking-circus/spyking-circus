@@ -1339,7 +1339,8 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     times = numpy.arange(-N_t // 2, N_t//2) / data_file.sampling_rate
     full_times = numpy.tile(times, N_e).reshape(N_e*N_t, 1)
-    full_xyz = numpy.repeat(positions, N_t, axis=0)*1e-6
+    non_zeros = numpy.where(numpy.std(positions, 0) > 0)[0]
+    full_xyz = numpy.repeat(positions[:, non_zeros], N_t, axis=0)
     full_positions = numpy.hstack((full_xyz, full_times))
 
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
@@ -1365,7 +1366,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
                 cc = scipy.signal.correlate(target_template, registered, 'same').max() / (numpy.linalg.norm(target_template) * numpy.linalg.norm(registered))
                 registration[count, j, 3] = cc
-                registration[count, j, :3] = reg[2][:3]
+                registration[count, j, non_zeros] = reg[2][:3][non_zeros]
 
                 if debug_plots not in ['None', '']:
 
