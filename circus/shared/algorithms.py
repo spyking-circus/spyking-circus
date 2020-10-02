@@ -13,7 +13,7 @@ import scipy.sparse
 
 from circus.shared.files import load_data, write_datasets, get_overlaps, load_data_memshared, get_stas, load_sp_memshared, load_sp
 from circus.shared.utils import get_tqdm_progressbar, get_shared_memory_flag, dip, dip_threshold, \
-    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity, test_if_drifts, register_template
+    batch_folding_test_with_MPA, bhatta_dist, nd_bhatta_dist, test_if_support, test_if_purity, test_if_drifts
 from circus.shared.messages import print_and_log
 from circus.shared.probes import get_nodes_and_edges, get_nodes_and_positions
 from circus.shared.mpi import all_gather_array, comm, gather_array
@@ -1330,6 +1330,9 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     file_out_suff = params.get('data', 'file_out_suff')
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
 
+    drift_space = params.getfloat('clustering', 'drift_space')
+    drift_time = params.getint('clustering', 'drift_time')
+
     mask_intersect = numpy.zeros((nb_templates, nb_templates), dtype=numpy.bool)
     for i in range(nb_templates):
         for j in range(i+1, nb_templates):
@@ -1337,11 +1340,49 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
     mask_intersect = numpy.maximum(mask_intersect, mask_intersect.T)
 
-    times = numpy.arange(-N_t // 2, N_t//2) / data_file.sampling_rate
+    times = numpy.arange(N_t)
     full_times = numpy.tile(times, N_e).reshape(N_e*N_t, 1)
     non_zeros = numpy.where(numpy.std(positions, 0) > 0)[0]
     full_xyz = numpy.repeat(positions[:, non_zeros], N_t, axis=0)
     full_positions = numpy.hstack((full_xyz, full_times))
+
+    dimensions = []
+    for i in non_zeros:
+        dimensions += [numpy.unique(positions[:,i])]
+
+    if len(non_zeros) == 1:
+        grid = numpy.zeros((len(dimensions[0]), len(times)), dtype=numpy.float32)
+    elif len(non_zeros) == 2:
+        grid = numpy.zeros((len(dimensions[0]), len(dimensions[1]), len(times)), dtype=numpy.float32)
+    elif len(non_zeros) == 3:
+        grid = numpy.zeros((len(dimensions[0]), len(dimensions[1]), len(dimensions[2]), len(times)), dtype=numpy.float32)
+
+    mapping = numpy.zeros((len(dimensions) + 1, N_t * N_e), dtype=numpy.int32)
+    grid_mask = numpy.ones(grid.shape, dtype=numpy.bool)
+
+    dimensions += [times]
+
+    for c, pos in enumerate(full_positions):
+        for d, dim in enumerate(pos):
+            idx = numpy.where(pos[d] == dimensions[d])[0]
+            mapping[d, c] = idx
+
+    if len(dimensions) == 2:
+        grid_mask[mapping[0], mapping[1]] = False
+    elif len(dimensions) == 3:
+        grid_mask[mapping[0], mapping[1], mapping[2]] = False
+    elif len(dimensions) == 4:
+        grid_mask[mapping[0], mapping[1], mapping[2], mapping[3]] = False
+
+    missing = numpy.where(grid_mask == True)
+    if len(dimensions) == 2:
+        a = dimensions[0][missing[0]], dimensions[1][missing[1]]
+    elif len(dimensions) == 3:
+        a = dimensions[0][missing[0]], dimensions[1][missing[1]], dimensions[2][missing[2]]
+    elif len(dimensions) == 4:
+        a = dimensions[0][missing[0]], dimensions[1][missing[1]], dimensions[2][missing[2]], dimensions[3][missing[3]]
+
+    missing_positions = numpy.array(a)
 
     all_temp = numpy.arange(comm.rank, nb_templates, comm.size)
 
@@ -1351,22 +1392,36 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
         to_explore = all_temp
 
     registration = numpy.zeros((len(to_explore), nb_templates, 4), dtype=numpy.float32)
+    boundaries = [(-drift_space, drift_space)] * len(non_zeros) + [(-drift_time, drift_time)]
+    boundaries = numpy.array(boundaries)
 
     for count, i in enumerate(to_explore):
 
         source_template = templates[i].toarray().ravel()
+        if len(dimensions) == 2:
+            interp_full = scipy.interpolate.Rbf(full_positions[:,0], full_positions[:,1], source_template, epsilon=1e-6)
+            grid[missing[0], missing[1]] = interp_full(missing_positions[0], missing_positions[1])
+            grid[mapping[0], mapping[1]] = source_template
+        elif len(dimensions) == 3:
+            interp_full = scipy.interpolate.Rbf(full_positions[:,0], full_positions[:,1], full_positions[:,2], source_template, epsilon=1e-6)
+            grid[missing[0], missing[1], missing[2]] = interp_full(missing_positions[0], missing_positions[1], missing_positions[2])
+            grid[mapping[0], mapping[1], mapping[2]] = source_template
+        elif len(dimensions) == 4:
+            interp_full = scipy.interpolate.Rbf(full_positions[:,0], full_positions[:,1], full_positions[:,2], full_positions[:,3], source_template, epsilon=1e-6)
+            grid[missing[0], missing[1], missing[2], missing[3]] = interp_full(missing_positions[0], missing_positions[1], missing_positions[2], missing_positions[3])
+            grid[mapping[0], mapping[1], mapping[2], mapping[3]] = source_template
 
         for j in range(i+1, nb_templates):
 
             if mask_intersect[i, j]:
-                target_template = templates[j].toarray().ravel()
 
-                reg, source_cloud = register_template(source_template, target_template, full_positions)
-                registered = (source_cloud.dot(reg[0]*reg[1]) + reg[2])[:,-1]
+                target_template = templates[j].toarray().ravel()
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(my_interpolating_function, target_template, full_positions))
+                registered = my_interpolating_function(full_positions + optim.x)
 
                 cc = scipy.signal.correlate(target_template, registered, 'same').max() / (numpy.linalg.norm(target_template) * numpy.linalg.norm(registered))
                 registration[count, j, 3] = cc
-                registration[count, j, non_zeros] = reg[2][:3][non_zeros]
+                registration[count, j, non_zeros] = optim.x[:3][non_zeros]
 
                 if debug_plots not in ['None', '']:
 

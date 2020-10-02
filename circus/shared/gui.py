@@ -208,9 +208,7 @@ class MergeWindow(QMainWindow):
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
 
         if self.has_drifts:
-            drift_space = self.params.getfloat('merging', 'drift_space')
             self.drifts = io.load_data(params, 'drifts', self.ext_in)
-            self.drifts_distances = numpy.sqrt(numpy.sum(self.drifts[:,:,:3]**2, 2)) <= drift_space
 
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices = numpy.arange(self.shape[2] // 2)
@@ -571,13 +569,9 @@ class MergeWindow(QMainWindow):
             if self.has_drifts:
 
                 overlaps = numpy.zeros(self.nb_templates, dtype=numpy.float32)
-                mask = self.drifts_distances[temp_id1]
-
                 drift_scores = self.drifts[temp_id1, :, 3]
                 normal_scores = self.overlap[temp_id1, :]
-
-                overlaps[mask] = numpy.maximum(drift_scores, normal_scores)[mask]
-                overlaps[~mask] = self.overlap[temp_id1, ~mask]
+                overlaps = numpy.maximum(drift_scores, normal_scores)
 
                 best_matches = self.to_consider[numpy.argsort(overlaps[self.to_consider])[::-1]]
                 candidates = best_matches[overlaps[best_matches] >= self.cc_overlap]
