@@ -1395,6 +1395,16 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     boundaries = [(-drift_space, drift_space)] * len(non_zeros) + [(-drift_time, drift_time)]
     boundaries = numpy.array(boundaries)
 
+    def guess_best_translation(source_template, target_template, positions):
+
+        src_norm = numpy.linalg.norm(source_template, axis=1)
+        tgt_norm = numpy.linalg.norm(target_template, axis=1)
+        bar_src = src_norm[:, numpy.newaxis] * positions
+        bar_src = bar_src.sum(0)/src_norm.sum()
+        bar_tgt = tgt_norm[:, numpy.newaxis] * positions
+        bar_tgt = bar_tgt.sum(0)/tgt_norm.sum()
+        return bar_src - bar_tgt
+
     def get_difference(r, interpolator, target, full_positions):
         registered = interpolator(full_positions + r)
         return numpy.linalg.norm(target - registered)
@@ -1402,7 +1412,6 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     for count, i in enumerate(to_explore):
 
         source_template = templates[i].toarray().ravel()
-        common = numpy.tile(supports[i], N_t)
 
         if len(dimensions) == 2:
             interp_full = scipy.interpolate.Rbf(full_positions[:,0], full_positions[:,1], source_template, epsilon=1e-6)
@@ -1421,11 +1430,13 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
         for j in range(i+1, nb_templates):
 
-            if mask_intersect[i, j]:
+            guess = guess_best_translation(source_template.reshape(N_e, N_t), target_template.reshape(N_e, N_t), positions)
+            estimated_distance = numpy.linalg.norm(guess)
+
+            if mask_intersect[i, j] and estimated_distance < drift_space:
 
                 target_template = templates[j].toarray().ravel()
-                common = numpy.tile(supports[i], N_t)
-                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(my_interpolating_function, target_template[common], full_positions[common]), polish=False)
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(my_interpolating_function, target_template, full_positions), polish=False)
                 registered = my_interpolating_function(full_positions + optim.x)
 
                 cc = scipy.signal.correlate(target_template, registered, 'same').max() / (numpy.linalg.norm(target_template) * numpy.linalg.norm(registered))
