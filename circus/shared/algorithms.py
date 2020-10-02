@@ -1395,9 +1395,15 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
     boundaries = [(-drift_space, drift_space)] * len(non_zeros) + [(-drift_time, drift_time)]
     boundaries = numpy.array(boundaries)
 
+    def get_difference(r, interpolator, target, full_positions):
+        registered = interpolator(full_positions + r)
+        return numpy.linalg.norm(target - registered)
+
     for count, i in enumerate(to_explore):
 
         source_template = templates[i].toarray().ravel()
+        common = numpy.tile(supports[i], N_t)
+
         if len(dimensions) == 2:
             interp_full = scipy.interpolate.Rbf(full_positions[:,0], full_positions[:,1], source_template, epsilon=1e-6)
             grid[missing[0], missing[1]] = interp_full(missing_positions[0], missing_positions[1])
@@ -1411,12 +1417,15 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
             grid[missing[0], missing[1], missing[2], missing[3]] = interp_full(missing_positions[0], missing_positions[1], missing_positions[2], missing_positions[3])
             grid[mapping[0], mapping[1], mapping[2], mapping[3]] = source_template
 
+        my_interpolating_function = scipy.interpolate.RegularGridInterpolator(dimensions, grid, bounds_error=False, fill_value=0)
+
         for j in range(i+1, nb_templates):
 
             if mask_intersect[i, j]:
 
                 target_template = templates[j].toarray().ravel()
-                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(my_interpolating_function, target_template, full_positions))
+                common = numpy.tile(supports[i], N_t)
+                optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(my_interpolating_function, target_template[common], full_positions[common]), polish=False)
                 registered = my_interpolating_function(full_positions + optim.x)
 
                 cc = scipy.signal.correlate(target_template, registered, 'same').max() / (numpy.linalg.norm(target_template) * numpy.linalg.norm(registered))
@@ -1440,7 +1449,7 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
                     axs = fig.add_subplot(gs[1,:])
                     axs.plot(source_template)
                     axs.plot(registered)
-                    axs.set_title('Template %d [(%g,%g) Drift %g/ CC %g]' %(i, registration[count, j, 0], registration[count, j, 1], registration[count, j, 2], maxoverlap[i,j]))
+                    axs.set_title('Template %d [%s Drift %g]' %(i, registration[count, j, :3], registration[count, j, 3]))
                     axs.spines['right'].set_visible(False)
                     axs.spines['top'].set_visible(False)
                     axs.set_yticks([], [])
