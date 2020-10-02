@@ -1430,12 +1430,12 @@ def search_drifts(params, nb_cpu, nb_gpu, use_gpu, debug_plots=''):
 
         for j in range(i+1, nb_templates):
 
+            target_template = templates[j].toarray().ravel()
             guess = guess_best_translation(source_template.reshape(N_e, N_t), target_template.reshape(N_e, N_t), positions)
             estimated_distance = numpy.linalg.norm(guess)
 
             if mask_intersect[i, j] and estimated_distance < drift_space:
 
-                target_template = templates[j].toarray().ravel()
                 optim = scipy.optimize.differential_evolution(get_difference, bounds=boundaries, args=(my_interpolating_function, target_template, full_positions), polish=False)
                 registered = my_interpolating_function(full_positions + optim.x)
 
