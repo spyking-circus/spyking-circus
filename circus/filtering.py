@@ -178,16 +178,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 padding = (0, 0)
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
+            len_chunk = len(local_chunk)
 
             if do_filtering:
                 local_chunk = signal.filtfilt(b, a, local_chunk, axis=0)
                 local_chunk -= numpy.median(local_chunk, 0)
-                if not is_last:
-                    local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
-                else:
-                    local_chunk = local_chunk[numpy.abs(padding[0]):]
-            else:
-                local_chunk = local_chunk[numpy.abs(padding[0]):-numpy.abs(padding[1])]
+            local_chunk = local_chunk[numpy.abs(padding[0]):len_chunk-numpy.abs(padding[1])]
 
             if do_remove_median:
                 if nb_shanks == 1:
