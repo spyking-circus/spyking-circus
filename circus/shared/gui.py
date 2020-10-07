@@ -1209,7 +1209,6 @@ class MergeWindow(QMainWindow):
             test1 = True
 
         if test1:
-            print(self.rpvs, self.rpv_threshold)
             all_indices = all_indices & (self.rpvs < self.rpv_threshold)
 
         indices = numpy.where(all_indices)[0]
