@@ -167,7 +167,7 @@ class MergeWindow(QMainWindow):
                 print_and_log(['No results file found: either no templates found or no fitting'], 'error', logger)
             sys.exit(0)
 
-        self.nb_bhatta_bins = int(self.duration)
+        self.nb_bhatta_bins = 100
         self.bhattas_level = ((self.nb_bhatta_bins - 1)/self.duration)/self.nb_bhatta_bins
         self.has_support = test_if_support(params, self.ext_in)
         if self.has_support:
