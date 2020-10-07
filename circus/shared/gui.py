@@ -473,20 +473,27 @@ class MergeWindow(QMainWindow):
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
 
+                nspike_1 = spike_1 / self.sampling_rate
+                nspike_2 = spike_2 / self.sampling_rate
+                is_active_1, _ = numpy.histogram(nspike_1, bins=xaxis)
+                is_active_2, _ = numpy.histogram(nspike_2, bins=xaxis)
+
+                #max_size, interval = largest_nonzero_interval(is_active_1*is_active_2)
+                #interval = xaxis[interval]
+
                 t1b = numpy.unique(numpy.round(spike_1 / self.bin_size))
                 t2b = numpy.unique(numpy.round(spike_2 / self.bin_size))
 
                 for d in range(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
-                nspike_1 = spike_1 / self.sampling_rate
-                nspike_2 = spike_2 / self.sampling_rate
-                is_active_1, _ = numpy.histogram(nspike_1, bins=xaxis)
-                is_active_2, _ = numpy.histogram(nspike_2, bins=xaxis)
+                #duration = interval[1] - interval[0]
+                #mask1 = (spike_1 > interval[0]*self.sampling_rate) & (spike_1 < interval[1]*self.sampling_rate)
+                #mask2 = (spike_2 > interval[0]*self.sampling_rate) & (spike_2 < interval[1]*self.sampling_rate)
 
-                r1 = len(spike_1) / duration
-                r2 = len(spike_2) / duration
-                control = numpy.sqrt(r1 * r2 * duration * bin_size)
+                r1 = len(spike_1) / self.duration
+                r2 = len(spike_2) / self.duration
+                control = r1 * r2 * self.duration * bin_size
 
                 is_overlapping = is_active_1 * is_active_2
                 duration = numpy.where(is_overlapping == 0)[0]
@@ -572,9 +579,10 @@ class MergeWindow(QMainWindow):
                 if self.correct_lag:
                     spikes2 += self.lag[temp_id1, temp_id2]
 
-                a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
                 x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
                 x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
+
+                a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
 
                 enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
 
@@ -1182,6 +1190,7 @@ class MergeWindow(QMainWindow):
 
         if test2:
             all_indices = all_indices & (self.overlapping == 1)
+
 
         indices = numpy.where(all_indices)[0]
 
