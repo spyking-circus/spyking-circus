@@ -92,7 +92,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         x, N_tm = templates.shape
         if N_tm > 0:
             sparsity = templates.nnz / (x * N_tm)
-            is_sparse = sparsity < sparse_threshold
+            is_sparse = sparsity <= sparse_threshold
         else:
             is_sparse = True
         if not is_sparse:

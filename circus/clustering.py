@@ -1366,10 +1366,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         labels_i = myslice[numpy.argsort(distances)[:nb_snippets]]
                     else:
                         labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+                    times_i = numpy.take(loc_times, numpy.random.permutation(myslice)[:nb_snippets])
 
-                    times_i = numpy.take(loc_times, labels_i)
-                    sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
-
+                    sub_data_raw = io.get_stas(params, numpy.sort(times_i), labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                     if extraction == 'median-raw':
                         first_component = numpy.median(sub_data_raw, 0)
                     elif extraction == 'mean-raw':                
@@ -1385,10 +1384,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
                         to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
-                        first_component[to_delete, :] = 0
-                        sub_data_raw[:, to_delete, :] = 0
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
+
+                    first_component[to_delete, :] = 0
+                    sub_data_raw[:, to_delete, :] = 0
+
+                    x, y, z = sub_data_raw.shape
+                    sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
 
                     channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).max(1)
                     frac_high_variances = numpy.max(channel_mads/mads[indices])
@@ -1402,23 +1405,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         raise ValueError("Unexpected value %s" % p)
 
-                    shift = template_shift - tmpidx[1]
+                    #shift = template_shift - tmpidx[1]
                     is_noise = (len(indices) == len(to_delete)) or \
                                ((1 / ratio) < noise_thresh) or \
                                (frac_high_variances > ignored_mixtures)
 
-                    if is_noise or (np.abs(shift) > template_shift / 4):
+                    if is_noise:# or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
                         myamps += [[0, 10]]
                     else:
 
                         templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
-                        if shift > 0:
-                            templates[indices, shift:] = first_component[:, :-shift]
-                        elif shift < 0:
-                            templates[indices, :shift] = first_component[:, -shift:]
-                        else:
-                            templates[indices, :] = first_component
+                        templates[indices, :] = first_component
 
                         templates = templates.ravel()
                         dx = templates.nonzero()[0].astype(numpy.uint32)
@@ -1434,9 +1432,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             amp_min = 0.5
                             amp_max = 1.5
                         else:
-                            x, y, z = sub_data_raw.shape
-                            sub_data_raw[:, to_delete, :] = 0
-                            sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
                             first_flat = first_component.reshape(y * z, 1)
                             amplitudes = numpy.dot(sub_data_flat_raw, first_flat)
                             amplitudes /= numpy.sum(first_flat ** 2)
@@ -1455,7 +1450,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
 
                         if two_components:
-                            sub_templates[:, :-1] = numpy.diff(templates.reshape(n_e, n_t))
+                            template = templates.reshape(n_e, n_t)[indices, :].flatten()
+                            normed_template = template/numpy.sqrt(numpy.sum(template ** 2) / n_scalar)
+                            amplitudes = sub_data_flat_raw.dot(normed_template)
+                            residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
+                            ortho_templates = numpy.median(residuals, 0).reshape(len(indices), n_t)
+                            sub_templates[indices, :] = ortho_templates
 
                         sub_templates = sub_templates.ravel()
                         dx = sub_templates.nonzero()[0].astype(numpy.uint32)
