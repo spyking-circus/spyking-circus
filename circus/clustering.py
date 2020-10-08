@@ -1411,9 +1411,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     x, y, z = sub_data_raw.shape
                     sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
 
-                    channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).max(1)
-                    frac_high_variances = numpy.max(channel_mads/mads[indices])
+                    template = first_component.flatten()
+                    normed_template = template/numpy.sqrt(numpy.sum(template ** 2) / n_scalar)
+                    amplitudes = sub_data_flat_raw.dot(normed_template)
+                    residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
 
+                    channel_mads = numpy.std(residuals.reshape(x, y, z), 0).max(1)
+                    frac_high_variances = numpy.max(channel_mads/(1.48 * mads[indices]))
+
+                    print(frac_high_variances)
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
                         ratio = -thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].min()
@@ -1472,10 +1478,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
 
                         if two_components:
-                            template = templates.reshape(n_e, n_t)[indices, :].flatten()
-                            normed_template = template/numpy.sqrt(numpy.sum(template ** 2) / n_scalar)
-                            amplitudes = sub_data_flat_raw.dot(normed_template)
-                            residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
                             ortho_templates = numpy.median(residuals, 0).reshape(len(indices), n_t)
                             sub_templates[indices, :] = ortho_templates
 

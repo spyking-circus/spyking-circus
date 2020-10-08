@@ -11,6 +11,8 @@ Release 1.0.1
 * add the option to collect normalized MSE during fitting. False by default
 * fix the rhd wrapper
 * divide and conquer assigment now based on barycenters instead of simple extremas
+* fixes in the meta merging GUI
+* optimizations for the second component, less double counting
 
 =============
 Release 1.0.0

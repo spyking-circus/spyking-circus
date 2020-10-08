@@ -778,8 +778,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     cc_merge = params.getfloat('clustering', 'cc_merge')
     norm = n_e * n_t
     decimation = params.getboolean('clustering', 'decimation')
-    adapted_cc = params.getboolean('clustering', 'adapted_cc')
-    adapted_thr = params.getint('clustering', 'adapted_thr')
 
     if cc_merge < 1:
 
@@ -858,10 +856,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         if comm.rank == 0:
-            if adapted_cc:
-                common_supports = load_data(params, 'common-supports')
-                exponents = numpy.exp(-common_supports/adapted_thr)
-                distances = distances ** exponents
             result = load_data(params, 'clusters')
             to_merge, result = remove(result, distances, cc_merge)
 
@@ -1495,8 +1489,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     has_support = test_if_support(params, '')
-    adapted_cc = params.getboolean('clustering', 'adapted_cc')
-    adapted_thr = params.getint('clustering', 'adapted_thr')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
     overlap = get_overlaps(
@@ -1537,10 +1529,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
-
-    if adapted_cc:
-        common_supports = load_data(params, 'common-supports')
-        exponents = numpy.exp(-common_supports/adapted_thr)
 
     for i in range(nb_temp - 1):
         data = c_overs[i].toarray()
@@ -1611,14 +1599,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         new_template = (a1 * t_i + a2 * t_j)
                         similarity = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
-                        if adapted_cc:
-                            shared_support = numpy.sum(numpy.logical_or(supports[i], supports[j])*supports[k])
-                            exponent = numpy.exp(-shared_support/adapted_thr)
-                            mytest1 = similarity**exponent > cc_merge
-                            mytest2 = local_overlap**exponents[i, j] < 0.5
-                        else:
-                            mytest1 = similarity > cc_merge
-                            mytest2 = local_overlap < 0.5
+                        mytest1 = similarity > cc_merge
+                        mytest2 = local_overlap < 0.5
                         if mytest1 and mytest2:
                             if k not in mixtures:
                                 mixtures += [k]
