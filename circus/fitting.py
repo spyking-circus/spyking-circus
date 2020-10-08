@@ -604,11 +604,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         del tmp1, tmp2
                     else:
                         tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                        if numpy.abs(best_amp2_n) > min_second_component:
-                            tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
-
                         to_add = tmp1.toarray()[:, idx_neighbor]
                         b[:, is_neighbor] += to_add
+                        if two_components:
+                            if templates_normalization:
+                                best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                                best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                            else:
+                                best_amp2 = b[best_template2_index, peak_index]
+                                best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
+                                best_amp2_n = best_amp2
+
+                            if numpy.abs(best_amp2_n) > min_second_component:
+                                tmp1 = c_overs[best_template2_index].multiply(-best_amp2)
+
+                            to_add = tmp1.toarray()[:, idx_neighbor]
+                            b[:, is_neighbor] += to_add
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
