@@ -1384,9 +1384,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         labels_i = myslice[numpy.argsort(distances)[:nb_snippets]]
                     else:
                         labels_i = numpy.random.permutation(myslice)[:nb_snippets]
-                    times_i = numpy.take(loc_times, numpy.random.permutation(myslice)[:nb_snippets])
 
-                    sub_data_raw = io.get_stas(params, numpy.sort(times_i), labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                    times_i = numpy.take(loc_times, labels_i)
+                    labels_i = numpy.ones(len(times_i), dtype=numpy.int32)
+
+                    sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
                     if extraction == 'median-raw':
                         first_component = numpy.median(sub_data_raw, 0)
                     elif extraction == 'mean-raw':                
@@ -1428,12 +1430,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         raise ValueError("Unexpected value %s" % p)
 
-                    #shift = template_shift - tmpidx[1]
+                    shift = template_shift - tmpidx[1]
                     is_noise = (len(indices) == len(to_delete)) or \
                                ((1 / ratio) < noise_thresh) or \
                                (frac_high_variances > ignored_mixtures)
 
-                    if is_noise:# or (np.abs(shift) > template_shift / 4):
+                    if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
                     else:
 
