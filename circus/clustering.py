@@ -1419,7 +1419,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     channel_mads = numpy.std(residuals.reshape(x, y, z), 0).max(1)
                     frac_high_variances = numpy.max(channel_mads/(1.48 * mads[indices]))
 
-                    print(frac_high_variances)
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
                         ratio = -thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].min()
