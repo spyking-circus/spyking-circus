@@ -166,6 +166,7 @@ def main(argv=None):
         else:
             gui_params['dat_path'] = 'giverandomname.dat'
 
+        data_file.close()
         gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype'] = data_dtype
