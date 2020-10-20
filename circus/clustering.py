@@ -1139,6 +1139,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if len(c) > bad_clusters_ratio:
                             c = numpy.zeros(0, dtype=numpy.int32)
                             cluster_results[p][ielec]['groups'][:] = -1
+                            lines = ["Too many centroids detected on channel %d (>%d)" %(ielec, bad_clusters_ratio),
+                                     "Something wrong with the channel?",
+                                     "Increase [clustering]->bad_clusters_ratio if needed"]
+                            print_and_log(lines, 'debug', logger)
 
                         result['delta_%s_' % p + str(ielec)] = d  # i.e. save delta values
 
