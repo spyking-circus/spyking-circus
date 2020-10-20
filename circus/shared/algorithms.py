@@ -980,7 +980,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         templates = load_data(params, 'templates')
         x, N_tm = templates.shape
         sparsity = templates.nnz / (x * N_tm)
-        is_sparse = sparsity < sparse_threshold
+        is_sparse = sparsity <= sparse_threshold
         if not is_sparse:
             if comm.rank == 0:
                 print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
