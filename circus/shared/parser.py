@@ -137,6 +137,7 @@ class CircusParser(object):
                           ['clustering', 'make_plots', 'string', ''],
                           ['clustering', 'debug_plots', 'string', ''],
                           ['clustering', 'test_clusters', 'bool', 'False'],
+                          ['clustering', 'bad_clusters_ratio', 'int', '100'],
                           ['clustering', 'smart_search', 'bool', 'True'],
                           ['clustering', 'safety_space', 'bool', 'True'],
                           ['clustering', 'compress', 'bool', 'True'],
