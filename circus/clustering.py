@@ -76,6 +76,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     test_clusters = params.getboolean('clustering', 'test_clusters')
+    bad_clusters_ratio = params.getint('clustering', 'bad_clusters_ratio')
     fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     sparsify = params.getfloat('clustering', 'sparsify')
     ss_scale = params.getfloat('clustering', 'smart_search_scale')
@@ -1147,6 +1148,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             result['rho_%s_' % p + str(ielec)], dist, n_min=n_min, alpha=sensitivity,
                             halo_rejection=halo_rejection
                         )
+
+                        if len(c) > bad_clusters_ratio:
+                            c = numpy.zeros(0, dtype=numpy.int32)
+                            cluster_results[p][ielec]['groups'][:] = -1
+                            lines = ["Too many centroids detected on channel %d (>%d)" %(ielec, bad_clusters_ratio),
+                                     "Something wrong with the channel?",
+                                     "Increase [clustering]->bad_clusters_ratio if needed"]
+                            print_and_log(lines, 'debug', logger)
 
                         result['delta_%s_' % p + str(ielec)] = d  # i.e. save delta values
 
