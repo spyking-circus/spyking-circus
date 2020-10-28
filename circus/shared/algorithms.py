@@ -906,9 +906,9 @@ def compute_error(good_values, bad_values, bounds):
 
     return mcc
 
-def score(x, good_values, bad_values, max_amplitude=2, alpha=1e-3):
+def score(x, good_values, bad_values, max_amplitude=2, alpha=1e-2):
     # We want a minimal error, with the larger bounds that are possible
-    cost = compute_error(good_values, bad_values, x) - alpha*(x[1] - x[0])
+    cost = compute_error(good_values, bad_values, x) + alpha*(max_amplitude -(x[1] - x[0]))**2
     return cost
 
 
