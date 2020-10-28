@@ -2,6 +2,7 @@
 Release 1.0.1
 =============
 
+* possibility for the amplitudes [a_min, a_max] to depend on time
 * median is now removed per shanks
 * common ground syntax slightly changed, to allow one ground per shank
 * fix a bug when collect_all and dense templates
@@ -10,6 +11,8 @@ Release 1.0.1
 * add the option to collect normalized MSE during fitting. False by default
 * fix the rhd wrapper
 * divide and conquer assigment now based on barycenters instead of simple extremas
+* exit the clustering if too many centroids are found (sign of bad channels)
+* fixes in the meta merging GUI (RPV and dip)
 
 =============
 Release 1.0.0
