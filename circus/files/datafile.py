@@ -421,10 +421,22 @@ class DataFile(object):
 
         return t_start, t_stop
 
-    def _get_streams_index_by_time(self, local_time):
+    def _get_streams_index_by_time(self, global_time):
         if self.is_stream:
-            cidx  = numpy.searchsorted(self._times, local_time, 'right') - 1
+            cidx = numpy.searchsorted(self._times, global_time, 'right') - 1
             return cidx
+
+    def get_idx(self, global_time, chunk_size):
+
+        if not self.is_stream:
+            idx = global_time // chunk_size
+        else:
+            # idx = global_time // chunk_size
+            cidx = numpy.searchsorted(self._times, global_time, 'right') - 1
+            local_time = global_time - self._times[cidx]
+            idx = local_time // chunk_size + self._chunks_in_sources[cidx]
+
+        return idx
 
     def is_first_chunk(self, idx, nb_chunks):
 
