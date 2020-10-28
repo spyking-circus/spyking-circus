@@ -13,6 +13,8 @@ from circus.shared.files import get_dead_times
 from circus.shared.messages import print_and_log, init_logging
 from circus.shared.utils import get_parallel_hdf5_flag
 from circus.shared.mpi import detect_memory
+import scipy
+import scipy.optimize
 
 
 def main(params, nb_cpu, nb_gpu, use_gpu):
@@ -76,6 +78,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     test_clusters = params.getboolean('clustering', 'test_clusters')
     fine_amplitude = params.getboolean('clustering', 'fine_amplitude')
     sparsify = params.getfloat('clustering', 'sparsify')
+    ss_scale = params.getfloat('clustering', 'smart_search_scale')
     debug = params.getboolean('clustering', 'debug')
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     _ = map(float, tmp_limits)
@@ -103,7 +106,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
-    ss_scale = params.getfloat('clustering', 'smart_search_scale')
+    fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
+
+    if not fixed_amplitudes:
+        nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
+        splits = np.linspace(0, params.data_file.duration, nb_amp_bins)
+        interpolated_times = np.zeros(len(splits) - 1, dtype=numpy.float32)
+        for count in range(0, len(splits) - 1):
+            interpolated_times[count] = (splits[count] + splits[count + 1])/2
+        interpolated_times = numpy.concatenate(([0], interpolated_times, [params.data_file.duration]))
+        nb_amp_times = len(splits) + 1
+
     data_file.open()
     #################################################################
 
@@ -986,7 +999,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             try:
                                 local_nb_bin = numpy.clip(int(numpy.abs(ampmin - ampmax)/(0.1*mads[ielec])), 50, 250)
                             except Exception:
-                                local_nb_bin = 50
+                                local_nb_bin = 250
                         else:
                             local_nb_bin = nb_ss_bins
                         if p == 'pos':
@@ -1300,7 +1313,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='earliest')
             norms = hfile.create_dataset('norms', shape=(2 * total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
-            amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            if not fixed_amplitudes:
+                amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
+            else:
+                amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             supports = hfile.create_dataset('supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True)
             g_count = node_pad
             g_offset = total_nb_clusters
@@ -1308,7 +1324,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             hfile = h5py.File(file_out_suff + '.templates-%d.hdf5' % comm.rank, 'w', libver='earliest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
             norms = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
-            amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
+            if not fixed_amplitudes:
+                amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
+            else:
+                amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
             supports = hfile.create_dataset('supports', shape=(local_nb_clusters, n_e), dtype=numpy.bool, chunks=True)
             g_count = 0
             g_offset = local_nb_clusters
@@ -1340,7 +1359,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             for p in search_peaks:
 
-                myamps = []
                 mask = numpy.where(cluster_results[p][ielec]['groups'] > -1)[0]
 
                 if p == 'pos':
@@ -1409,7 +1427,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
-                        myamps += [[0, 10]]
                     else:
 
                         templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
@@ -1448,8 +1465,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             amp_min = center - min([dispersion[0] * variation, noise_limit])
                             amp_max = center + min([dispersion[1] * variation, mads[indices[tmpidx[0]]]])
 
-                        amps_lims[g_count] = [amp_min, amp_max]
-                        myamps += [[amp_min, amp_max]]
+                        if not fixed_amplitudes:
+                            data = numpy.ones((nb_amp_times, 2), dtype=numpy.float32)
+                            data[:, 0] = 0.5
+                            data[:, 1] = 1.5
+                            amps_lims[g_count] = data
+                        else:
+                            amps_lims[g_count] = [amp_min, amp_max]
 
                         offset = total_nb_clusters + count_templates
                         sub_templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
@@ -1588,9 +1610,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 norms = hfile.create_dataset(
                     'norms', shape=(2 * total_nb_clusters, ), dtype=numpy.float32, chunks=True
                 )
-                amplitudes = hfile.create_dataset(
-                    'limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True
-                )
+                if not fixed_amplitudes:
+                    amplitudes = hfile.create_dataset(
+                        'limits', shape=(total_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True
+                    )
+                else:
+                    amplitudes = hfile.create_dataset(
+                        'limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True
+                    )
                 supports = hfile.create_dataset(
                     'supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True
                 )
