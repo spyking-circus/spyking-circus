@@ -410,7 +410,7 @@ def load_data_memshared(
             nb_templates = h5py.File(file_name, 'r', libver='earliest').get('norms').shape[0]
             if nb_templates > 0:
                 sparsity = nb_data / (N_e * N_t * nb_templates)
-                is_sparse = sparsity < sparse_threshold
+                is_sparse = sparsity <= sparse_threshold
             else:
                 is_sparse = True
 

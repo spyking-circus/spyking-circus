@@ -1395,6 +1395,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         labels_i = numpy.random.permutation(myslice)[:nb_snippets]
 
                     times_i = numpy.take(loc_times, labels_i)
+                    labels_i = numpy.ones(len(times_i), dtype=numpy.int32)
+
                     sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
 
                     if extraction == 'median-raw':
@@ -1412,13 +1414,22 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
                         to_delete = numpy.where(local_stds / stds[indices] < sparsify)[0]
-                        first_component[to_delete, :] = 0
-                        sub_data_raw[:, to_delete, :] = 0
                     else:
                         to_delete = numpy.empty(0)  # i.e. no channel to silence
 
-                    channel_mads = numpy.median(numpy.abs(sub_data_raw - first_component), 0).max(1)
-                    frac_high_variances = numpy.max(channel_mads/mads[indices])
+                    first_component[to_delete, :] = 0
+                    sub_data_raw[:, to_delete, :] = 0
+
+                    x, y, z = sub_data_raw.shape
+                    sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
+
+                    template = first_component.flatten()
+                    normed_template = template/numpy.sqrt(numpy.sum(template ** 2) / n_scalar)
+                    amplitudes = sub_data_flat_raw.dot(normed_template)
+                    residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
+
+                    channel_stds = numpy.std(residuals.reshape(x, y, z), 0).max(1)
+                    frac_high_variances = numpy.max(channel_stds/(1.48 * mads[indices]))
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
