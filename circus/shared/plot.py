@@ -120,6 +120,33 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.show()
 
 
+
+def variance_template(template, channel_stds, mads, save=False):
+
+    template = template.flatten()
+    flat_channel_stds = channel_stds.flatten()
+    frac_high_variances = channel_stds/(1.48 * mads[:, numpy.newaxis])
+
+    fig = pylab.figure()
+
+    # Centroids plot.
+    ax = fig.add_subplot(211)
+    ax.fill_between(numpy.arange(template.size), template-flat_channel_stds, template+flat_channel_stds, color='k', alpha=0.5)
+    ax.plot(template, 'r', lw=2)
+    ax.set_ylabel('Amplitude')
+
+    ax = fig.add_subplot(212)
+    ax.plot(frac_high_variances.flatten())
+    ax.set_ylabel('Ratio variance')
+
+    if save:
+        pylab.savefig(os.path.join(save[0], 'variance_' + save[1]))
+        pylab.close()
+    else:
+        pylab.show()
+
+
+
 def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
     """Sanity plot of the clusters (per electrode).
 

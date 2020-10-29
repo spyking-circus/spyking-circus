@@ -575,30 +575,31 @@ class MergeWindow(QMainWindow):
 
             for temp_id2 in candidates:
 
-                spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
-                spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
+                if temp_id2 > temp_id1:
+                    spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
+                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
 
-                if self.correct_lag:
-                    spikes2 += self.lag[temp_id1, temp_id2]
+                    if self.correct_lag:
+                        spikes2 += self.lag[temp_id1, temp_id2]
 
-                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
-                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
+                    x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
+                    x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
 
-                a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
+                    a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
 
-                enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
+                    enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
 
-                if enough_spikes:
-                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
-                else:
-                    dist = 0
+                    if enough_spikes:
+                        dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
+                    else:
+                        dist = 0
 
-                self.raw_data = numpy.vstack((self.raw_data, a))
-                self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
-                self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-                self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
-                self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
-                self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
+                    self.raw_data = numpy.vstack((self.raw_data, a))
+                    self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
+                    self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+                    self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
+                    self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
+                    self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
 
         sys.stderr.flush()
         self.pairs = gather_array(self.pairs, comm, 0, 1, dtype='int32')

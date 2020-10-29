@@ -1428,8 +1428,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     amplitudes = sub_data_flat_raw.dot(normed_template)
                     residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
 
-                    channel_stds = numpy.std(residuals.reshape(x, y, z), 0).max(1)
-                    frac_high_variances = numpy.max(channel_stds/(1.48 * mads[indices]))
+                    channel_stds = numpy.std(residuals.reshape(x, y, z), 0)
+                    channel_stds[to_delete, :] = 0
+                    frac_high_variances = numpy.max(channel_stds.max(1)/(1.48 * mads[indices]))
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
@@ -1444,6 +1445,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     is_noise = (len(indices) == len(to_delete)) or \
                                ((1 / ratio) < noise_thresh) or \
                                (frac_high_variances > ignored_mixtures)
+
+                    if debug_plots not in ['None', '']:
+                        save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
+                        plot.variance_template(first_component, channel_stds[indices, :], mads[indices], save=save)
 
                     if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
@@ -1498,6 +1503,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if two_components:
                             sub_templates[:, :-1] = numpy.diff(templates.reshape(n_e, n_t))
+                            #ortho_templates = numpy.median(residuals, 0).reshape(len(indices), n_t)
+                            #if shift > 0:
+                            #    sub_templates[indices, shift:] = ortho_templates[:, :-shift]
+                            #elif shift < 0:
+                            #    sub_templates[indices, :shift] = ortho_templates[:, -shift:]
+                            #else:
+                            #    sub_templates[indices, :] = ortho_templates
 
                         sub_templates = sub_templates.ravel()
                         dx = sub_templates.nonzero()[0].astype(numpy.uint32)
