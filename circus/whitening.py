@@ -371,8 +371,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     elt_count_neg = 0
 
     if sign_peaks in ['positive', 'both']:
+        times_pos = numpy.zeros(nb_elts, dtype=numpy.int32)
+        electrodes_pos = numpy.zeros(nb_elts, dtype=numpy.int32)
         elts_pos = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
     if sign_peaks in ['negative', 'both']:
+        times_neg = numpy.zeros(nb_elts, dtype=numpy.int32)
+        electrodes_neg = numpy.zeros(nb_elts, dtype=numpy.int32)
         elts_neg = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
 
     chunks_to_load = all_chunks[comm.rank::comm.size]
@@ -565,13 +569,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     sub_mat = f(ddata).astype(numpy.float32)
 
                                 if negative_peak:
+                                    times_neg[elt_count_neg] = peak + t_offset
+                                    electrodes_neg[elt_count_neg] = elec
                                     elts_neg[:, elt_count_neg] = sub_mat
-                                else:
-                                    elts_pos[:, elt_count_pos] = sub_mat
-
-                                if negative_peak:
                                     elt_count_neg += 1
                                 else:
+                                    times_pos[elt_count_pos] = peak + t_offset
+                                    electrodes_pos[elt_count_pos] = elec
+                                    elts_pos[:, elt_count_pos] = sub_mat
                                     elt_count_pos += 1
 
                                 groups[elec] += 1
@@ -583,8 +588,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     print_and_log(["Node %d has collected %d waveforms" % (comm.rank, elt_count_pos + elt_count_neg)], 'debug', logger)
 
     if sign_peaks in ['negative', 'both']:
+        times_neg = gather_array(times_neg[:elt_count_neg], comm, 0, 1, dtype='int32')
+        electrodes_neg = gather_array(electrodes_neg[:elt_count_neg], comm, 0, 1, dtype='int32')
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
     if sign_peaks in ['positive', 'both']:
+        times_pos = gather_array(times_pos[:elt_count_pos], comm, 0, 1, dtype='int32')
+        electrodes_pos = gather_array(electrodes_pos[:elt_count_pos], comm, 0, 1, dtype='int32')
         gdata_pos = gather_array(elts_pos[:, :elt_count_pos].T, comm, 0, 1)
 
     nb_waveforms = 0
@@ -615,6 +624,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         pca_neg = None
         warning_n_t = False
         if sign_peaks in ['negative', 'both']:
+            res['times'] = times_neg
+            res['electrodes'] = electrodes_neg
             if len(gdata_neg) > 0:
                 pca = PCA(output_dim)
                 if use_hanning:
@@ -638,6 +649,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             idx = numpy.random.permutation(numpy.arange(gdata_neg.shape[0]))[:2500]
             res['waveforms'] = gdata_neg[idx, :]
         if sign_peaks in ['positive', 'both']:
+            res['times_pos'] = times_pos
+            res['electrodes_pos'] = electrodes_pos
             if len(gdata_pos) > 0:
                 pca = PCA(output_dim)
                 if use_hanning:
