@@ -121,23 +121,27 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
 
 
 
-def variance_template(template, channel_stds, mads, save=False):
+def variance_template(template, channel_mads, mads, save=False):
 
     template = template.flatten()
-    flat_channel_stds = channel_stds.flatten()
-    frac_high_variances = channel_stds/(1.48 * mads[:, numpy.newaxis])
+    flat_channel_mads = channel_mads.flatten()
+    frac_high_variances = channel_mads/mads[:, numpy.newaxis]
 
     fig = pylab.figure()
 
     # Centroids plot.
     ax = fig.add_subplot(211)
-    ax.fill_between(numpy.arange(template.size), template-flat_channel_stds, template+flat_channel_stds, color='k', alpha=0.5)
+    ax.fill_between(numpy.arange(template.size), template-flat_channel_mads, template+flat_channel_mads, color='k', alpha=0.5)
     ax.plot(template, 'r', lw=2)
     ax.set_ylabel('Amplitude')
+    ax.set_xticks([], [])
 
     ax = fig.add_subplot(212)
     ax.plot(frac_high_variances.flatten())
     ax.set_ylabel('Ratio variance')
+    ax.set_title('Max ratio %g' %frac_high_variances.max())
+    ax.set_xlabel('Time Steps')
+    ax.plot([0, len(frac_high_variances)], [1, 1], 'k--')
 
     if save:
         pylab.savefig(os.path.join(save[0], 'variance_' + save[1]))
