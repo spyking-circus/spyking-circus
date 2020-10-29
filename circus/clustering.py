@@ -1428,9 +1428,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     amplitudes = sub_data_flat_raw.dot(normed_template)
                     residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
 
-                    channel_stds = numpy.std(residuals.reshape(x, y, z), 0)
-                    channel_stds[to_delete, :] = 0
-                    frac_high_variances = numpy.max(channel_stds.max(1)/(1.48 * mads[indices]))
+                    residuals = residuals.reshape(x, y, z)
+                    channel_mads = numpy.median(numpy.abs(residuals - numpy.median(residuals, 0)), 0)
+                    channel_mads[to_delete, :] = 0
+                    frac_high_variances = numpy.max(channel_mads.max(1)/mads[indices])
 
                     if p == 'neg':
                         tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
@@ -1448,7 +1449,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if debug_plots not in ['None', '']:
                         save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
-                        plot.variance_template(first_component, channel_stds[indices, :], mads[indices], save=save)
+                        plot.variance_template(first_component, channel_mads[indices, :], mads[indices], save=save)
 
                     if is_noise or (np.abs(shift) > template_shift / 4):
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
