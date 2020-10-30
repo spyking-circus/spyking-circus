@@ -1439,7 +1439,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         templates[indices, :] = first_component
 
-                    first_component = templates[indices]
                     x, y, z = sub_data_raw.shape
                     sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
 
@@ -1458,7 +1457,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if debug_plots not in ['None', '']:
                         save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
-                        plot.variance_template(templates[indices, :], channel_mads[indices, :], mads[indices], save=save)
+                        plot.variance_template(first_component, channel_mads[indices, :], mads[indices], save=save)
 
                     if is_noise:
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
@@ -1503,7 +1502,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
 
                         if two_components:
-                            sub_templates[indices, :] = numpy.median(residuals, 0).reshape(len(indices), n_t)
+                            ortho_templates = numpy.median(residuals, 0).reshape(len(indices), n_t)
+                            if shift > 0:
+                                sub_templates[indices, shift:] = ortho_templates[:, :-shift]
+                            elif shift < 0:
+                                sub_templates[indices, :shift] = ortho_templates[:, -shift:]
+                            else:
+                                sub_templates[indices, :] = ortho_templates
 
                         sub_templates = sub_templates.ravel()
                         dx = sub_templates.nonzero()[0].astype(numpy.uint32)
