@@ -141,7 +141,7 @@ def variance_template(template, channel_mads, mads, save=False):
     ax.set_ylabel('Ratio variance')
     ax.set_title('Max ratio %g' %frac_high_variances.max())
     ax.set_xlabel('Time Steps')
-    ax.plot([0, len(frac_high_variances)], [1, 1], 'k--')
+    ax.plot([0, frac_high_variances.size], [1, 1], 'k--')
 
     if save:
         pylab.savefig(os.path.join(save[0], 'variance_' + save[1]))

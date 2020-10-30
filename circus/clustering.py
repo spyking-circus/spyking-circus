@@ -1429,15 +1429,21 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     else:
                         raise ValueError("Unexpected value %s" % p)
 
+                    shift = template_shift - tmpidx[1]
+
                     templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
-                    templates[indices, :] = first_component
+                    if shift > 0:
+                        templates[indices, shift:] = first_component[:, :-shift]
+                    elif shift < 0:
+                        templates[indices, :shift] = first_component[:, -shift:]
+                    else:
+                        templates[indices, :] = first_component
 
                     first_component = templates[indices]
                     x, y, z = sub_data_raw.shape
                     sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
 
-                    template = first_component.flatten()
-                    normed_template = template/numpy.sqrt(numpy.sum(template ** 2) / n_scalar)
+                    normed_template = first_component.flatten()/numpy.sqrt(numpy.sum(first_component ** 2) / n_scalar)
                     amplitudes = sub_data_flat_raw.dot(normed_template)
                     residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
 
