@@ -13,6 +13,7 @@ Release 1.0.1
 * divide and conquer assigment now based on barycenters instead of simple extremas
 * exit the clustering if too many centroids are found (sign of bad channels)
 * fixes in the meta merging GUI (RPV and dip)
+* optimizations for the second component, less double counting
 
 =============
 Release 1.0.0

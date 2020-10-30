@@ -78,7 +78,7 @@ def data_stats(params, show=True, export_times=False):
 
 def get_stas(
         params, times_i, labels_i, src, neighs, nodes=None,
-        mean_mode=False, all_labels=False, pos='neg', auto_align=True
+        mean_mode=False, all_labels=False, pos='neg', auto_align=True, raw_snippets=False
 ):
 
     data_file = params.data_file
@@ -94,6 +94,9 @@ def get_stas(
         stas = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
     alignment = params.getboolean('detection', 'alignment') and auto_align
+    if not alignment:
+        raw_snippets = False
+
     over_factor = float(params.getint('detection', 'oversampling_factor'))
     nb_jitter = params.getint('detection', 'nb_jitter')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -120,6 +123,10 @@ def get_stas(
         #     weights = smoothing_factor / load_data(params, 'weights-pos')
         align_factor = duration
         local_factor = align_factor*((smoothing_factor*mads[src])**2)
+        if raw_snippets:
+            stas_raw = stas.copy()
+            raw_start = jitter_range
+            raw_end = duration - jitter_range
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
@@ -141,6 +148,9 @@ def get_stas(
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
+            if raw_snippets:
+                raw_chunk = local_chunk[raw_start:raw_end].copy()
+
             if len(ydata) == 1:
                 smoothed = True
                 try:
@@ -172,16 +182,25 @@ def get_stas(
         if all_labels:
             lc = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
+            if raw_snippets:
+                stas_raw[lc] += raw_chunk.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
+                if raw_snippets:
+                    stas_raw[count, :, :] = raw_chunk.T
                 count += 1
             else:
                 stas += local_chunk.T
+                if raw_snippets:
+                    stas_raw += raw_chunk.T
 
     data_file.close()
 
-    return stas
+    if raw_snippets:
+        return stas, stas_raw
+    else:
+        return stas
 
 
 def get_dead_times(params):

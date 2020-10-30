@@ -1397,12 +1397,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     times_i = numpy.take(loc_times, labels_i)
                     labels_i = numpy.ones(len(times_i), dtype=numpy.int32)
 
-                    sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p)
+                    sub_data, sub_data_raw = io.get_stas(params, times_i, labels_i, ielec, neighs=indices, nodes=nodes, pos=p, raw_snippets=True)
 
                     if extraction == 'median-raw':
-                        first_component = numpy.median(sub_data_raw, 0)
+                        first_component = numpy.median(sub_data, 0)
                     elif extraction == 'mean-raw':                
-                        first_component = numpy.mean(sub_data_raw, 0)
+                        first_component = numpy.mean(sub_data, 0)
                     else:
                         raise ValueError("unexpected value %s" % extraction)
 
@@ -1420,6 +1420,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     first_component[to_delete, :] = 0
                     sub_data_raw[:, to_delete, :] = 0
 
+                    if p == 'neg':
+                        tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
+                        ratio = -thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].min()
+                    elif p == 'pos':
+                        tmpidx = numpy.unravel_index(first_component.argmax(), first_component.shape)
+                        ratio = thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].max()
+                    else:
+                        raise ValueError("Unexpected value %s" % p)
+
+                    templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
+                    templates[indices, :] = first_component
+
+                    first_component = templates[indices]
                     x, y, z = sub_data_raw.shape
                     sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
 
@@ -1433,36 +1446,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     channel_mads[to_delete, :] = 0
                     frac_high_variances = numpy.max(channel_mads.max(1)/mads[indices])
 
-                    if p == 'neg':
-                        tmpidx = numpy.unravel_index(first_component.argmin(), first_component.shape)
-                        ratio = -thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].min()
-                    elif p == 'pos':
-                        tmpidx = numpy.unravel_index(first_component.argmax(), first_component.shape)
-                        ratio = thresholds[indices[tmpidx[0]]] / first_component[tmpidx[0]].max()
-                    else:
-                        raise ValueError("Unexpected value %s" % p)
-
-                    shift = template_shift - tmpidx[1]
                     is_noise = (len(indices) == len(to_delete)) or \
                                ((1 / ratio) < noise_thresh) or \
                                (frac_high_variances > ignored_mixtures)
 
                     if debug_plots not in ['None', '']:
                         save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
-                        plot.variance_template(first_component, channel_mads[indices, :], mads[indices], save=save)
+                        plot.variance_template(templates[indices, :], channel_mads[indices, :], mads[indices], save=save)
 
-                    if is_noise or (np.abs(shift) > template_shift / 4):
+                    if is_noise:
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
                     else:
-
-                        templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
-                        if shift > 0:
-                            templates[indices, shift:] = first_component[:, :-shift]
-                        elif shift < 0:
-                            templates[indices, :shift] = first_component[:, -shift:]
-                        else:
-                            templates[indices, :] = first_component
-
                         templates = templates.ravel()
                         dx = templates.nonzero()[0].astype(numpy.uint32)
                         temp_x.append(dx)
@@ -1503,14 +1497,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         sub_templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
 
                         if two_components:
-                            sub_templates[:, :-1] = numpy.diff(templates.reshape(n_e, n_t))
-                            #ortho_templates = numpy.median(residuals, 0).reshape(len(indices), n_t)
-                            #if shift > 0:
-                            #    sub_templates[indices, shift:] = ortho_templates[:, :-shift]
-                            #elif shift < 0:
-                            #    sub_templates[indices, :shift] = ortho_templates[:, -shift:]
-                            #else:
-                            #    sub_templates[indices, :] = ortho_templates
+                            sub_templates[indices, :] = numpy.median(residuals, 0).reshape(len(indices), n_t)
 
                         sub_templates = sub_templates.ravel()
                         dx = sub_templates.nonzero()[0].astype(numpy.uint32)
