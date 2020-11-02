@@ -1,8 +1,8 @@
 # Analyses
 
-This subpackage contains usual analyses made on the results of the sorting procedure.
+This subpackage contains usual analyses done on the results of the sorting procedure.
 
-To run one of these analyses, we recommend to invoke a IPython interpreter to have access to the variables defined during the execution of this script.
+To run one of these analyses, we recommend to invoke a IPython interpreter to have access to the variables defined during its execution.
 
 For example, to display a given template, execute the following commands in a terminal:
 ```
@@ -16,9 +16,11 @@ You can show the help message associated to this analysis with:
 ```
 In [1]: %run -m circus.analyses.display_template -h
 ```
-This holds for other analysis.
+This holds for other analyses.
 
-Here is a list of the analyses present in this subpackage:
+
+## Available analyses
+
 - `circus.analyses.display_template`
 - `circus.analyses.display_isi`
 - `circus.analyses.display_amplitudes`
