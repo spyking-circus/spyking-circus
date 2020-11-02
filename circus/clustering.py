@@ -1322,6 +1322,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             hfile = h5py.File(file_out_suff + '.templates.hdf5', 'w', driver='mpio', comm=comm, libver='earliest')
             norms = hfile.create_dataset('norms', shape=(2 * total_nb_clusters, ), dtype=numpy.float32, chunks=True)
             electrodes = hfile.create_dataset('electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True)
+            local_clusters = hfile.create_dataset('local_clusters', shape=(total_nb_clusters,), dtype=numpy.int32, chunks=True)
             if not fixed_amplitudes:
                 amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
             else:
@@ -1332,6 +1333,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             hfile = h5py.File(file_out_suff + '.templates-%d.hdf5' % comm.rank, 'w', libver='earliest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
+            local_clusters = hfile.create_dataset('local_clusters', shape=(total_nb_clusters,), dtype=numpy.int32, chunks=True)
             norms = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             if not fixed_amplitudes:
                 amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
@@ -1381,7 +1383,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 loc_clusters = numpy.take(cluster_results[p][ielec]['groups'], mask)
     
                 for group in numpy.unique(loc_clusters):
+
                     electrodes[g_count] = ielec
+                    local_clusters[g_count] = group
+
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
 
                     if fine_amplitude:
@@ -1591,7 +1596,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     for i in range(comm.size)
                 ]
                 cfile = h5py.File(file_out_suff + '.clusters.hdf5', 'w', libver='earliest')
-                io.write_datasets(cfile, ['electrodes'], {'electrodes': electrodes[:]})
+                io.write_datasets(
+                    cfile,
+                    ['electrodes', 'local_clusters'],
+                    {'electrodes': electrodes[:], 'local_clusters': local_clusters[:]},
+                )
                 for i in range(comm.size):
                     for j in range(i, n_e, comm.size):
                         io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
@@ -1616,6 +1625,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 electrodes = hfile.create_dataset(
                     'electrodes', shape=(total_nb_clusters, ), dtype=numpy.int32, chunks=True
                 )
+                local_clusters = hfile.create_dataset(
+                    'local_clusters', shape=(total_nb_clusters,), dtype=numpy.int32, chunks=True
+                )
                 norms = hfile.create_dataset(
                     'norms', shape=(2 * total_nb_clusters, ), dtype=numpy.float32, chunks=True
                 )
@@ -1637,6 +1649,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     norms[count:count+middle] = loc_norms[:middle]
                     norms[total_nb_clusters+count:total_nb_clusters+count+middle] = loc_norms[middle:]
                     electrodes[count:count+middle] = ts[i].get('electrodes')
+                    local_clusters[count:count+middle] = ts[i].get('local_clusters')
                     amplitudes[count:count+middle] = ts[i].get('limits')
                     supports[count:count+middle] = ts[i].get('supports')
                     count += middle
@@ -1647,7 +1660,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     os.remove(file_out_suff + '.templates-%d.hdf5' % i)
                     os.remove(file_out_suff + '.clusters-%d.hdf5' % i)
                 hfile.flush()  # we need to flush otherwise electrodes[:] refers to zeros and not the real values
-                io.write_datasets(cfile, ['electrodes'], {'electrodes': electrodes[:]})
+                io.write_datasets(
+                    cfile,
+                    ['electrodes', 'local_clusters'],
+                    {'electrodes': electrodes[:], 'local_clusters': local_clusters[:]},
+                )
                 hfile.close()
                 cfile.close()
 
