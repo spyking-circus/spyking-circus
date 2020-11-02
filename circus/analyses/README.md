@@ -26,9 +26,9 @@ This holds for other analyses.
 - `circus.analyses.display_amplitudes`
 - whitening
   - `circus.analyses.whitening.inspect_thresholds`
-  - `circus.analyses.whitening.spatial_matrix`
-  - `circus.analyses.whitening.collected_waveforms`
-  - `circus.analyses.whitening.basis_waveforms`
+  - `circus.analyses.whitening.inspect_spatial_matrix`
+  - `circus.analyses.whitening.inspect_collected_waveforms`
+  - `circus.analyses.whitening.inspect_basis_waveforms`
 - clustering
   - `circus.analyses.clustering.inspect_clusters_projections`
   - `circus.analyses.clustering.inspect_clusters_snippets`
