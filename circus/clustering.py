@@ -1333,7 +1333,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             hfile = h5py.File(file_out_suff + '.templates-%d.hdf5' % comm.rank, 'w', libver='earliest')
             electrodes = hfile.create_dataset('electrodes', shape=(local_nb_clusters, ), dtype=numpy.int32, chunks=True)
-            local_clusters = hfile.create_dataset('local_clusters', shape=(total_nb_clusters,), dtype=numpy.int32, chunks=True)
+            local_clusters = hfile.create_dataset('local_clusters', shape=(local_nb_clusters,), dtype=numpy.int32, chunks=True)
             norms = hfile.create_dataset('norms', shape=(2*local_nb_clusters, ), dtype=numpy.float32, chunks=True)
             if not fixed_amplitudes:
                 amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
