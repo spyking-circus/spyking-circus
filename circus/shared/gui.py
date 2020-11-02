@@ -489,13 +489,14 @@ class MergeWindow(QMainWindow):
                 for d in range(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
+                x_cc /= (self.duration * bin_size)
                 #duration = interval[1] - interval[0]
                 #mask1 = (spike_1 > interval[0]*self.sampling_rate) & (spike_1 < interval[1]*self.sampling_rate)
                 #mask2 = (spike_2 > interval[0]*self.sampling_rate) & (spike_2 < interval[1]*self.sampling_rate)
 
                 r1 = len(spike_1) / self.duration
                 r2 = len(spike_2) / self.duration
-                control = r1 * r2 * self.duration * bin_size
+                control = r1 * r2
 
                 is_overlapping = is_active_1 * is_active_2
                 duration = numpy.where(is_overlapping == 0)[0]
