@@ -1,4 +1,7 @@
+import h5py
 import numpy as np
+import os
+import re
 import scipy as sp
 import scipy.ndimage
 
@@ -151,3 +154,27 @@ def plot_template(ax, template, params, color='black', vmin=None, vmax=None, lab
             label = None  # i.e. label first plot only
 
     return
+
+
+def load_clusters_data(params, extension=''):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = "{}.clusters{}.hdf5".format(file_out_suff, extension)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        data = dict()
+        p = re.compile('_\d*$')  # noqa
+        for key in file.keys():
+            m = p.search(key)
+            if m is None:
+                data[key] = file[key][:]
+            else:
+                k_start, k_stop = m.span()
+                key_ = key[0:k_start]
+                channel_nb = int(key[k_start + 1:k_stop])
+                if key_ not in data:
+                    data[key_] = dict()
+                data[key_][channel_nb] = file[key][:]
+
+    return data
