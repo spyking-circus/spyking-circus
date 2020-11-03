@@ -1571,6 +1571,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             io.write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
 
         # At the end we should have a templates variable to store.
+        cfile.flush()
         cfile.close()
         del result, amps_lims
         sys.stderr.flush()
@@ -1606,9 +1607,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         io.write_datasets(cfile, to_write, rs[i], j, compression=hdf5_compress)
                     rs[i].close()
                     os.remove(file_out_suff + '.clusters-%d.hdf5' % i)
+                cfile.flush()
                 cfile.close()
+            hfile.flush()
             hfile.close()
         else:
+            hfile.flush()
             hfile.close()
             comm.Barrier()
             if comm.rank == 0:
@@ -1665,6 +1669,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ['electrodes', 'local_clusters'],
                     {'electrodes': electrodes[:], 'local_clusters': local_clusters[:]},
                 )
+                cfile.flush()
                 hfile.close()
                 cfile.close()
 
@@ -1679,6 +1684,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 hfile.create_dataset('temp_y', data=temp_y)
                 hfile.create_dataset('temp_data', data=temp_data)
             hfile.create_dataset('temp_shape', data=numpy.array([n_e, n_t, 2 * total_nb_clusters], dtype=numpy.int32))
+            hfile.flush()
             hfile.close()
 
     else:  # extraction not in ['median-raw', 'mean-raw']
