@@ -374,6 +374,7 @@ class MergeWindow(QMainWindow):
             self.update_lag(self.default_lag)
             self.suggest_templates(None)
             self.remove_templates(None)
+            self.update_lag(self.default_lag)
 
         self.plot_data()
         self.plot_scores()
@@ -681,7 +682,7 @@ class MergeWindow(QMainWindow):
     def plot_data(self):
         # Right: raw data
         if self.app is not None:
-            all_raw_data = self.raw_data
+            all_raw_data = self.raw_data.copy()
             all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
             if len(all_raw_data) > 0:
                 cmax = 0.5*all_raw_data.max()
