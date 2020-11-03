@@ -1442,7 +1442,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     x, y, z = sub_data_raw.shape
                     sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
 
-                    normed_template = first_component.flatten()/numpy.sqrt(numpy.sum(first_component ** 2) / n_scalar)
+                    normed_template = templates[indices].flatten()/numpy.sqrt(numpy.sum(templates ** 2) / n_scalar)
                     amplitudes = sub_data_flat_raw.dot(normed_template)
                     residuals = sub_data_flat_raw - amplitudes[:, numpy.newaxis] * normed_template/n_scalar
 
@@ -1503,12 +1503,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if two_components:
                             ortho_templates = numpy.median(residuals, 0).reshape(len(indices), n_t)
-                            if shift > 0:
-                                sub_templates[indices, shift:] = ortho_templates[:, :-shift]
-                            elif shift < 0:
-                                sub_templates[indices, :shift] = ortho_templates[:, -shift:]
-                            else:
-                                sub_templates[indices, :] = ortho_templates
+                            sub_templates[indices] = ortho_templates
 
                         sub_templates = sub_templates.ravel()
                         dx = sub_templates.nonzero()[0].astype(numpy.uint32)
