@@ -99,7 +99,7 @@ but a subset x,y can be done. Steps are:
     parser.add_argument('-m', '--method',
                         default='filtering,whitening,clustering,fitting,merging',
                         help=method_help)
-    parser.add_argument('-c', '--cpu', type=int, default=int(psutil.cpu_count()/2), help='number of CPU')
+    parser.add_argument('-c', '--cpu', type=int, default=max(1, int(psutil.cpu_count()/2)), help='number of CPU')
     # parser.add_argument('-g', '--gpu', type=int, default=0, help='number of GPU')
     parser.add_argument('-H', '--hostfile', help='hostfile for MPI',
                         default=pjoin(user_path, 'circus.hosts'))
