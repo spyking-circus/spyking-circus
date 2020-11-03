@@ -1384,15 +1384,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     electrodes[g_count] = ielec
                     myslice = numpy.where(cluster_results[p][ielec]['groups'] == group)[0]
 
-                    #if fine_amplitude:
-                    #    data = result['sub_%s_' % p + str(ielec)][myslice]
-                    #    centroid = numpy.median(data, 0)
-                    #    centroid = centroid.reshape(1, len(centroid))
-                    #    distances = \
-                    #        scipy.spatial.distance.cdist(data, centroid, 'euclidean').flatten()
-                    #    labels_i = myslice[numpy.argsort(distances)[:nb_snippets]]
-                    #else:
-                    labels_i = numpy.random.permutation(myslice)[:nb_snippets]
+                    if fine_amplitude:
+                        data = result['sub_%s_' % p + str(ielec)][myslice]
+                        centroid = numpy.median(data, 0)
+                        centroid = centroid.reshape(1, len(centroid))
+                        distances = \
+                            scipy.spatial.distance.cdist(data, centroid, 'euclidean').flatten()
+                        labels_i = myslice[numpy.argsort(distances)[:nb_snippets]]
+                    else:
+                        labels_i = numpy.random.permutation(myslice)[:nb_snippets]
 
                     times_i = numpy.take(loc_times, labels_i)
                     labels_i = numpy.ones(len(times_i), dtype=numpy.int32)
