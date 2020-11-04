@@ -732,7 +732,7 @@ def load_data_memshared(
 
             for key in myfile.keys():
 
-                if ('clusters_' in key) or (key == 'electrodes'):
+                if ('clusters_' in key) or (key == 'electrodes') or (key == 'local_clusters'):
                     if local_rank == 0:
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
@@ -1242,7 +1242,7 @@ def load_data(params, data, extension=''):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
             for key in myfile.keys():
-                if ('clusters_' in key) or (key == 'electrodes'):
+                if ('clusters_' in key) or (key == 'electrodes') or (key == 'local_clusters'):
                     result[str(key)] = myfile.get(key)[:]
             myfile.close()
             return result
