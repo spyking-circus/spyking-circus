@@ -73,7 +73,7 @@ selection = pd.Series(df['local_cluster'] != df['local_cluster_bis'])
 if selection.any():
     pd.set_option('display.max_rows', 100)
     print(df[selection])
-    warnings.warn("Found a mismatch between saved and recomputed local clusters.")
+    raise UserWarning("Found a mismatch between saved and recomputed local clusters.")
 
 
 def compute_minimum_intervals(spike_times, peak_times):
