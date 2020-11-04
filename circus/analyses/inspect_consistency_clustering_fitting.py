@@ -1,4 +1,4 @@
-"""Inspect consistency of fitted spike times with peak times collected during clustering."""
+"""Inspect consistency of peak times collected during clustering with fitted spike times during fitting."""
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +11,7 @@ from circus.analyses.utils import load_clusters_data
 
 # Parse arguments.
 parser = argparse.ArgumentParser(  # noqa
-    description="Inspect fitted snippets for a given template.",
+    description="Inspect consistency of peak times collected during clustering with fitted spike times during fitting.",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 parser.add_argument('datafile', help="data file")
@@ -69,7 +69,7 @@ for k, template_id in enumerate(template_ids):
     local_cluster = clusters_data['local_clusters'][template_id]
     clusters = clusters_data['clusters'][preferred_electrode]
     times = clusters_data['times'][preferred_electrode]
-    assert local_cluster in np.unique(clusters), np.unique(clusters)
+    assert local_cluster in np.unique(clusters), (local_cluster, np.unique(clusters))
     selection = (clusters == local_cluster)
     peak_times = times[selection]
     peak_times = np.sort(peak_times)
@@ -163,4 +163,52 @@ if args.template_id is not None:
     ax.spines['top'].set_visible(False)
     ax.set_xlabel("interval (ms)")
     ax.set_ylabel("probability")
+    fig.tight_layout()
+
+
+if args.template_id is not None:
+
+    # Select peak times.
+    preferred_electrode = clusters_data['electrodes'][args.template_id]
+    local_cluster = clusters_data['local_clusters'][args.template_id]
+    clusters = clusters_data['clusters'][preferred_electrode]
+    times = clusters_data['times'][preferred_electrode]
+    assert local_cluster in np.unique(clusters), (local_cluster, np.unique(clusters))
+    selection = (clusters == local_cluster)
+    peak_times = times[selection]
+    peak_times = np.sort(peak_times)
+
+    # TODO find templates whose spike times match these peak times.
+    proportions = np.zeros_like(template_ids, dtype=np.float)
+    for k, template_id in enumerate(template_ids):
+        # Select spike times.
+        spike_times = results_data['spike_times'][template_id]
+        spike_times = np.sort(spike_times)
+        # Compute minimum intervals between spike times and peak times.
+        minimum_intervals = compute_minimum_intervals(spike_times, peak_times)
+        minimum_intervals = minimum_intervals / sampling_rate * 1e+3  # ms
+        # Compute proportion.
+        proportion = np.count_nonzero(minimum_intervals < args.interval) / minimum_intervals.size
+        proportions[k] = proportion
+
+    # Plot proportions.
+    fig, ax = plt.subplots()
+    x = template_ids
+    y = proportions
+    scatter_kwargs = {
+        's': (3 ** 2),
+        'color': 'black',
+    }
+    ax.scatter(x, y, **scatter_kwargs)
+    axline_kwargs = {
+        'color': 'black',
+        'linewidth': 0.5,
+    }
+    ax.axhline(y=0.0, **axline_kwargs)
+    ax.axhline(y=1.0, **axline_kwargs)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.set_xlabel("template")
+    ax.set_ylabel("proportion")
+    ax.set_title("peak times as spike times (+/- {} ms, template {})".format(args.interval, args.template_id))
     fig.tight_layout()
