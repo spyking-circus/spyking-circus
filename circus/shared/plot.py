@@ -135,7 +135,7 @@ def variance_template(template, channel_mads, mads, save=False):
     ax.fill_between(numpy.arange(template.size), template-flat_channel_mads, template+flat_channel_mads, color='k', alpha=0.5)
     ax.plot(template, 'r', lw=2)
     ax.set_ylabel('Amplitude')
-    ax.set_xticks([], [])
+    ax.set_xticks([])
 
     ax = fig.add_subplot(212)
     ax.plot(frac_high_variances.flatten())

@@ -1033,7 +1033,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         a = a / float(nb_spikes)
                         z = a[a > 0]
                         c = 1.0 / numpy.min(z)
-                        d = 1. / (c * a)
+
+                        d = numpy.ones(len(a))
+                        d[a > 0] = 1. / (c * a[a > 0])
                         d = numpy.minimum(1, d)
                         d /= numpy.sum(d)
                         twist = numpy.sum(a * d)

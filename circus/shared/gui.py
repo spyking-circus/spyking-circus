@@ -1125,9 +1125,9 @@ class MergeWindow(QMainWindow):
         for i in range(len(indices)):
             indices[i] -= numpy.sum(self.to_delete <= indices[i])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_templates) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_templates) - set(indices)
 
         self.inspect_templates = sorted(indices)
@@ -1160,9 +1160,9 @@ class MergeWindow(QMainWindow):
         else:
             all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_points) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_points) - set(indices)
 
         self.inspect_points = sorted(indices)
@@ -1925,9 +1925,9 @@ class PreviewGUI(QMainWindow):
         else:
             all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_points) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_points) - set(indices)
 
         self.inspect_points = sorted(indices)

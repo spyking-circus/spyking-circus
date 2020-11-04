@@ -1378,8 +1378,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.spines['right'].set_visible(False)
             axs.spines['top'].set_visible(False)
             axs.spines['bottom'].set_visible(False)
-            axs.set_yticks([], [])
-            axs.set_xticks([], [])
+            axs.set_yticks([])
+            axs.set_xticks([])
 
             axs = fig.add_subplot(gs[1,0:5])
             axs.axhline(y=0.0, color='gray', linewidth=linewidth)
