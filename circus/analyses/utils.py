@@ -162,16 +162,21 @@ def plot_template(ax, template, params, color='black', vmin=None, vmax=None, lab
     return
 
 
-def load_clusters_data(params, extension=''):
+def load_clusters_data(params, extension='', keys=None):
 
     file_out_suff = params.get('data', 'file_out_suff')
     path = "{}.clusters{}.hdf5".format(file_out_suff, extension)
     if not os.path.isfile(path):
         raise FileNotFoundError(path)
     with h5py.File(path, mode='r', libver='earliest') as file:
+        if keys is None:
+            keys = file.keys()
+        else:
+            for key in keys:
+                assert key in file, (key, file.keys())
         data = dict()
         p = re.compile('_\d*$')  # noqa
-        for key in file.keys():
+        for key in keys:
             m = p.search(key)
             if m is None:
                 data[key] = file[key][:]
@@ -182,6 +187,25 @@ def load_clusters_data(params, extension=''):
                 if key_ not in data:
                     data[key_] = dict()
                 data[key_][channel_nb] = file[key][:]
+
+    return data
+
+
+def load_templates_data(params, extension='', keys=None):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = "{}.templates{}.hdf5".format(file_out_suff, extension)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        if keys is None:
+            keys = file.keys()
+        else:
+            for key in keys:
+                assert key in file, (key, file.keys())
+        data = dict()
+        for key in keys:
+            data[key] = file[key][:]
 
     return data
 
