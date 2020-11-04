@@ -373,10 +373,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if sign_peaks in ['positive', 'both']:
         times_pos = numpy.zeros(nb_elts, dtype=numpy.int32)
         electrodes_pos = numpy.zeros(nb_elts, dtype=numpy.int32)
+        extremum_pos = numpy.zeros(nb_elts, dtype=numpy.float32)
         elts_pos = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
     if sign_peaks in ['negative', 'both']:
         times_neg = numpy.zeros(nb_elts, dtype=numpy.int32)
         electrodes_neg = numpy.zeros(nb_elts, dtype=numpy.int32)
+        extremum_neg = numpy.zeros(nb_elts, dtype=numpy.float32)
         elts_neg = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
 
     chunks_to_load = all_chunks[comm.rank::comm.size]
@@ -403,7 +405,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
-    to_explore = range(comm.rank, nb_chunks, comm.size)
+    to_explore = numpy.arange(comm.rank, nb_chunks, step=comm.size)
+    numpy.random.shuffle(to_explore)
 
     upper_bounds = max_elts_elec
 
@@ -436,6 +439,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             # Extracting the peaks.
             all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
             found_peaktimes = []
+            found_peak_amplitudes = []
             for i in range(N_e):
                 height = thresholds[i]
                 if sign_peaks == 'negative':
@@ -461,8 +465,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peaktimes = peaktimes.astype(numpy.uint32)
                 found_peaktimes.append(peaktimes)
 
-            all_peaktimes = numpy.concatenate(found_peaktimes) # i.e. concatenate once for efficiency
+                peak_amplitudes = local_chunk[peaktimes, i]
+                found_peak_amplitudes.append(peak_amplitudes)
+
+            all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
             local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
+
+            all_peak_amplitudes = numpy.concatenate(found_peak_amplitudes)
 
             if len(local_peaktimes) > 0:
 
@@ -476,10 +485,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 for i in range(N_e):
                     test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
-                n_times = len(all_peaktimes)
-                shuffling = numpy.random.permutation(numpy.arange(n_times))
-                all_idx = numpy.take(all_peaktimes, shuffling)
-                argmax_peak = local_indices[shuffling]
+                # Consider the peaks by decreasing extremum.
+                order = numpy.argsort(-np.abs(all_peak_amplitudes))
+                all_idx = numpy.take(all_peaktimes, order)
+                argmax_peak = local_indices[order]
 
                 # print "Selection of the peaks with spatio-temporal masks..."
                 for midx, peak in zip(argmax_peak, all_idx):
@@ -549,6 +558,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 is_noise = False
                             
                             if not is_noise:
+
+                                extrema = sub_mat[snippet_duration]
+
                                 if alignment:
                                     smoothed = True
                                     try:
@@ -571,11 +583,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 if negative_peak:
                                     times_neg[elt_count_neg] = peak + t_offset
                                     electrodes_neg[elt_count_neg] = elec
+                                    extremum_neg[elt_count_neg] = extrema
                                     elts_neg[:, elt_count_neg] = sub_mat
                                     elt_count_neg += 1
                                 else:
                                     times_pos[elt_count_pos] = peak + t_offset
                                     electrodes_pos[elt_count_pos] = elec
+                                    extremum_pos[elt_count_pos] = extrema
                                     elts_pos[:, elt_count_pos] = sub_mat
                                     elt_count_pos += 1
 
@@ -590,10 +604,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if sign_peaks in ['negative', 'both']:
         times_neg = gather_array(times_neg[:elt_count_neg], comm, 0, 1, dtype='int32')
         electrodes_neg = gather_array(electrodes_neg[:elt_count_neg], comm, 0, 1, dtype='int32')
+        extremum_neg = gather_array(extremum_neg[:elt_count_neg], comm, 0, 1)
         gdata_neg = gather_array(elts_neg[:, :elt_count_neg].T, comm, 0, 1)
     if sign_peaks in ['positive', 'both']:
         times_pos = gather_array(times_pos[:elt_count_pos], comm, 0, 1, dtype='int32')
         electrodes_pos = gather_array(electrodes_pos[:elt_count_pos], comm, 0, 1, dtype='int32')
+        extremum_pos = gather_array(extremum_pos[:elt_count_pos], comm, 0, 1)
         gdata_pos = gather_array(elts_pos[:, :elt_count_pos].T, comm, 0, 1)
 
     nb_waveforms = 0
@@ -626,6 +642,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['negative', 'both']:
             res['times'] = times_neg
             res['electrodes'] = electrodes_neg
+            res['extremum'] = extremum_neg
             if len(gdata_neg) > 0:
                 pca = PCA(output_dim)
                 if use_hanning:
@@ -651,6 +668,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if sign_peaks in ['positive', 'both']:
             res['times_pos'] = times_pos
             res['electrodes_pos'] = electrodes_pos
+            res['extremum_pos'] = extremum_pos
             if len(gdata_pos) > 0:
                 pca = PCA(output_dim)
                 if use_hanning:
