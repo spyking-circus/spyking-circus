@@ -761,6 +761,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 result_['times_' + str(elec)] = numpy.delete(result_['times_' + str(elec)], elements)
                 result_['peaks_' + str(elec)] = numpy.delete(result_['peaks_' + str(elec)], elements)
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
+                result_['local_clusters'] = numpy.delete(result_['local_clusters'], to_remove)
                 distances_ = numpy.delete(distances_, to_remove, axis=0)
                 distances_ = numpy.delete(distances_, to_remove, axis=1)
                 to_merge_ = numpy.vstack((to_merge_, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
