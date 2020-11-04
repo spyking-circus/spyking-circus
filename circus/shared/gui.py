@@ -648,7 +648,7 @@ class MergeWindow(QMainWindow):
                 self.waveforms_ax.set_yticks([])
                 # self.waveforms_ax.set_xlabel('Time [ms]')
                 # self.waveforms_ax.set_ylabel('Amplitude')
-                self.waveforms_ax.set_aspect('equal')
+                #self.waveforms_ax.set_aspect('equal')
             else:
                 xys = [
                     (self.score_x, self.score_y),
