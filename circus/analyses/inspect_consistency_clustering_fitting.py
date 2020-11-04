@@ -2,6 +2,8 @@
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import warnings
 
 from circus.shared.parser import CircusParser
 from circus.shared.files import load_data
@@ -39,6 +41,39 @@ for key in results['spiketimes'].keys():
 
 # Load peak times.
 clusters_data = load_clusters_data(params, extension='')  # TODO support other extensions?
+
+
+# Check if saved local clusters are coherent with the recomputed ones.
+electrodes = clusters_data['electrodes']
+local_clusters = clusters_data['local_clusters']
+clusters = clusters_data['clusters']
+# # Recompute local clusters based on the order of the electrodes.
+nb_templates = electrodes.size
+template_ids = np.arange(0, nb_templates)
+local_clusters_bis = [None for template_id in template_ids]
+current_local_cluster_ids = dict([
+    (electrode, 0)
+    for electrode in np.unique(electrodes)
+])
+for k, electrode in enumerate(electrodes):
+    local_cluster_id = current_local_cluster_ids[electrode]
+    local_clusters_bis[k] = np.unique(clusters[electrode][clusters[electrode] > - 1])[local_cluster_id]
+    current_local_cluster_ids[electrode] += 1
+# # Create data frame.
+data = {
+    'template_id': template_ids,
+    'electrode': electrodes,
+    'local_cluster': local_clusters,
+    'local_cluster_bis': local_clusters_bis,
+}
+df = pd.DataFrame.from_dict(data)
+df.set_index('template_id')
+# # Check coherence between saved and recomputed local clusters.
+selection = pd.Series(df['local_cluster'] != df['local_cluster_bis'])
+if selection.any():
+    pd.set_option('display.max_rows', 100)
+    print(df[selection])
+    warnings.warn("Found a mismatch between saved and recomputed local clusters.")
 
 
 def compute_minimum_intervals(spike_times, peak_times):
