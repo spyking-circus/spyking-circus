@@ -155,6 +155,7 @@ class CircusParser(object):
                           ['clustering', 'halo_rejection', 'float', 'inf'],
                           ['clustering', 'adapted_cc', 'bool', 'False'],
                           ['clustering', 'adapted_thr', 'int', '100'],
+                          ['clustering', 'sparsity_limit', 'float', '1.0'],
                           ['clustering', 'ignored_mixtures', 'float', '20'],
                           ['clustering', 'nb_amplitude_snippets', 'int', '250'],
                           ['clustering', 'fixed_amplitudes', 'bool', 'True'],
