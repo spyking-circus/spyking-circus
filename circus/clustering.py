@@ -762,7 +762,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                             good_time, good_elec = numpy.unravel_index(numpy.argmax(sub_mat), sub_mat.shape)
 
                                         shift = template_shift - good_time
-                                        is_centered = np.abs(shift) <= jitter_range
+                                        is_centered = np.abs(shift) < (template_shift / 4)
                                         max_test = (good_elec == elec_positions[elec][0]) and is_centered
 
                                         if max_test:
@@ -1466,7 +1466,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
                         plot.variance_template(first_component, channel_mads[indices, :], mads[indices], save=save)
 
-                    if is_noise or (numpy.abs(shift) > jitter_range):
+                    if is_noise:
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
                     else:
                         templates = templates.ravel()
