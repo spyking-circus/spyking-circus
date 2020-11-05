@@ -1439,15 +1439,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     shift = template_shift - tmpidx[1]
 
                     templates = numpy.zeros((n_e, n_t), dtype=numpy.float32)
+                    sub_data_aligned = numpy.zeros(sub_data_raw.shape, dtype=numpy.float32)
                     if shift > 0:
                         templates[indices, shift:] = first_component[:, :-shift]
+                        sub_data_aligned[:, :, shift:] = sub_data[:, :, :-shift]
                     elif shift < 0:
                         templates[indices, :shift] = first_component[:, -shift:]
+                        sub_data_aligned[:, :, :shift] = sub_data[:, :, -shift:]
                     else:
                         templates[indices, :] = first_component
+                        sub_data_aligned = sub_data_raw
 
-                    x, y, z = sub_data_raw.shape
-                    sub_data_flat_raw = sub_data_raw.reshape(x, y * z)
+                    x, y, z = sub_data_aligned.shape
+                    sub_data_flat_raw = sub_data_aligned.reshape(x, y * z)
 
                     normed_template = templates[indices].flatten()/numpy.sqrt(numpy.sum(templates ** 2) / n_scalar)
                     amplitudes = sub_data_flat_raw.dot(normed_template)
