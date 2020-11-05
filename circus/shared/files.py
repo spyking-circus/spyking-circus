@@ -2214,7 +2214,7 @@ def get_overlaps(
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_tm, over_shape[1]), dtype=numpy.float32)
             maxoverlaps[count, :] = data.max(1).toarray().flatten()[:N_half]
-            maxlags[count, :] = N_t - numpy.array(data.argmax(1)).flatten()[:N_half]
+            maxlags[count, :] = N_t - 1 - numpy.array(data.argmax(1)).flatten()[:N_half]
             del local_x, local_y, local_data, data, nslice
             gc.collect()
 
