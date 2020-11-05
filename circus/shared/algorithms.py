@@ -1076,7 +1076,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
 
-        snippets = get_stas(params, times_i + offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
+        snippets = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
         snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
