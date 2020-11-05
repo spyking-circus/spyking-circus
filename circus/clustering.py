@@ -1442,10 +1442,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     sub_data_aligned = numpy.zeros(sub_data_raw.shape, dtype=numpy.float32)
                     if shift > 0:
                         templates[indices, shift:] = first_component[:, :-shift]
-                        sub_data_aligned[:, :, shift:] = sub_data[:, :, :-shift]
+                        sub_data_aligned[:, :, shift:] = sub_data_raw[:, :, :-shift]
                     elif shift < 0:
                         templates[indices, :shift] = first_component[:, -shift:]
-                        sub_data_aligned[:, :, :shift] = sub_data[:, :, -shift:]
+                        sub_data_aligned[:, :, :shift] = sub_data_raw[:, :, -shift:]
                     else:
                         templates[indices, :] = first_component
                         sub_data_aligned = sub_data_raw
