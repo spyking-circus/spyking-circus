@@ -1009,7 +1009,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     for i in range(nb_temp):
         ref_elec = best_elec[i]
-        mytemplate = templates[i].reshape(N_e, N_t).todense()[ref_elec]
+        if is_sparse:
+            mytemplate = templates[i].reshape(N_e, N_t).todense()[ref_elec]
+        else:
+            mytemplate = templates[i].reshape(N_e, N_t)[ref_elec]
         offsets['neg'][i] = numpy.argmin(mytemplate) - template_shift
         offsets['pos'][i] = numpy.argmax(mytemplate) - template_shift
 
@@ -1073,7 +1076,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
 
-        snippets = get_stas(params, times_i + offsets[p][i], labels_i, align_elec, neighs=sindices, nodes=nodes, pos=p)
+        snippets = get_stas(params, times_i + offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
         snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
