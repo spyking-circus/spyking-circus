@@ -1004,6 +1004,14 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     norm_2 = norm_templates ** 2
     sindices = inv_nodes[nodes]
 
+    real_best_elecs = {'neg': numpy.zeros(nb_temp, dtype=numpy.int32),
+                       'pos': numpy.zeros(nb_temp, dtype=numpy.int32)}
+    shifts = numpy.arange(template_shift, N_e*N_t, N_t)
+
+    for i in range(nb_temp):
+        real_best_elecs['neg'][i] = templates[i, shifts].argmin()
+        real_best_elecs['pos'][i] = templates[i, shifts].argmax()
+
     # For each electrode, get the local cluster labels.
     indices = {}
     for i in range(N_e):
@@ -1063,7 +1071,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         idx_i = numpy.random.permutation(idx)[:max_snippets]
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
-        snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
+
+        align_elec = real_best_elecs[p][i]
+        snippets = get_stas(params, times_i, labels_i, align_elec, neighs=sindices, nodes=nodes, pos=p)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
         snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
