@@ -1,4 +1,7 @@
+import h5py
 import numpy as np
+import os
+import re
 import scipy as sp
 import scipy.ndimage
 
@@ -8,6 +11,7 @@ from circus.shared.probes import get_nodes_and_edges
 
 def load_snippets(time_step_ids, params):
 
+    nb_channels = params.getint('data', 'N_e')
     nb_time_steps = params.getint('detection', 'N_t')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -34,14 +38,16 @@ def load_snippets(time_step_ids, params):
         if do_temporal_whitening:
             data = sp.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
         snippets.append(data)
+    nb_snippets = len(snippets)
     snippets = np.array(snippets)
+    snippets = np.reshape(snippets, (nb_snippets, nb_time_steps, nb_channels))
 
     data_file.close()
 
     return snippets
 
 
-def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None):
+def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, limits='auto'):
 
     nb_channels = params.getint('data', 'N_e')
     nb_time_steps = params.getint('detection', 'N_t')
@@ -67,11 +73,12 @@ def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None):
         for snippet in snippets:
             y = y_scaling * snippet[:, channel_id] + y_c
             ax.plot(x, y, color=color)
+    set_limits(ax, limits, positions)
 
     return
 
 
-def plot_snippet(ax, snippet, params, color='black', vmin=None, vmax=None, label=None):
+def plot_snippet(ax, snippet, params, color='black', vmin=None, vmax=None, label=None, limits='auto'):
 
     nb_channels = params.getint('data', 'N_e')
     nb_time_steps = params.getint('detection', 'N_t')
@@ -100,6 +107,7 @@ def plot_snippet(ax, snippet, params, color='black', vmin=None, vmax=None, label
             'label': label if channel_id == 0 else None,
         }
         ax.plot(x, y, **plot_kwargs)
+    set_limits(ax, limits, positions)
 
     return
 
@@ -118,7 +126,7 @@ def load_template(template_id, params, extension=''):
     return template
 
 
-def plot_template(ax, template, params, color='black', vmin=None, vmax=None, label=None):
+def plot_template(ax, template, params, color='black', vmin=None, vmax=None, label=None, limits='auto'):
 
     nb_channels = params.getint('data', 'N_e')
     nb_time_steps = params.getint('detection', 'N_t')
@@ -149,5 +157,75 @@ def plot_template(ax, template, params, color='black', vmin=None, vmax=None, lab
             }
             ax.plot(x, y, **plot_kwargs)
             label = None  # i.e. label first plot only
+    set_limits(ax, limits, positions)
+
+    return
+
+
+def load_clusters_data(params, extension='', keys=None):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = "{}.clusters{}.hdf5".format(file_out_suff, extension)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        if keys is None:
+            keys = file.keys()
+        else:
+            for key in keys:
+                assert key in file, (key, file.keys())
+        data = dict()
+        p = re.compile('_\d*$')  # noqa
+        for key in keys:
+            m = p.search(key)
+            if m is None:
+                data[key] = file[key][:]
+            else:
+                k_start, k_stop = m.span()
+                key_ = key[0:k_start]
+                channel_nb = int(key[k_start + 1:k_stop])
+                if key_ not in data:
+                    data[key_] = dict()
+                data[key_][channel_nb] = file[key][:]
+
+    return data
+
+
+def load_templates_data(params, extension='', keys=None):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = "{}.templates{}.hdf5".format(file_out_suff, extension)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        if keys is None:
+            keys = file.keys()
+        else:
+            for key in keys:
+                assert key in file, (key, file.keys())
+        data = dict()
+        for key in keys:
+            data[key] = file[key][:]
+
+    return data
+
+
+def set_limits(ax, limits, positions):
+
+    if limits is None:
+        pass
+    elif limits == 'auto':
+        x = positions[:, 0]
+        y = positions[:, 1]
+        xmin, xmax = np.min(x), np.max(x)
+        ymin, ymax = np.min(y), np.max(y)
+        dx = np.median(np.diff(np.unique(x)))  # horizontal inter-electrode distance
+        dy = np.median(np.diff(np.unique(y)))  # vertical inter-electrode distance
+
+        ax.set_xlim(xmin - dx, xmax + dx)
+        ax.set_ylim(ymin - dy, ymax + dy)
+    else:
+        ax.set_xlim(*limits[0:2])
+        ax.set_ylim(*limits[2:4])
 
     return

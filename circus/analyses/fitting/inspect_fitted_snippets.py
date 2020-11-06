@@ -2,6 +2,7 @@
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import warnings
 
 from circus.shared.parser import CircusParser
 from circus.shared.files import load_data
@@ -47,10 +48,17 @@ duration = params.data_file.duration
 # Load spike times and amplitudes.
 results = load_data(params, 'results', extension=args.extension)
 template_key = 'temp_{}'.format(args.template_id)
-spike_times = results['spiketimes'][template_key]
+spike_times = results['spiketimes'][template_key][:]
 amplitudes = results['amplitudes'][template_key][:, 0]
 
+# Check number of spikes.
+nb_spikes = spike_times.size
+if nb_spikes == 0:
+    warnings.warn("No fitted spikes for template {}.".format(args.template_id), category=UserWarning)
+
 # Select snippets.
+selected_ids = None
+mean_amplitude = None
 if args.selection == 'first':
     ids = np.argsort(spike_times)
     selected_ids = ids[:+args.nb_snippets]
@@ -63,12 +71,15 @@ elif args.selection == 'random':
 elif args.selection == 'lowest_amplitudes':
     ids = np.argsort(amplitudes)
     selected_ids = ids[:+args.nb_snippets]
+    mean_amplitude = np.mean(amplitudes[selected_ids])
 elif args.selection == 'highest_amplitudes':
     ids = np.argsort(amplitudes)
     selected_ids = ids[-args.nb_snippets:]
+    mean_amplitude = np.mean(amplitudes[selected_ids])
 elif args.selection == 'amplitudes_close_to_1':
     ids = np.argsort(np.abs(amplitudes - 1.0))
     selected_ids = ids[:args.nb_snippets]
+    mean_amplitude = np.mean(amplitudes[selected_ids])
 elif args.selection in ['refractory_period_violations', 'rpvs']:
     assert np.all(np.diff(spike_times) > 0.0)
     are_violations = np.zeros(spike_times.size, dtype=np.bool)
@@ -85,23 +96,31 @@ else:
 # Collect snippets.
 spike_times_ = spike_times[selected_ids]
 snippets = load_snippets(spike_times_, params)
+nb_snippets, _, _ = snippets.shape
 
 # Compute median snippet.
-median_snippet = np.median(snippets, axis=0)
+median_snippet = np.median(snippets, axis=0) if nb_snippets > 0 else None
 
 # Load template.
 template = load_template(args.template_id, params, extension=args.extension)
 
 # Plot.
 kwargs = {
-    'vmin': np.min([np.min(a) for a in [snippets, median_snippet, template]]),
-    'vmax': np.max([np.max(a) for a in [snippets, median_snippet, template]]),
+    'vmin': np.min([np.min(a) for a in [snippets, median_snippet, template] if a is not None and a.size > 0]),
+    'vmax': np.max([np.max(a) for a in [snippets, median_snippet, template] if a is not None and a.size > 0]),
 }
 fig, ax = plt.subplots()
-ax.set_axis_off()
-plot_snippets(ax, snippets, params, color='tab:grey', **kwargs)
-plot_snippet(ax, median_snippet, params, color='black', label="median", **kwargs)
+if nb_snippets > 0:
+    plot_snippets(ax, snippets, params, color='tab:grey', **kwargs)
+if median_snippet is not None:
+    plot_snippet(ax, median_snippet, params, color='black', label="median", **kwargs)
 plot_template(ax, template, params, color='tab:blue', label="template", **kwargs)
+if mean_amplitude is not None:
+    print("mean_amplitude: {}".format(mean_amplitude))
+    plot_template(ax, mean_amplitude * template, params, color='tab:green', label="scaled template", **kwargs)
 ax.legend()
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_title("fitted snippets (template {})".format(args.template_id))
 fig.tight_layout()
 # plt.show()
