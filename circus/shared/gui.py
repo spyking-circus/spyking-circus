@@ -489,13 +489,14 @@ class MergeWindow(QMainWindow):
                 for d in range(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
+                x_cc /= (self.duration * bin_size)
                 #duration = interval[1] - interval[0]
                 #mask1 = (spike_1 > interval[0]*self.sampling_rate) & (spike_1 < interval[1]*self.sampling_rate)
                 #mask2 = (spike_2 > interval[0]*self.sampling_rate) & (spike_2 < interval[1]*self.sampling_rate)
 
                 r1 = len(spike_1) / self.duration
                 r2 = len(spike_2) / self.duration
-                control = r1 * r2 * self.duration * bin_size
+                control = r1 * r2
 
                 is_overlapping = is_active_1 * is_active_2
                 duration = numpy.where(is_overlapping == 0)[0]
@@ -573,30 +574,31 @@ class MergeWindow(QMainWindow):
 
             for temp_id2 in candidates:
 
-                spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
-                spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
+                if temp_id2 > temp_id1:
+                    spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
+                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
 
-                if self.correct_lag:
-                    spikes2 += self.lag[temp_id1, temp_id2]
+                    if self.correct_lag:
+                        spikes2 += self.lag[temp_id1, temp_id2]
 
-                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
-                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
+                    x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
+                    x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
 
-                a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
+                    a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
 
-                enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
+                    enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
 
-                if enough_spikes:
-                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
-                else:
-                    dist = 0
+                    if enough_spikes:
+                        dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
+                    else:
+                        dist = 0
 
-                self.raw_data = numpy.vstack((self.raw_data, a))
-                self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
-                self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
-                self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
-                self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
-                self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
+                    self.raw_data = numpy.vstack((self.raw_data, a))
+                    self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
+                    self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+                    self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
+                    self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
+                    self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
 
         sys.stderr.flush()
         self.pairs = gather_array(self.pairs, comm, 0, 1, dtype='int32')
@@ -647,7 +649,7 @@ class MergeWindow(QMainWindow):
                 self.waveforms_ax.set_yticks([])
                 # self.waveforms_ax.set_xlabel('Time [ms]')
                 # self.waveforms_ax.set_ylabel('Amplitude')
-                self.waveforms_ax.set_aspect('equal')
+                #self.waveforms_ax.set_aspect('equal')
             else:
                 xys = [
                     (self.score_x, self.score_y),
@@ -1124,9 +1126,9 @@ class MergeWindow(QMainWindow):
         for i in range(len(indices)):
             indices[i] -= numpy.sum(self.to_delete <= indices[i])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_templates) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_templates) - set(indices)
 
         self.inspect_templates = sorted(indices)
@@ -1159,9 +1161,9 @@ class MergeWindow(QMainWindow):
         else:
             all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_points) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_points) - set(indices)
 
         self.inspect_points = sorted(indices)
@@ -1924,9 +1926,9 @@ class PreviewGUI(QMainWindow):
         else:
             all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_points) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_points) - set(indices)
 
         self.inspect_points = sorted(indices)

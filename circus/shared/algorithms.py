@@ -786,8 +786,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     cc_merge = params.getfloat('clustering', 'cc_merge')
     norm = n_e * n_t
     decimation = params.getboolean('clustering', 'decimation')
-    adapted_cc = params.getboolean('clustering', 'adapted_cc')
-    adapted_thr = params.getint('clustering', 'adapted_thr')
 
     if cc_merge < 1:
 
@@ -866,10 +864,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
         if comm.rank == 0:
-            if adapted_cc:
-                common_supports = load_data(params, 'common-supports')
-                exponents = numpy.exp(-common_supports/adapted_thr)
-                distances = distances ** exponents
             result = load_data(params, 'clusters')
             to_merge, result = remove(result, distances, cc_merge)
 
@@ -1014,6 +1008,24 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     norm_2 = norm_templates ** 2
     sindices = inv_nodes[nodes]
 
+    offsets = {'neg': numpy.zeros(nb_temp, dtype=numpy.int32),
+               'pos': numpy.zeros(nb_temp, dtype=numpy.int32)}
+
+    if comm.rank == 0:
+        for i in range(nb_temp):
+            ref_elec = best_elec[i]
+            if is_sparse:
+                mytemplate = templates[i].reshape(N_e, N_t).todense()[ref_elec]
+            else:
+                mytemplate = templates[i].reshape(N_e, N_t)[ref_elec]
+            offsets['neg'][i] = numpy.argmin(mytemplate) - template_shift
+            offsets['pos'][i] = numpy.argmax(mytemplate) - template_shift
+
+    comm.Barrier()
+    for i in range(nb_temp):
+        offsets['neg'][i] = comm.bcast(offsets['neg'][i], root=0)
+        offsets['pos'][i] = comm.bcast(offsets['pos'][i], root=0)
+
     # For each electrode, get the local cluster labels.
     indices = {}
     for i in range(N_e):
@@ -1073,7 +1085,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         idx_i = numpy.random.permutation(idx)[:max_snippets]
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
-        snippets = get_stas(params, times_i, labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
+
+        snippets = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
         snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
@@ -1392,8 +1405,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             axs.spines['right'].set_visible(False)
             axs.spines['top'].set_visible(False)
             axs.spines['bottom'].set_visible(False)
-            axs.set_yticks([], [])
-            axs.set_xticks([], [])
+            axs.set_yticks([])
+            axs.set_xticks([])
 
             axs = fig.add_subplot(gs[1,0:5])
             axs.axhline(y=0.0, color='gray', linewidth=linewidth)
@@ -1503,8 +1516,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
     has_support = test_if_support(params, '')
-    adapted_cc = params.getboolean('clustering', 'adapted_cc')
-    adapted_thr = params.getint('clustering', 'adapted_thr')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
     overlap = get_overlaps(
@@ -1545,10 +1556,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
 
     overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
     distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
-
-    if adapted_cc:
-        common_supports = load_data(params, 'common-supports')
-        exponents = numpy.exp(-common_supports/adapted_thr)
 
     for i in range(nb_temp - 1):
         data = c_overs[i].toarray()
@@ -1619,14 +1626,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                         new_template = (a1 * t_i + a2 * t_j)
                         similarity = numpy.corrcoef(t_k, new_template)[0, 1]
                         local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
-                        if adapted_cc:
-                            shared_support = numpy.sum(numpy.logical_or(supports[i], supports[j])*supports[k])
-                            exponent = numpy.exp(-shared_support/adapted_thr)
-                            mytest1 = similarity**exponent > cc_merge
-                            mytest2 = local_overlap**exponents[i, j] < 0.5
-                        else:
-                            mytest1 = similarity > cc_merge
-                            mytest2 = local_overlap < 0.5
+                        mytest1 = similarity > cc_merge
+                        mytest2 = local_overlap < 0.5
                         if mytest1 and mytest2:
                             if k not in mixtures:
                                 mixtures += [k]
