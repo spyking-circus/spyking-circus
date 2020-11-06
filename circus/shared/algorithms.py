@@ -673,8 +673,12 @@ def slice_clusters(
         myfile.close()
         if method == 'safe':
             result['electrodes'] = numpy.delete(result['electrodes'], numpy.unique(to_delete).astype(numpy.int32))
+            if 'local_clusters' in result:
+                result['local_clusters'] = numpy.delete(result['local_clusters'], numpy.unique(to_delete).astype(numpy.int32))
         elif method == 'new':
             result['electrodes'] = result['electrodes'][to_keep]
+            if 'local_clusters' in result:
+                result['local_clusters'] = result['local_clusters'][to_keep]
         else:
             raise ValueError("Unexpected method value: {}".format(method))
 
@@ -685,7 +689,9 @@ def slice_clusters(
             to_write += ['rho_', 'delta_']
         for ielec in range(n_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
-        write_datasets(cfile, ['electrodes'], result)
+        to_write = [key for key in ['electrodes', 'local_clusters'] if key in result]
+        write_datasets(cfile, to_write, result)
+        cfile.flush()
         cfile.close()
 
         # Rename output file.
@@ -758,6 +764,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 result_['times_' + str(elec)] = numpy.delete(result_['times_' + str(elec)], elements)
                 result_['peaks_' + str(elec)] = numpy.delete(result_['peaks_' + str(elec)], elements)
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
+                if 'local_clusters' in result_:
+                    result_['local_clusters'] = numpy.delete(result_['local_clusters'], to_remove)
                 distances_ = numpy.delete(distances_, to_remove, axis=0)
                 distances_ = numpy.delete(distances_, to_remove, axis=1)
                 to_merge_ = numpy.vstack((to_merge_, numpy.array([g_idx[to_keep], g_idx[to_remove]])))
