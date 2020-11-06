@@ -68,6 +68,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     halo_rejection = params.getfloat('clustering', 'halo_rejection')
     merging_param = params.getfloat('clustering', 'merging_param')
     merging_method = params.get('clustering', 'merging_method')
+    sparsity_limit = params.getfloat('clustering', 'sparsity_limit')
     remove_mixture = params.getboolean('clustering', 'remove_mixture')
     extraction = params.get('clustering', 'extraction')
     smart_search = params.getboolean('clustering', 'smart_search')
@@ -1462,7 +1463,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     channel_mads[to_delete, :] = 0
                     frac_high_variances = numpy.max(channel_mads.max(1)/mads[indices])
 
-                    is_noise = (len(indices) == len(to_delete)) or \
+                    is_noise = (len(to_delete) / len(indices) >= sparsity_limit) or \
                                ((1 / ratio) < noise_thresh) or \
                                (frac_high_variances > ignored_mixtures)
 

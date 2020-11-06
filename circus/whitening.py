@@ -39,6 +39,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     nodes, edges = get_nodes_and_edges(params)
     safety_time = params.getint('whitening', 'safety_time')
     safety_space = params.getboolean('whitening', 'safety_space')
+    sort_waveforms = params.getboolean('whitening', 'sort_waveforms')
     nb_temp_white = min(max(20, comm.size), N_e)
     max_silence_1 = int(20 * params.rate // comm.size)
     max_silence_2 = 5000
@@ -486,10 +487,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
                 # Consider the peaks by decreasing extremum.
-                order = numpy.argsort(-np.abs(all_peak_amplitudes))
-                all_idx = numpy.take(all_peaktimes, order)
-                argmax_peak = local_indices[order]
-
+                if sort_waveforms:
+                    order = numpy.argsort(-np.abs(all_peak_amplitudes))
+                    all_idx = numpy.take(all_peaktimes, order)
+                    argmax_peak = local_indices[order]
+                else:
+                    n_times = len(all_peaktimes)
+                    shuffling = numpy.random.permutation(numpy.arange(n_times))
+                    all_idx = numpy.take(all_peaktimes, shuffling)
+                    argmax_peak = local_indices[shuffling]
+                    
                 # print "Selection of the peaks with spatio-temporal masks..."
                 for midx, peak in zip(argmax_peak, all_idx):
                     if (elt_count_neg + elt_count_pos) == nb_elts:
