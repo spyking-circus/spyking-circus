@@ -1007,14 +1007,20 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     offsets = {'neg': numpy.zeros(nb_temp, dtype=numpy.int32),
                'pos': numpy.zeros(nb_temp, dtype=numpy.int32)}
 
+    if comm.rank == 0:
+        for i in range(nb_temp):
+            ref_elec = best_elec[i]
+            if is_sparse:
+                mytemplate = templates[i].reshape(N_e, N_t).todense()[ref_elec]
+            else:
+                mytemplate = templates[i].reshape(N_e, N_t)[ref_elec]
+            offsets['neg'][i] = numpy.argmin(mytemplate) - template_shift
+            offsets['pos'][i] = numpy.argmax(mytemplate) - template_shift
+
+    comm.Barrier()
     for i in range(nb_temp):
-        ref_elec = best_elec[i]
-        if is_sparse:
-            mytemplate = templates[i].reshape(N_e, N_t).todense()[ref_elec]
-        else:
-            mytemplate = templates[i].reshape(N_e, N_t)[ref_elec]
-        offsets['neg'][i] = numpy.argmin(mytemplate) - template_shift
-        offsets['pos'][i] = numpy.argmax(mytemplate) - template_shift
+        offsets['neg'][i] = comm.bcast(offsets['neg'][i], root=0)
+        offsets['pos'][i] = comm.bcast(offsets['pos'][i], root=0)
 
     # For each electrode, get the local cluster labels.
     indices = {}
