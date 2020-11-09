@@ -47,7 +47,7 @@ def load_snippets(time_step_ids, params):
     return snippets
 
 
-def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, limits='auto'):
+def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, label=None, limits='auto'):
 
     nb_channels = params.getint('data', 'N_e')
     nb_time_steps = params.getint('detection', 'N_t')
@@ -70,9 +70,13 @@ def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, lim
     for channel_id in range(0, nb_channels):
         x_c, y_c = positions[nodes[channel_id]]
         x = x_scaling * np.linspace(-0.5, + 0.5, num=nb_time_steps) + x_c
-        for snippet in snippets:
+        for snippet_id, snippet in enumerate(snippets):
             y = y_scaling * snippet[:, channel_id] + y_c
-            ax.plot(x, y, color=color)
+            plot_kwargs = dict(
+                color=color,
+                label=(label if (channel_id == 0) and (snippet_id == 0) else None),
+            )
+            ax.plot(x, y, **plot_kwargs)
     set_limits(ax, limits, positions)
 
     return
@@ -102,14 +106,30 @@ def plot_snippet(ax, snippet, params, color='black', vmin=None, vmax=None, label
         x_c, y_c = positions[nodes[channel_id]]
         x = x_scaling * np.linspace(-0.5, + 0.5, num=nb_time_steps) + x_c
         y = y_scaling * snippet[:, channel_id] + y_c
-        plot_kwargs = {
-            'color': color,
-            'label': label if channel_id == 0 else None,
-        }
+        plot_kwargs = dict(
+            color=color,
+            label=(label if channel_id == 0 else None),
+        )
         ax.plot(x, y, **plot_kwargs)
     set_limits(ax, limits, positions)
 
     return
+
+
+def load_templates(params, extension=''):
+
+    nb_channels = params.getint('data', 'N_e')
+    nb_time_steps = params.getint('detection', 'N_t')
+
+    template_components = load_data(params, 'templates', extension=extension)
+    _, nb_components = template_components.shape
+    nb_templates = nb_components // 2
+    templates = template_components[:, :nb_templates]
+    templates = templates.toarray()
+    templates = templates.reshape(nb_channels, nb_time_steps, nb_templates)
+    templates = np.transpose(templates, axes=(2, 1, 0))
+
+    return templates
 
 
 def load_template(template_id, params, extension=''):
@@ -208,6 +228,32 @@ def load_templates_data(params, extension='', keys=None):
             data[key] = file[key][:]
 
     return data
+
+
+def load_spike_times(params, extension='', template_ids=None):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = "{}.result{}.hdf5".format(file_out_suff, extension)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        assert 'spiketimes' in file, file.keys()
+        times = dict()
+        if template_ids is None:
+            p = re.compile('^temp_\d*$')  # noqa
+            for key in file['spiketimes'].keys():
+                m = p.search(key)
+                assert m is not None
+                template_key = key
+                template_id = int(key[5:])
+                times[template_id] = file['spiketimes'][template_key][:]
+        else:
+            for template_id in template_ids:
+                template_key = 'temp_{}'.format(template_id)
+                assert template_key in file['spiketimes'], (template_key, file['spiketimes'].keys())
+                times[template_id] = file['spiketimes'][template_key][:]
+
+    return times
 
 
 def set_limits(ax, limits, positions):
