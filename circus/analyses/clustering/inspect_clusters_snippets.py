@@ -73,8 +73,8 @@ for cluster_nb in range(0, nb_clusters_):
     snippets[cluster_nb] = load_snippets(selected_times__, params)
 
 # Plot snippets.
-vmin = np.abs(np.min([np.min(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)]))
-vmax = np.abs(np.max([np.max(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)]))
+vmin = np.min([np.min(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)])
+vmax = np.max([np.max(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)])
 for cluster_nb in range(0, nb_clusters_):
     fig, ax = plt.subplots()
     kwargs = {
