@@ -1096,7 +1096,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
 
-        snippets = get_stas(params, times_i - offsets[p][i], labels_i, align_elecs[p][i], neighs=sindices, nodes=nodes, pos=p)
+        snippets, snippets_raw = get_stas(params, times_i - offsets[p][i], labels_i, align_elecs[p][i], neighs=sindices, nodes=nodes, pos=p, raw_snippets=True)
 
         aligned_template = numpy.median(snippets, axis=0)
         tmpidx = numpy.unravel_index(aligned_template.argmin(), aligned_template.shape)
@@ -1105,11 +1105,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         snippets_aligned = numpy.zeros(snippets.shape, dtype=numpy.float32)
 
         if shift > 0:
-            snippets_aligned[:, :, shift:] = snippets[:, :, :-shift]
+            snippets_aligned[:, :, shift:] = snippets_raw[:, :, :-shift]
         elif shift < 0:
-            snippets_aligned[:, :, :shift] = snippets[:, :, -shift:]
+            snippets_aligned[:, :, :shift] = snippets_raw[:, :, -shift:]
         else:
-            snippets_aligned = snippets
+            snippets_aligned = snippets_raw
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets_aligned.shape
         snippets = numpy.ascontiguousarray(snippets_aligned.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
