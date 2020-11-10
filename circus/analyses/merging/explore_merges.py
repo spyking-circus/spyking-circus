@@ -20,6 +20,9 @@ parser.add_argument('datafile', help="data file")
 parser.add_argument(
     '-c', '--cc_merge', default=0.95, type=float, help="similarity threshold (between 0.0 and 1.0)", dest='cc_merge'
 )
+parser.add_argument(
+    '-t', '--threshold', default=75, type=int, help="threshold to adapt the exponent", dest='adapted_thr'
+)
 args = parser.parse_args()
 
 # Load parameters.
@@ -206,7 +209,13 @@ ax.axvline(x=0, **axline_kwargs)
 # ax.axvline(x=(nb_channels - 1), **axline_kwargs)
 ax.axhline(y=0.0, **axline_kwargs)
 ax.axhline(y=1.0, **axline_kwargs)
-ax.axhline(y=args.cc_merge, color='tab:red')
+
+xmin, xmax = ax.get_xlim()
+support = np.arange(0, xmax)
+exponents = np.exp(-support/args.adapted_thr)
+new_data = args.cc_merge**(1/exponents)
+
+ax.plot(support, new_data, color='tab:red')
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.set_xlabel("size support (union)")
