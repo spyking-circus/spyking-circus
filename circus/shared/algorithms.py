@@ -1090,11 +1090,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         snippets = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-        aligned_template = np.median(snippets, axis=0)
-        tmpidx = np.unravel_index(aligned_template.argmin(), aligned_template.shape)
+        aligned_template = numpy.median(snippets, axis=0)
+        tmpidx = numpy.unravel_index(aligned_template.argmin(), aligned_template.shape)
 
         shift = (template_shift - tmpidx[1])
-        snippets_aligned = np.zeros(snippets.shape, dtype=np.float32)
+        snippets_aligned = numpy.zeros(snippets.shape, dtype=numpy.float32)
 
         if shift > 0:
             snippets_aligned[:, :, shift:] = snippets[:, :, :-shift]
