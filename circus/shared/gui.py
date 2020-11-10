@@ -378,6 +378,10 @@ class MergeWindow(QMainWindow):
             self.update_lag(self.default_lag)
             self.suggest_templates(None)
             self.remove_templates(None)
+            self.update_lag(self.default_lag)
+
+        self.plot_data()
+        self.plot_scores()
 
         if self.auto_mode > 0:
             perform_merges = True
@@ -391,7 +395,6 @@ class MergeWindow(QMainWindow):
             if self.merge_drifts:
                 self.suggest_drifts(None)
                 self.add_to_selection(None)
-
                 self.do_merge(None)
 
             self.finalize(None)
@@ -469,8 +472,20 @@ class MergeWindow(QMainWindow):
             x_cc = numpy.zeros(size, dtype=numpy.float32)
             control = 0
             overlap = False
+            duration = self.duration
+
+            xaxis = numpy.linspace(0, duration, self.nb_bhatta_bins)
+            bin_size = self.cc_bin * 1e-3
 
             if (len(spike_1) > 0) and (len(spike_2) > 0):
+
+                nspike_1 = spike_1 / self.sampling_rate
+                nspike_2 = spike_2 / self.sampling_rate
+                is_active_1, _ = numpy.histogram(nspike_1, bins=xaxis)
+                is_active_2, _ = numpy.histogram(nspike_2, bins=xaxis)
+
+                #max_size, interval = largest_nonzero_interval(is_active_1*is_active_2)
+                #interval = xaxis[interval]
 
                 t1b = numpy.unique(numpy.round(spike_1 / self.bin_size))
                 t2b = numpy.unique(numpy.round(spike_2 / self.bin_size))
@@ -478,20 +493,14 @@ class MergeWindow(QMainWindow):
                 for d in range(size):
                     x_cc[d] += len(numpy.intersect1d(t1b, t2b + d - max_delay, assume_unique=True))
 
-                x_cc /= self.nb_bins
+                x_cc /= (self.duration * bin_size)
+                #duration = interval[1] - interval[0]
+                #mask1 = (spike_1 > interval[0]*self.sampling_rate) & (spike_1 < interval[1]*self.sampling_rate)
+                #mask2 = (spike_2 > interval[0]*self.sampling_rate) & (spike_2 < interval[1]*self.sampling_rate)
 
-                nspike_1 = spike_1 / self.sampling_rate
-                nspike_2 = spike_2 / self.sampling_rate
-                xaxis = bins = numpy.arange(0, self.duration, 1)
-
-                is_active_1, _ = numpy.histogram(nspike_1, xaxis)
-                is_active_2, _ = numpy.histogram(nspike_2, xaxis)
-
-                is_active = is_active_1 + is_active_2
-                duration = len(numpy.where(is_active > 0)[0])
-                r1 = len(spike_1) / duration
-                r2 = len(spike_2) / duration
-                control = len(spike_1) * len(spike_2) / float(self.nb_bins ** 2)
+                r1 = len(spike_1) / self.duration
+                r2 = len(spike_2) / self.duration
+                control = r1 * r2
 
                 is_overlapping = is_active_1 * is_active_2
                 duration = numpy.where(is_overlapping == 0)[0]
@@ -499,22 +508,20 @@ class MergeWindow(QMainWindow):
                 is_active_2[duration] = 0
                 overlap = (is_active_1.sum() > self.min_spikes) and (is_active_2.sum() > self.min_spikes)
 
-            return x_cc*1e6, control*1e6, overlap
+            return x_cc, control, overlap
 
         def get_rpv(spike_1, spike_2, threshold):
 
             all_spikes = numpy.sort(numpy.concatenate((spike_1, spike_2))/self.sampling_rate)
             isi = numpy.diff(all_spikes)
-            nb_rpv = numpy.where(isi < threshold*1e-3)
+            nb_rpv = numpy.where(isi < threshold*1e-3)[0]
             if len(all_spikes) > 0:
                 return len(nb_rpv)/len(all_spikes)
             else:
                 return 1.
 
         def largest_nonzero_interval(vec):
-            '''
-            Find islands of non-zeros in the vector vec
-            '''
+            """Find islands of non-zeros in the vector vec"""
 
             edges, = np.nonzero(np.diff((vec==0)*1))
             edge_vec = [edges+1]
@@ -528,7 +535,7 @@ class MergeWindow(QMainWindow):
             for i, j in  zip(edges[::2], edges[1::2]):
                 if j - i > max_size:
                     max_size = (j - i)
-            return max_size
+            return max_size, [i, j]
 
         self.raw_lags = numpy.linspace(-self.max_delay * self.cc_bin, self.max_delay * self.cc_bin, 2 * self.max_delay + 1)
 
@@ -567,7 +574,6 @@ class MergeWindow(QMainWindow):
 
             temp_id1 = self.to_consider[temp_id1]
             if self.has_drifts:
-
                 overlaps = numpy.zeros(self.nb_templates, dtype=numpy.float32)
                 drift_scores = self.drifts[temp_id1, :, 3]
                 normal_scores = self.overlap[temp_id1, :]
@@ -581,28 +587,31 @@ class MergeWindow(QMainWindow):
             
             for temp_id2 in candidates:
 
-                spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
-                spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
-                if self.correct_lag:
-                    spikes2 += self.lag[temp_id1, temp_id2]
-                a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
-                self.raw_data = numpy.vstack((self.raw_data, a))
-                self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
-                self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+                if temp_id2 > temp_id1:
+                    spikes1 = self.result['spiketimes']['temp_' + str(temp_id1)].astype('int64')
+                    spikes2 = self.result['spiketimes']['temp_' + str(temp_id2)].copy().astype('int64')
 
-                x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
-                x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
+                    if self.correct_lag:
+                        spikes2 += self.lag[temp_id1, temp_id2]
 
-                max_size = largest_nonzero_interval(x1*x2)
-                enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
+                    x1, y1 = numpy.histogram(spikes1/self.sampling_rate, bins=bins, density=True)
+                    x2, y2 = numpy.histogram(spikes2/self.sampling_rate, bins=bins, density=True)
 
-                if (max_size > 5) and enough_spikes:
-                    dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
-                else:
-                    dist = 0
-                self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
-                self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
-                self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
+                    a, b, overlap = reversed_corr(spikes1, spikes2, self.max_delay)
+
+                    enough_spikes = (len(spikes1) > self.min_spikes) and (len(spikes2) > self.min_spikes)
+
+                    if enough_spikes:
+                        dist = bhatta_dist(spikes1/self.sampling_rate, spikes2/self.sampling_rate, bounds=(0, self.duration), n_steps=self.nb_bhatta_bins)
+                    else:
+                        dist = 0
+
+                    self.raw_data = numpy.vstack((self.raw_data, a))
+                    self.raw_control = numpy.concatenate((self.raw_control, numpy.array([b], dtype=numpy.float32)))
+                    self.pairs = numpy.vstack((self.pairs, numpy.array([temp_id1, temp_id2], dtype=numpy.int32)))
+                    self.bhattas = numpy.concatenate((self.bhattas, numpy.array([dist], dtype=numpy.float32)))
+                    self.rpvs = numpy.concatenate((self.rpvs, numpy.array([get_rpv(spikes1, spikes2, self.time_rpv)], dtype=numpy.float32)))
+                    self.overlapping = numpy.concatenate((self.overlapping, numpy.array([overlap], dtype=numpy.int32)))
 
         sys.stderr.flush()
         self.pairs = gather_array(self.pairs, comm, 0, 1, dtype='int32')
@@ -653,6 +662,7 @@ class MergeWindow(QMainWindow):
                 self.waveforms_ax.set_yticks([])
                 # self.waveforms_ax.set_xlabel('Time [ms]')
                 # self.waveforms_ax.set_ylabel('Amplitude')
+                #self.waveforms_ax.set_aspect('equal')
             else:
                 xys = [
                     (self.score_x, self.score_y),
@@ -687,7 +697,7 @@ class MergeWindow(QMainWindow):
     def plot_data(self):
         # Right: raw data
         if self.app is not None:
-            all_raw_data = self.raw_data
+            all_raw_data = self.raw_data.copy()
             all_raw_data /= (1 + all_raw_data.mean(1)[:, np.newaxis])
             if len(all_raw_data) > 0:
                 cmax = 0.5*all_raw_data.max()
@@ -775,15 +785,16 @@ class MergeWindow(QMainWindow):
             self.update_inspect_template(indices, add_or_remove)
 
     def zoom(self, event):
+
         if event.inaxes == self.score_ax1:
             x = self.score_x
             y = self.score_y
-            link_with_x = self.score_ax1.set_xlim
+            link_with_x = self.score_ax3.set_xlim
             link_with_y = None
         elif event.inaxes == self.score_ax3:
             x = self.score_x
             y = self.score_z
-            link_with_x = self.score_ax3.set_xlim
+            link_with_x = self.score_ax1.set_xlim
             link_with_y = None
         elif event.inaxes == self.score_ax2:
             x = self.norms[self.to_consider]
@@ -798,36 +809,72 @@ class MergeWindow(QMainWindow):
         else:
             return
 
-        score_ax = event.inaxes
+        ax = event.inaxes
         # get the current x and y limits
-        cur_xlim = score_ax.get_xlim()
-        cur_ylim = score_ax.get_ylim()
-        cur_xrange = (cur_xlim[1] - cur_xlim[0])*.5
-        cur_yrange = (cur_ylim[1] - cur_ylim[0])*.5
+        cur_xmin, cur_xmax = ax.get_xlim()
+        cur_ymin, cur_ymax = ax.get_ylim()
         xdata = event.xdata  # get event x location
         ydata = event.ydata  # get event y location
         if event.button == 'up':
             # deal with zoom in
-            scale_factor = 1 / 2.0
+            scale_factor = 1 / 1.2
         elif event.button == 'down':
             # deal with zoom out
-            scale_factor = 2.0
+            scale_factor = 1.2
         else:
             # deal with something that should never happen
-            scale_factor = 1
+            scale_factor = 1.0
         # set new limits
-        newxmin = np.clip(xdata - cur_xrange * scale_factor, np.min(x), np.max(x))
-        newxmax = np.clip(xdata + cur_xrange * scale_factor, np.min(x), np.max(x))
-        new_xrange = (newxmax - newxmin) * 0.5 * 1.05  # stretch everything a bit
-        newxmin = (newxmax + newxmin) * 0.5 - new_xrange
-        newxmax = (newxmax + newxmin) * 0.5 + new_xrange
-        newymin = np.clip(ydata - cur_yrange*scale_factor, np.min(y), np.max(y))
-        newymax = np.clip(ydata + cur_yrange*scale_factor, np.min(y), np.max(y))
-        new_yrange = (newymax - newymin) * 0.5 * 1.05  # stretch everything a bit
-        newymin = (newymax + newymin) * 0.5 - new_yrange
-        newymax = (newymax + newymin) * 0.5 + new_yrange
-        score_ax.set_xlim(newxmin, newxmax)
-        score_ax.set_ylim(newymin, newymax)
+        newxmin = xdata - scale_factor * (xdata - cur_xmin)
+        newxmax = xdata + scale_factor * (cur_xmax - xdata)
+        newymin = ydata - scale_factor * (ydata - cur_ymin)
+        newymax = ydata + scale_factor * (cur_ymax - ydata)
+        x_inf = np.min(x) - 0.05 * (np.max(x) - np.min(x))
+        x_sup = np.max(x) + 0.05 * (np.max(x) - np.min(x))
+        y_inf = np.min(y) - 0.05 * (np.max(y) - np.min(y))
+        y_sup = np.max(y) + 0.05 * (np.max(y) - np.min(y))
+        x_clip_ratio = (newxmax - newxmin) / (x_sup - x_inf)
+        y_clip_ratio = (newymax - newymin) / (y_sup - y_inf)
+        if x_clip_ratio > 1.0:
+            newxmin = xdata - (scale_factor / x_clip_ratio) * (xdata - cur_xmin)
+            newxmax = xdata + (scale_factor / x_clip_ratio) * (cur_xmax - xdata)
+        if y_clip_ratio > 1.0:
+            newymin = ydata - (scale_factor / y_clip_ratio) * (ydata - cur_ymin)
+            newymax = ydata + (scale_factor / y_clip_ratio) * (cur_ymax - ydata)
+        if newxmin < x_inf:
+            dx = x_inf - newxmin
+            newxmin = x_inf
+            newxmax += dx
+            if newxmax > x_sup:
+                dx = newxmax - x_sup
+                newxmin -= 0.5 * dx
+                newxmax -= 0.5 * dx
+        if newxmax > x_sup:
+            dx = newxmax - x_sup
+            newxmin -= dx
+            newxmax = x_sup
+            if newxmin < x_inf:
+                dx = x_inf - newxmin
+                newxmin += 0.5 * dx
+                newxmax += 0.5 * dx
+        if newymin < y_inf:
+            dy = y_inf - newymin
+            newymin = y_inf
+            newymax += dy
+            if newymax > y_sup:
+                dy = newymax - y_sup
+                newymin -= 0.5 * dy
+                newymax -= 0.5 * dy
+        if newymax > y_sup:
+            dy = newymax - y_sup
+            newymin -= dy
+            newymax = y_sup
+            if newymin < y_inf:
+                dy = y_inf - newymin
+                newymin += 0.5 * dy
+                newymax += 0.5 * dy
+        ax.set_xlim(newxmin, newxmax)
+        ax.set_ylim(newymin, newymax)
         # Update the linked axes in the other plots as well
         if link_with_x is not None:
             link_with_x(newxmin, newxmax)
@@ -969,7 +1016,12 @@ class MergeWindow(QMainWindow):
     def update_waveforms(self):
 
         if self.app is not None:
+
             self.waveforms_ax.clear()
+
+            dx = np.median(np.diff(np.unique(self.x_position)))  # i.e. horizontal inter-electrode distance
+            dy = np.median(np.diff(np.unique(self.y_position)))  # i.e. vertical inter-electrode distance
+            dv = np.abs(np.min(self.templates)) + np.abs(np.max(self.templates))  # i.e. voltage range
 
             all_channels = []
 
@@ -990,18 +1042,25 @@ class MergeWindow(QMainWindow):
                     all_channels += list(indices)
 
                 for sidx in indices:
-                    xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
-                    self.waveforms_ax.plot(xaxis, self.y_position[sidx] + tmp[sidx], c=colorConverter.to_rgba(self.inspect_colors_templates[idx]))
+                    x_min, x_max = - 0.4 * dx + self.x_position[sidx], + 0.4 * dx + self.x_position[sidx]
+                    x = numpy.linspace(x_min, x_max, num=self.N_t)
+                    y = (dy / dv) * tmp[sidx] + self.y_position[sidx]
+                    c = colorConverter.to_rgba(self.inspect_colors_templates[idx])
+                    self.waveforms_ax.plot(x, y, c=c)
 
             if self.ui.show_thresholds.isChecked():
                 for sidx in numpy.unique(all_channels):
                     thr = self.thresholds[sidx]
-                    xaxis = numpy.linspace(self.x_position[sidx], self.x_position[sidx] + (self.N_t/(self.sampling_rate*1e-3)), self.N_t)
+                    x_min, x_max = - 0.4 * dx + self.x_position[sidx], + 0.4 * dx + self.x_position[sidx]
+                    x = [x_min, x_max]
                     if self.sign_peaks in ['negative', 'both']:
-                        self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx]-thr, self.y_position[sidx]-thr], c='k', linestyle='--')
+                        y = 2 * [self.y_position[sidx] - thr]
+                        self.waveforms_ax.plot(x, y, c='k', linestyle='--')
                     if self.sign_peaks in ['positive', 'both']:
-                        self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx]+thr, self.y_position[sidx]+thr], c='k', linestyle='--')
-                    self.waveforms_ax.plot([xaxis[0], xaxis[-1]], [self.y_position[sidx], self.y_position[sidx]], c='0.5', linestyle='--')
+                        y = 2 * [self.y_position[sidx] + thr]
+                        self.waveforms_ax.plot(x, y, c='k', linestyle='--')
+                    y = 2 * [self.y_position[sidx]]
+                    self.waveforms_ax.plot(x, y, c='0.5', linestyle='--')
 
             if self.ui.show_labels.isChecked():
                 for sidx in numpy.unique(all_channels):
@@ -1080,9 +1139,9 @@ class MergeWindow(QMainWindow):
         for i in range(len(indices)):
             indices[i] -= numpy.sum(self.to_delete <= indices[i])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_templates) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_templates) - set(indices)
 
         self.inspect_templates = sorted(indices)
@@ -1115,9 +1174,9 @@ class MergeWindow(QMainWindow):
         else:
             all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_points) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_points) - set(indices)
 
         self.inspect_points = sorted(indices)
@@ -1197,6 +1256,7 @@ class MergeWindow(QMainWindow):
         if test2:
             all_indices = all_indices & (self.overlapping == 1)
 
+
         indices = numpy.where(all_indices)[0]
 
         if self.low_channel_count:
@@ -1267,7 +1327,6 @@ class MergeWindow(QMainWindow):
 
                 # Transform data coordinates to display coordinates
                 data = event.inaxes.transData.transform(zip(x, y))
-
                 distances = ((data[:, 0] - event.x)**2 +
                              (data[:, 1] - event.y)**2)
                 min_idx, min_value = np.argmin(distances), np.min(distances)
@@ -1880,9 +1939,9 @@ class PreviewGUI(QMainWindow):
         else:
             all_colors = colorConverter.to_rgba_array(plt.rcParams['axes.color_cycle'])
 
-        if add_or_remove is 'add':
+        if add_or_remove == 'add':
             indices = set(self.inspect_points) | set(indices)
-        elif add_or_remove is 'remove':
+        elif add_or_remove == 'remove':
             indices = set(self.inspect_points) - set(indices)
 
         self.inspect_points = sorted(indices)

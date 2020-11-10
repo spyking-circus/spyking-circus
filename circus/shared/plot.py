@@ -18,10 +18,11 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
     params = CircusParser(file_name)
     data_file = params.get_data_file()
     data_file.open()
+    _ = data_file.analyze(int(params.rate))
     N_e = params.getint('data', 'N_e')
     N_t = params.getint('detection', 'N_t')
     N_total = params.nb_channels
-    sampling_rate = params.rate
+    sampling_rate = int(params.rate)
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
     spike_thresh = params.getfloat('detection', 'spike_thresh')
@@ -38,7 +39,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         temporal_whitening = load_data(params, 'temporal_whitening')
 
     thresholds = load_data(params, 'thresholds')
-    data = data_file.get_data(0, chunk_size, padding=padding, chunk_size=chunk_size, nodes=nodes)
+    data, _ = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
     data_shape = len(data)
 
     data_file.close()
@@ -118,6 +119,37 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
         pylab.close()
     else:
         pylab.show()
+
+
+
+def variance_template(template, channel_mads, mads, save=False):
+
+    template = template.flatten()
+    flat_channel_mads = channel_mads.flatten()
+    frac_high_variances = channel_mads/mads[:, numpy.newaxis]
+
+    fig = pylab.figure()
+
+    # Centroids plot.
+    ax = fig.add_subplot(211)
+    ax.fill_between(numpy.arange(template.size), template-flat_channel_mads, template+flat_channel_mads, color='k', alpha=0.5)
+    ax.plot(template, 'r', lw=2)
+    ax.set_ylabel('Amplitude')
+    ax.set_xticks([])
+
+    ax = fig.add_subplot(212)
+    ax.plot(frac_high_variances.flatten())
+    ax.set_ylabel('Ratio variance')
+    ax.set_title('Max ratio %g' %frac_high_variances.max())
+    ax.set_xlabel('Time Steps')
+    ax.plot([0, frac_high_variances.size], [1, 1], 'k--')
+
+    if save:
+        pylab.savefig(os.path.join(save[0], 'variance_' + save[1]))
+        pylab.close()
+    else:
+        pylab.show()
+
 
 
 def view_clusters(data, rho, delta, centers, halo, injected=None, save=False, alpha=3):
@@ -739,85 +771,115 @@ def view_artefact(data, save=False):
 
 
 def view_waveforms(file_name, temp_id, n_spikes=2000):
-    
+    """View template next to median snippet."""
+
     params = CircusParser(file_name)
     data_file = params.get_data_file()
     data_file.open()
     N_e = params.getint('data', 'N_e')
     N_t = params.getint('detection', 'N_t')
-    N_total = params.nb_channels
+    # N_total = params.nb_channels
     sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    spike_thresh = params.getfloat('detection', 'spike_thresh')
-    file_out_suff = params.get('data', 'file_out_suff')
+    # spike_thresh = params.getfloat('detection', 'spike_thresh')
+    # file_out_suff = params.get('data', 'file_out_suff')
     nodes, edges = get_nodes_and_edges(params)
     chunk_size = N_t
 
-    if do_spatial_whitening:
-        spatial_whitening = load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:
-        temporal_whitening = load_data(params, 'temporal_whitening')
+    _ = data_file.analyze(chunk_size)  # i.e. count chunks in sources
 
-    try:
-        result = load_data(params, 'results')
-    except Exception:
-        result = {'spiketimes': {}, 'amplitudes': {}}
-    spikes = result['spiketimes']['temp_'+str(temp_id)]
-    thresholds = load_data(params, 'thresholds')
+    spatial_whitening = load_data(params, 'spatial_whitening') if do_spatial_whitening else None
+    temporal_whitening = load_data(params, 'temporal_whitening') if do_temporal_whitening else None
+
+    result = load_data(params, 'results')
+    spikes = result['spiketimes']['temp_' + str(temp_id)]
 
     curve = numpy.zeros((n_spikes, N_e, N_t), dtype=numpy.float32)
-    count = 0
-    try:
-        templates = load_data(params, 'templates')
-    except Exception:
-        templates = numpy.zeros((0, 0, 0))
-    
+    templates = load_data(params, 'templates')
+
     for count, t_spike in enumerate(numpy.random.permutation(spikes)[:n_spikes]):
-        padding = ((t_spike - int(N_t - 1) // 2), (t_spike - int(N_t - 1) // 2))
-        data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
-        data_shape = len(data)
+        t_start = t_spike - int(N_t - 1) // 2
+        idx = data_file.get_idx(t_start, chunk_size)
+        padding = (0, N_t - 1)
+        data, t_offset = data_file.get_data(idx, chunk_size, padding=padding, nodes=nodes)
+        data = data[(t_start - t_offset) % chunk_size:(t_start - t_offset) % chunk_size + N_t, :]
         if do_spatial_whitening:
             data = numpy.dot(data, spatial_whitening)
         if do_temporal_whitening:
             data = scipy.ndimage.filters.convolve1d(data, temporal_whitening, axis=0, mode='constant')
-        
+
         curve[count] = data.T
     data_file.close()
-    pylab.subplot(121)
-    pylab.imshow(numpy.mean(curve, 0), aspect='auto')
-    pylab.subplot(122)
-    pylab.imshow(templates[:, temp_id].toarray().reshape(N_e, N_t), aspect='auto')
-    pylab.show()    
+
+    im1 = numpy.median(curve, axis=0)
+    im2 = templates[:, temp_id].toarray().reshape(N_e, N_t)
+    imshow_kwargs = {
+        'cmap': 'seismic',
+        'aspect': 'auto',
+        'vmin': - max(np.max(np.abs(im1)), np.max(np.abs(im2))),
+        'vmax': + max(np.max(np.abs(im1)), np.max(np.abs(im2))),
+        'origin': 'lower',
+        'extent': (
+            - (N_t - 1) / 2 / sampling_rate * 1e+3,  # left
+            + (N_t + 1) / 2 / sampling_rate * 1e+3,  # right
+            0.0 - 0.5,  # bottom
+            (N_e - 1) + 0.5,  # top
+        ),
+    }
+    axvline_kwargs = {
+        'color': 'tab:grey',
+        'linewidth': 0.5,
+    }
+    # Plot template.
+    ax = pylab.subplot(121)
+    ax.imshow(im2, **imshow_kwargs)
+    ax.axvline(**axvline_kwargs)
+    ax.set_xlabel("lag (ms)")
+    ax.set_ylabel("channel")
+    ax.set_title("template (id={})".format(temp_id))
+    # Plot median waveform.
+    ax = pylab.subplot(122)
+    ax.imshow(im1, **imshow_kwargs)
+    ax.axvline(**axvline_kwargs)
+    ax.set_xlabel("lag (ms)")
+    ax.set_ylabel("channel")
+    ax.set_title("median snippet (n={})".format(n_spikes))
+    pylab.tight_layout()
+    pylab.show()
+
     return curve
 
 
 def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
-    
+    """View isolated peaks."""
+
     params = CircusParser(file_name)
     data_file = params.get_data_file()
     data_file.open()
     N_e = params.getint('data', 'N_e')
     N_t = params.getint('detection', 'N_t')
-    N_total = params.nb_channels
+    # N_total = params.nb_channels
     sampling_rate = params.rate
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
     do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    spike_thresh = params.getfloat('detection', 'spike_thresh')
-    file_out_suff = params.get('data', 'file_out_suff')
-    N_t = params.getint('detection', 'N_t')
+    # spike_thresh = params.getfloat('detection', 'spike_thresh')
+    # file_out_suff = params.get('data', 'file_out_suff')
     nodes, edges = get_nodes_and_edges(params)
-    chunk_size = (t_stop - t_start) * sampling_rate
-    padding = (t_start * sampling_rate, t_start * sampling_rate)
+    k_start = int(t_start * sampling_rate)
+    k_stop = int(t_stop * sampling_rate)
+    chunk_size = k_stop - k_start
+    padding = (0, 0)
 
-    if do_spatial_whitening:
-        spatial_whitening = load_data(params, 'spatial_whitening')
-    if do_temporal_whitening:
-        temporal_whitening = load_data(params, 'temporal_whitening')
+    _ = data_file.analyze(chunk_size)  # i.e. count chunks in sources
+
+    spatial_whitening = load_data(params, 'spatial_whitening') if do_spatial_whitening else None
+    temporal_whitening = load_data(params, 'temporal_whitening') if do_temporal_whitening else None
 
     thresholds = load_data(params, 'thresholds')
-    data = data_file.get_data(0, chunk_size, padding=padding, nodes=nodes)
-    data_shape = len(data)
+    gidx = data_file.get_idx(k_start, chunk_size)
+    data, k_offset = data_file.get_data(gidx, chunk_size, padding=padding, nodes=nodes)
+    data = data[(k_start - k_offset):(k_stop - k_offset)]
 
     peaks = {}
     n_spikes = 0
@@ -827,10 +889,12 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
     if do_temporal_whitening: 
         for i in range(N_e):
             data[:, i] = numpy.convolve(data[:, i], temporal_whitening, 'same')
-            peaks[i] = juxta_spike_times = scipy.signal.find_peaks(-data[:, i], height=thresholds[i])[0]
-            n_spikes += len(peaks[i])
 
-    curve = numpy.zeros((n_spikes, N_t - 1), dtype=numpy.float32)
+    for i in range(N_e):
+        peaks[i] = scipy.signal.find_peaks(-data[:, i], height=thresholds[i])[0]
+        n_spikes += len(peaks[i])
+
+    curve = numpy.zeros((n_spikes, N_t), dtype=numpy.float32)
     print("We found %d spikes" % n_spikes)
 
     count = 0
@@ -838,13 +902,35 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
         for i in range(len(peaks[electrode])):
             peak_time = peaks[electrode][i]
             if peak_time > N_t / 2:
-                curve[count] = data[peak_time - N_t / 2:peak_time + N_t / 2, electrode]
+                k_start = peak_time - (N_t - 1) // 2
+                k_stop = peak_time + (N_t - 1) // 2 + 1
+                curve[count] = data[k_start:k_stop, electrode]
             count += 1
 
-    pylab.subplot(111)
-    pylab.imshow(curve, aspect='auto')
-    pylab.show() 
-    data_file.close()   
+    im = curve
+    imshow_kwargs = {
+        'cmap': 'seismic',
+        'aspect': 'auto',
+        'vmin': - np.max(np.abs(im)),
+        'vmax': + np.max(np.abs(im)),
+        'origin': 'lower',
+        'extent': (
+            - (N_t + 1) / 2 / sampling_rate * 1e+3,  # left
+            + (N_t + 1) / 2 / sampling_rate * 1e+3,  # right
+            0.0 - 0.5,  # bottom
+            float(n_spikes) + 0.5,  # top
+        )
+    }
+    ax = pylab.subplot(111)
+    ax.imshow(im, **imshow_kwargs)
+    ax.axvline(color='tab:gray', linewidth=0.5)
+    ax.set_xlabel("lag")
+    ax.set_ylabel("waveform")
+    ax.set_title("isolated peaks")
+    pylab.tight_layout()
+    pylab.show()
+    data_file.close()
+
     return curve
 
 
@@ -970,65 +1056,61 @@ def view_performance(file_name, triggers, lims=(150,150)):
 
 
 def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
+    """View template."""
 
     params = CircusParser(file_name)
+    _ = params.get_data_file()  # i.e. update N_t
     N_e = params.getint('data', 'N_e')
-    N_total = params.getint('data', 'N_total')
-    sampling_rate = params.getint('data', 'sampling_rate')
-    do_temporal_whitening = params.getboolean('whitening', 'temporal')
-    do_spatial_whitening = params.getboolean('whitening', 'spatial')
-    spike_thresh = params.getfloat('detection', 'spike_thresh')
-    file_out_suff = params.get('data', 'file_out_suff')
+    # N_total = params.getint('data', 'N_total')
+    # sampling_rate = params.getint('data', 'sampling_rate')
+    # do_temporal_whitening = params.getboolean('whitening', 'temporal')
+    # do_spatial_whitening = params.getboolean('whitening', 'spatial')
+    # spike_thresh = params.getfloat('detection', 'spike_thresh')
+    # file_out_suff = params.get('data', 'file_out_suff')
     N_t = params.getint('detection', 'N_t')
     nodes, edges = get_nodes_and_edges(params)
-    chunk_size = N_t
+    # chunk_size = N_t
     N_total = params.getint('data', 'N_total')
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
 
     if templates is None:
         templates = load_data(params, 'templates')
+        templates = templates.toarray()
+        templates = templates.reshape(N_e, N_t, -1)
     clusters = load_data(params, 'clusters')
     probe = params.probe
 
-    positions = {}
-    for i in probe['channel_groups'].keys():
-        positions.update(probe['channel_groups'][i]['geometry'])
-    xmin = 0
-    xmax = 0
-    ymin = 0
-    ymax = 0
-    scaling = 10*numpy.max(numpy.abs(templates[:, temp_id].toarray().reshape(N_e, N_t)))
-    for i in range(N_e):
-        if positions[i][0] < xmin:
-            xmin = positions[i][0]
-        if positions[i][0] > xmax:
-            xmax = positions[i][0]
-        if positions[i][1] < ymin:
-            ymin = positions[i][0]
-        if positions[i][1] > ymax:
-            ymax = positions[i][1]
+    positions = []
+    for i in probe['channel_groups'][1]['geometry'].keys():
+        positions.append(probe['channel_groups'][1]['geometry'][i])
+    positions = np.array(positions)
+    dx = np.median(np.diff(np.unique(positions[:, 0])))  # horizontal inter-electrode distance
+    dy = np.median(np.diff(np.unique(positions[:, 1])))  # vertical inter-electrode distance
+    x_scaling = 0.8 * dx / 1.0
+    y_scaling = 0.8 * dy / (np.abs(np.min(templates[:, :, temp_id])) + np.abs(np.max(templates[:, :, temp_id])))
     if best_elec is None:
         best_elec = clusters['electrodes'][temp_id]
     elif best_elec == 'auto':
         best_elec = numpy.argmin(numpy.min(templates[:, :, temp_id], 1))
     pylab.figure()
-    for count, i in enumerate(range(N_e)):
-        x, y = positions[i]
-        xpadding = ((x - xmin) / (float(xmax - xmin) + 1)) * (2 * N_t)
-        ypadding = ((y - ymin) / (float(ymax - ymin) + 1)) * scaling
-
+    ax = pylab.gca()
+    ax.set_aspect('equal')
+    for i in range(N_e):
+        x_c, y_c = positions[nodes[i]]
+        x = x_scaling * numpy.linspace(-0.5, + 0.5, num=N_t) + x_c
+        y = y_scaling * templates[i, :, temp_id] + y_c
         if i == best_elec:
-            c = 'r'
+            c = 'tab:red'
         elif i in inv_nodes[edges[nodes[best_elec]]]:
-            c = 'k'
+            c = 'black'
         else:
-            c = '0.5'
-        pylab.plot(xpadding + numpy.arange(0, N_t), ypadding + templates[i, :, temp_id], color=c)
+            c = 'tab:gray'
+        ax.plot(x, y, color=c)
     pylab.tight_layout()
-    pylab.setp(pylab.gca(), xticks=[], yticks=[])
-    pylab.xlim(xmin, 3 * N_t)
-    pylab.show()    
+    pylab.setp(ax, xticks=[], yticks=[])
+    pylab.show()
+
     return best_elec
 
 
@@ -1249,14 +1331,18 @@ def view_norms(file_name, save=True):
     # Retrieve the key parameters.
     params = CircusParser(file_name)
     norms = load_data(params, 'norm-templates')
-    N_tm = norms.shape[0] / 2
+    N_tm = norms.shape[0] // 2
     y_margin = 0.1
 
     # Plot the figure.
-    fig, ax = pylab.subplots(2, sharex=True)
+    fig, axes = pylab.subplots(2, sharex=True)
     x = numpy.arange(0, N_tm, 1)
     y_cen = norms[0:N_tm]
     y_ort = norms[N_tm:2*N_tm]
+    scatter_kwargs = {
+        's': 3 ** 2,
+        'c': 'black',
+    }
     x_min = -1
     x_max = N_tm
     y_cen_dif = numpy.amax(y_cen) - numpy.amin(y_cen)
@@ -1265,18 +1351,24 @@ def view_norms(file_name, save=True):
     y_ort_dif = numpy.amax(y_ort) - numpy.amin(y_ort)
     y_ort_min = numpy.amin(y_ort) - y_margin * y_ort_dif
     y_ort_max = numpy.amax(y_ort) + y_margin * y_ort_dif
-    ax[0].plot(x, y_cen, 'o')
-    ax[0].set_xlim([x_min, x_max])
-    ax[0].set_ylim([y_cen_min, y_cen_max])
-    ax[0].grid()
-    ax[0].set_title("Norms of the %d templates in %s" % (N_tm, file_name))
-    ax[0].set_xlabel("template (central component)")
-    ax[0].set_ylabel("norm")
-    ax[1].plot(x, y_ort, 'o')
-    ax[1].set_ylim([y_ort_min, y_ort_max])
-    ax[1].grid()
-    ax[1].set_xlabel("template (orthogonal component)")
-    ax[1].set_ylabel("norm")
+    ax = axes[0]
+    ax.scatter(x, y_cen, **scatter_kwargs)
+    ax.grid()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_cen_min, y_cen_max])
+    ax.set_title("Norms of the {} templates in {}".format(N_tm, file_name.replace('_', '\_')))
+    ax.set_xlabel("template (central component)")
+    ax.set_ylabel("norm")
+    ax = axes[1]
+    ax.scatter(x, y_ort, **scatter_kwargs)
+    ax.grid()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.set_ylim([y_ort_min, y_ort_max])
+    ax.set_xlabel("template (orthogonal component)")
+    ax.set_ylabel("norm")
 
     # Display the figure.
     if save:

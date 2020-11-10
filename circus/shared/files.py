@@ -78,7 +78,7 @@ def data_stats(params, show=True, export_times=False):
 
 def get_stas(
         params, times_i, labels_i, src, neighs, nodes=None,
-        mean_mode=False, all_labels=False, pos='neg', auto_align=True
+        mean_mode=False, all_labels=False, pos='neg', auto_align=True, raw_snippets=False
 ):
 
     data_file = params.data_file
@@ -94,6 +94,9 @@ def get_stas(
         stas = numpy.zeros((len(nb_labels), len(neighs), N_t), dtype=numpy.float32)
 
     alignment = params.getboolean('detection', 'alignment') and auto_align
+    if not alignment:
+        raw_snippets = False
+
     over_factor = float(params.getint('detection', 'oversampling_factor'))
     nb_jitter = params.getint('detection', 'nb_jitter')
     do_temporal_whitening = params.getboolean('whitening', 'temporal')
@@ -120,6 +123,10 @@ def get_stas(
         #     weights = smoothing_factor / load_data(params, 'weights-pos')
         align_factor = duration
         local_factor = align_factor*((smoothing_factor*mads[src])**2)
+        if raw_snippets:
+            stas_raw = stas.copy()
+            raw_start = jitter_range
+            raw_end = duration - jitter_range
     else:
         xdata = numpy.arange(-template_shift, template_shift + 1)
         duration = N_t
@@ -141,6 +148,9 @@ def get_stas(
         local_chunk = numpy.take(local_chunk, neighs, axis=1)
 
         if alignment:
+            if raw_snippets:
+                raw_chunk = local_chunk[raw_start:raw_end].copy()
+
             if len(ydata) == 1:
                 smoothed = True
                 try:
@@ -172,16 +182,25 @@ def get_stas(
         if all_labels:
             lc = numpy.where(nb_labels == lb)[0]
             stas[lc] += local_chunk.T
+            if raw_snippets:
+                stas_raw[lc] += raw_chunk.T
         else:
             if not mean_mode:
                 stas[count, :, :] = local_chunk.T
+                if raw_snippets:
+                    stas_raw[count, :, :] = raw_chunk.T
                 count += 1
             else:
                 stas += local_chunk.T
+                if raw_snippets:
+                    stas_raw += raw_chunk.T
 
     data_file.close()
 
-    return stas
+    if raw_snippets:
+        return stas, stas_raw
+    else:
+        return stas
 
 
 def get_dead_times(params):
@@ -410,7 +429,7 @@ def load_data_memshared(
             nb_templates = h5py.File(file_name, 'r', libver='earliest').get('norms').shape[0]
             if nb_templates > 0:
                 sparsity = nb_data / (N_e * N_t * nb_templates)
-                is_sparse = sparsity < sparse_threshold
+                is_sparse = sparsity <= sparse_threshold
             else:
                 is_sparse = True
 
@@ -713,7 +732,7 @@ def load_data_memshared(
 
             for key in myfile.keys():
 
-                if ('clusters_' in key) or (key == 'electrodes'):
+                if ('clusters_' in key) or (key == 'electrodes') or (key == 'local_clusters'):
                     if local_rank == 0:
                         locdata = myfile.get(key)[:]
                         nb_data = len(locdata)
@@ -1148,6 +1167,16 @@ def load_data(params, data, extension=''):
                 drifts = numpy.zeros((nb_templates//2, nb_templates//2, 3), dtype=numpy.float32)
             myfile.close()
             return drifts
+    elif data == 'confusion':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            if 'confusion' in myfile.keys():
+                confusion = myfile.get('confusion')[:]
+            else:
+                N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
+                confusion = numpy.zeros((nb_templates//2, nb_templates//2), dtype=numpy.float32)
+            myfile.close()
+            return confusion
         else:
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
@@ -1223,7 +1252,7 @@ def load_data(params, data, extension=''):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
             for key in myfile.keys():
-                if ('clusters_' in key) or (key == 'electrodes'):
+                if ('clusters_' in key) or (key == 'electrodes') or (key == 'local_clusters'):
                     result[str(key)] = myfile.get(key)[:]
             myfile.close()
             return result
@@ -2195,7 +2224,7 @@ def get_overlaps(
 
             data = scipy.sparse.csr_matrix((local_data, (local_x, local_y)), shape=(N_tm, over_shape[1]), dtype=numpy.float32)
             maxoverlaps[count, :] = data.max(1).toarray().flatten()[:N_half]
-            maxlags[count, :] = N_t - numpy.array(data.argmax(1)).flatten()[:N_half]
+            maxlags[count, :] = N_t - 1 - numpy.array(data.argmax(1)).flatten()[:N_half]
             del local_x, local_y, local_data, data, nslice
             gc.collect()
 
@@ -2281,15 +2310,23 @@ def load_sp_memshared(file_name, nb_temp):
         if local_rank == 0:
             over_x = c_overlap.get('all/over_x')[:]
             over_data = c_overlap.get('all/over_data')[:]
+            over_time = c_overlap.get('all/over_times')[:]
+            
             noise_x = c_overlap.get('noise/over_x')[:]
             noise_data = c_overlap.get('noise/over_data')[:]
+            noise_time = c_overlap.get('noise/over_times')[:]
             nb_data = len(over_x)
             nb_noise_data = len(noise_x)
             
             indices_bytes = nb_data * intsize
             data_bytes = nb_data * floatsize
+
             indices_noise_bytes = nb_noise_data * intsize
             data_noise_bytes = nb_noise_data * floatsize
+
+            time_bytes = nb_data * intsize
+            time_noise_bytes = nb_noise_data * intsize
+
         else:
             indices_bytes = 0
             data_bytes = 0
@@ -2297,7 +2334,8 @@ def load_sp_memshared(file_name, nb_temp):
             nb_noise_data = 0
             data_noise_bytes = 0
             indices_noise_bytes = 0
-
+            time_bytes = 0
+            time_noise_bytes = 0
 
         c_overlap.close()
 
@@ -2312,8 +2350,13 @@ def load_sp_memshared(file_name, nb_temp):
         buf_indices, _ = win_indices.Shared_query(0)
         buf_indices = numpy.array(buf_indices, dtype='B', copy=False)
 
+        win_times = MPI.Win.Allocate_shared(nb_data * intsize, intsize, comm=sub_comm)
+        buf_times, _ = win_times.Shared_query(0)
+        buf_times = numpy.array(buf_times, dtype='B', copy=False)
+
         data = numpy.ndarray(buffer=buf_data, dtype=numpy.float32, shape=(nb_data,))
         indices = numpy.ndarray(buffer=buf_indices, dtype=numpy.int32, shape=(nb_data,))
+        times = numpy.ndarray(buffer=buf_times, dtype=numpy.uint32, shape=(nb_data,))
 
         if nb_noise_data > 0:
             win_data_noise = MPI.Win.Allocate_shared(nb_noise_data * floatsize, floatsize, comm=sub_comm)
@@ -2324,11 +2367,17 @@ def load_sp_memshared(file_name, nb_temp):
             buf_indices_noise, _ = win_indices_noise.Shared_query(0)
             buf_indices_noise = numpy.array(buf_indices_noise, dtype='B', copy=False)
 
+            win_times_noise = MPI.Win.Allocate_shared(nb_noise_data * intsize, intsize, comm=sub_comm)
+            buf_times_noise, _ = win_times_noise.Shared_query(0)
+            buf_times_noise = numpy.array(buf_times_noise, dtype='B', copy=False)
+
             data_noise = numpy.ndarray(buffer=buf_data_noise, dtype=numpy.float32, shape=(nb_noise_data,))
             indices_noise = numpy.ndarray(buffer=buf_indices_noise, dtype=numpy.int32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(buffer=buf_times_noise, dtype=numpy.uint32, shape=(nb_noise_data,))
         else:
             data_noise = numpy.ndarray(dtype=numpy.float32, shape=(nb_noise_data,))
             indices_noise = numpy.ndarray(dtype=numpy.int32, shape=(nb_noise_data,))
+            times_noise = numpy.ndarray(dtype=numpy.uint32, shape=(nb_noise_data,))
 
 
         sub_comm.Barrier()
@@ -2338,6 +2387,8 @@ def load_sp_memshared(file_name, nb_temp):
             indices[:] = over_x
             data_noise[:] = noise_data
             indices_noise[:] = noise_x
+            times[:] = over_time
+            times_noise[:] = noise_time
 
         sub_comm.Barrier()
 
@@ -2349,7 +2400,9 @@ def load_sp_memshared(file_name, nb_temp):
             i = c // nb_temp
             j = numpy.mod(c, nb_temp)
             
-            results[i, j] = data[x_min:x_max]
+            results[i, j] = {}
+            results[i, j]['data'] = data[x_min:x_max]
+            results[i, j]['times'] = times[x_min:x_max]
 
         bounds = numpy.searchsorted(indices_noise, numpy.arange(nb_temp + 1), 'left')
 
@@ -2357,13 +2410,15 @@ def load_sp_memshared(file_name, nb_temp):
 
             x_min, x_max = bounds[c], bounds[c+1]
             
-            results[c, 'noise'] = data_noise[x_min:x_max]
+            results[c, 'noise'] = {}
+            results[c, 'noise']['data'] = data_noise[x_min:x_max]
+            results[c, 'noise']['times'] = times_noise[x_min:x_max]
 
 
         sub_comm.Barrier()
-        pointers = (win_data, win_indices)
+        pointers = (win_data, win_indices, win_times)
         if nb_noise_data > 0:
-            pointers += (win_data_noise, win_indices_noise)
+            pointers += (win_data_noise, win_indices_noise, win_times_noise)
 
         return results, pointers
 
@@ -2372,12 +2427,14 @@ def load_sp(file_name, nb_temp):
     if os.path.exists(file_name):
 
         c_overlap = h5py.File(file_name, 'r')
-        results = {}
+        results = {'data' : {}, 'time' : {}}
 
         over_x = c_overlap.get('all/over_x')[:]
         over_data = c_overlap.get('all/over_data')[:]
         noise_x = c_overlap.get('noise/over_x')[:]
         noise_data = c_overlap.get('noise/over_data')[:]
+        times = c_overlap.get('all/over_times')[:]
+        noise_times = c_overlap.get('noise/over_times')[:]
 
         bounds = numpy.searchsorted(over_x, numpy.arange(nb_temp**2 + 1), 'left')
 
@@ -2386,13 +2443,17 @@ def load_sp(file_name, nb_temp):
             x_min, x_max = bounds[c], bounds[c+1]
             i = c // nb_temp
             j = numpy.mod(c, nb_temp)
-            results[i, j] = over_data[x_min:x_max]
+            results[i, j] = {}
+            results[i, j]['data'] = over_data[x_min:x_max]
+            results[i, j]['times'] = times[x_min:x_max]
 
         bounds = numpy.searchsorted(noise_x, numpy.arange(nb_temp + 1), 'left')
 
         for c in range(nb_temp):
 
             x_min, x_max = bounds[c], bounds[c+1]
-            results[c, 'noise'] = noise_data[x_min:x_max]
+            results[c, 'noise'] = {}
+            results[c, 'noise']['data'] = noise_data[x_min:x_max]
+            results[c, 'noise']['times'] = noise_times[x_min:x_max]
 
         return results
