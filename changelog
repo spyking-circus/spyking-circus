@@ -11,6 +11,7 @@ Release 1.0.1
 * add the option to collect normalized MSE during fitting. False by default
 * fix the rhd wrapper
 * divide and conquer assigment now based on barycenters instead of simple extremas
+* more efficient merging of the drifts with rigid registration of the templates
 * exit the clustering if too many centroids are found (sign of bad channels)
 * fixes in the meta merging GUI (RPV and dip)
 * optimizations for the second component, less double counting

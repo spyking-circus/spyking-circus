@@ -44,7 +44,7 @@ from circus.shared.algorithms import slice_templates, slice_clusters
 from circus.shared.mpi import comm
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log
-from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist, test_if_support
+from circus.shared.utils import apply_patch_for_similarities, get_shared_memory_flag, bhatta_dist, test_if_support, test_if_drifts
 
 
 logger = logging.getLogger(__name__)
@@ -161,6 +161,7 @@ class MergeWindow(QMainWindow):
         self.low_channels_thr = params.getint('detection', 'low_channels_thr')
         self.mse_error = params.getboolean('fitting', 'mse_error')
         self.hdf5_compress = params.getboolean('data', 'hdf5_compress')
+        self.has_drifts = test_if_drifts(params, self.ext_in)
 
         try:
             self.duration = io.load_data(params, 'duration')
@@ -205,6 +206,9 @@ class MergeWindow(QMainWindow):
         else:
             self.templates = io.load_data(params, 'templates', self.ext_in)
             self.clusters = io.load_data(params, 'clusters-light', self.ext_in)
+
+        if self.has_drifts:
+            self.drifts = io.load_data(params, 'drifts', self.ext_in)
 
         self.thresholds = io.load_data(params, 'thresholds')
         self.indices = numpy.arange(self.shape[2] // 2)
@@ -569,9 +573,18 @@ class MergeWindow(QMainWindow):
         for count, temp_id1 in enumerate(to_explore):
 
             temp_id1 = self.to_consider[temp_id1]
-            best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
-            candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            if self.has_drifts:
+                overlaps = numpy.zeros(self.nb_templates, dtype=numpy.float32)
+                drift_scores = self.drifts[temp_id1, :, 3]
+                normal_scores = self.overlap[temp_id1, :]
+                overlaps = numpy.maximum(drift_scores, normal_scores)
 
+                best_matches = self.to_consider[numpy.argsort(overlaps[self.to_consider])[::-1]]
+                candidates = best_matches[overlaps[best_matches] >= self.cc_overlap]
+            else:
+                best_matches = self.to_consider[numpy.argsort(self.overlap[temp_id1, self.to_consider])[::-1]]
+                candidates = best_matches[self.overlap[temp_id1, best_matches] >= self.cc_overlap]
+            
             for temp_id2 in candidates:
 
                 if temp_id2 > temp_id1:

@@ -136,12 +136,11 @@ def get_nodes_and_edges(parser, validating=False, shank_with=None):
 
 def get_nodes_and_positions(parser, shank_with=None):
     """
-    Retrieve the topology of the probe.
-    
+    Retrieve the topology of the probe
     Other parameters
     ----------------
     radius : integer
-    
+
     Returns
     -------
     nodes : ndarray of integers
@@ -149,12 +148,10 @@ def get_nodes_and_positions(parser, shank_with=None):
     edges : dictionary
         Dictionary which link each channel id to the ids of the channels whose
         distance is less or equal than radius.
-    
     """
 
     positions = []
     nodes = []
-    
     def get_position(i, channel_groups):
         position = channel_groups['geometry'][i]
         if len(position) == 2:

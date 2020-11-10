@@ -108,6 +108,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     smoothing_factor = params.getfloat('detection', 'smoothing_factor')
     noise_window = params.getint('detection', 'noise_time')
     low_channels_thr = params.getint('detection', 'low_channels_thr')
+
+    ss_scale = params.getfloat('clustering', 'smart_search_scale')
+    search_drifts = params.getboolean('clustering', 'search_drifts')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
     if not fixed_amplitudes:
@@ -1797,6 +1800,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             normalization=templates_normalization, debug_plots=debug_plots
         )
     comm.Barrier()
+    sys.stderr.flush()
+
+    if search_drifts:
+
+        if comm.rank == 0:
+            print_and_log(["Identifying putative drifts for meta merging..."], 'default', logger)
+
+        algo.search_drifts(
+            params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu, debug_plots=debug_plots
+        )
+    comm.Barrier()
+
     gc.collect()
     sys.stderr.flush()
     io.get_overlaps(
