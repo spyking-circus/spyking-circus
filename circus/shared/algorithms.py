@@ -502,7 +502,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
         else:
             drifts = None
 
-            if has_confusion:
+        if has_confusion:
             confusion = hfile.create_dataset('confusion', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32, chunks=True)
         else:
             confusion = None
