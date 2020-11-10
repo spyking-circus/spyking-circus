@@ -1011,9 +1011,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     offsets = {'neg': numpy.zeros(nb_temp, dtype=numpy.int32),
                'pos': numpy.zeros(nb_temp, dtype=numpy.int32)}
 
-    align_elecs = {'neg': numpy.zeros(nb_temp, dtype=numpy.int32),
-                  'pos': numpy.zeros(nb_temp, dtype=numpy.int32)}
-
     if comm.rank == 0:
         for i in range(nb_temp):
             ref_elec = best_elec[i]
@@ -1026,16 +1023,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             offsets['neg'][i] = numpy.argmin(myslice) - template_shift
             offsets['pos'][i] = numpy.argmax(myslice) - template_shift
 
-            align_elecs['neg'][i] = numpy.argmin(mytemplate[:, template_shift])
-            align_elecs['pos'][i] = numpy.argmax(mytemplate[:, template_shift])
-
-
     comm.Barrier()
     for i in range(nb_temp):
         offsets['neg'][i] = comm.bcast(offsets['neg'][i], root=0)
         offsets['pos'][i] = comm.bcast(offsets['pos'][i], root=0)
-        align_elecs['neg'][i] = comm.bcast(align_elecs['neg'][i], root=0)
-        align_elecs['pos'][i] = comm.bcast(align_elecs['pos'][i], root=0)
 
     # For each electrode, get the local cluster labels.
     indices = {}
@@ -1097,10 +1088,23 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
 
-        snippets = get_stas(params, times_i - offsets[p][i], labels_i, align_elecs[p][i], neighs=sindices, nodes=nodes, pos=p)
+        snippets = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p)
 
-        nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
-        snippets = numpy.ascontiguousarray(snippets.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
+        aligned_template = np.median(snippets, axis=0)
+        tmpidx = np.unravel_index(aligned_template.argmin(), aligned_template.shape)
+
+        shift = (template_shift - tmpidx[1])
+        snippets_aligned = np.zeros(snippets.shape, dtype=np.float32)
+
+        if shift > 0:
+            snippets_aligned[:, :, shift:] = snippets[:, :, :-shift]
+        elif shift < 0:
+            snippets_aligned[:, :, :shift] = snippets[:, :, -shift:]
+        else:
+            snippets_aligned = snippets
+
+        nb_snippets, nb_electrodes, nb_times_steps = snippets_aligned.shape
+        snippets = numpy.ascontiguousarray(snippets_aligned.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
         for j in range(nb_temp):
             if mask_intersect[i, j]:
