@@ -1105,11 +1105,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         snippets_aligned = numpy.zeros(snippets.shape, dtype=numpy.float32)
 
         if shift > 0:
-            snippets_aligned[:, :, shift:] = snippets_raw[:, :, :-shift]
+            snippets_aligned[:, :, shift:] = snippets[:, :, :-shift]
         elif shift < 0:
-            snippets_aligned[:, :, :shift] = snippets_raw[:, :, -shift:]
+            snippets_aligned[:, :, :shift] = snippets[:, :, -shift:]
         else:
-            snippets_aligned = snippets_raw
+            snippets_aligned = snippets
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets_aligned.shape
         snippets = numpy.ascontiguousarray(snippets_aligned.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
