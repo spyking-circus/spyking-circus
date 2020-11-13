@@ -157,7 +157,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         hanning_filter = None  # default assignment (for PyCharm code inspection)
 
     if use_savgol:
-        savgol_filter = numpy.hanning(n_t)
+        from scipy.ndimage import gaussian_filter1
         savgol_window = params.getint('clustering', 'savgol_window')
     else:
         savgol_filter = None  # default assignment (for PyCharm code inspection)
@@ -1415,9 +1415,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         raise ValueError("unexpected value %s" % extraction)
 
                     if use_savgol and savgol_window > 3:
-                        tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
-                        tmp_slow = scipy.signal.savgol_filter(first_component, 3 * savgol_window, 3, axis=1)
-                        first_component = savgol_filter * tmp_fast + (1 - savgol_filter) * tmp_slow
+
+                        for i in range(len(indices)):
+                            centered_filter = np.zeros(n_t)
+                            centered_filter[:-1] = np.abs(numpy.diff(first_component[i]))
+                            centered_filter = gaussian_filter1d(centered_filter, 3)
+                            centered_filter /= centered_filter.max()
+                            tmp_fast = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
+                            tmp_slow = scipy.signal.savgol_filter(first_component[i], 3 * savgol_window, 3)
+                            first_component[i] = centered_filter * tmp_fast + (1 - centered_filter) * tmp_slow
 
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
