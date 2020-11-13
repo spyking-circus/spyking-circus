@@ -16,7 +16,6 @@ from circus.shared.mpi import detect_memory
 import scipy
 import scipy.optimize
 
-
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     parallel_hdf5 = get_parallel_hdf5_flag(params)
@@ -1419,7 +1418,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         for i in range(len(indices)):
                             centered_filter = np.zeros(n_t)
                             centered_filter[:-1] = np.abs(numpy.diff(first_component[i]))
-                            centered_filter = gaussian_filter1d(centered_filter, 3)
+                            centered_filter = gaussian_filter1d(centered_filter, 2)
                             centered_filter /= centered_filter.max()
                             tmp_fast = scipy.signal.savgol_filter(first_component[i], savgol_window, 3)
                             tmp_slow = scipy.signal.savgol_filter(first_component[i], 3 * savgol_window, 3)
