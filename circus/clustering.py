@@ -157,7 +157,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         hanning_filter = None  # default assignment (for PyCharm code inspection)
 
     if use_savgol:
-        from scipy.ndimage import gaussian_filter1
+        from scipy.ndimage import gaussian_filter1d
         savgol_window = params.getint('clustering', 'savgol_window')
     else:
         savgol_filter = None  # default assignment (for PyCharm code inspection)
