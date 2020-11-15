@@ -1096,7 +1096,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times_i = times[idx_i].astype(numpy.uint32)
         labels_i = labels[idx_i]
 
-        snippets, snippets_raw = get_stas(params, times_i - offsets[p][i], labels_i, align_elecs[p][i], neighs=sindices, nodes=nodes, pos=p, raw_snippets=True)
+        snippets, snippets_raw = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p, raw_snippets=True)
 
         aligned_template = numpy.median(snippets, axis=0)
         tmpidx = numpy.unravel_index(aligned_template.argmin(), aligned_template.shape)

@@ -16,7 +16,6 @@ from circus.shared.mpi import detect_memory
 import scipy
 import scipy.optimize
 
-
 def main(params, nb_cpu, nb_gpu, use_gpu):
 
     parallel_hdf5 = get_parallel_hdf5_flag(params)
@@ -157,8 +156,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         hanning_filter = None  # default assignment (for PyCharm code inspection)
 
     if use_savgol:
-        savgol_filter = numpy.hanning(n_t)
+        from scipy.ndimage import gaussian_filter1d
         savgol_window = params.getint('clustering', 'savgol_window')
+        centered_filter = numpy.zeros(n_t)
+        centered_filter[template_shift - savgol_window:template_shift+savgol_window] = 1
+        centered_filter = gaussian_filter1d(centered_filter, savgol_window)
+        centered_filter /= centered_filter.max()
     else:
         savgol_filter = None  # default assignment (for PyCharm code inspection)
         savgol_window = None  # default assignment (for PyCharm code inspection)
@@ -1415,9 +1418,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         raise ValueError("unexpected value %s" % extraction)
 
                     if use_savgol and savgol_window > 3:
+                        min_value = first_component[elec, template_shift]
                         tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
                         tmp_slow = scipy.signal.savgol_filter(first_component, 3 * savgol_window, 3, axis=1)
-                        first_component = savgol_filter * tmp_fast + (1 - savgol_filter) * tmp_slow
+                        first_component = centered_filter * tmp_fast + (1 - centered_filter) * tmp_slow
+                        first_component[elec, template_shift] = min_value
 
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
