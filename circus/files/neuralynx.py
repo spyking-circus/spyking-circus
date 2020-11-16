@@ -98,6 +98,9 @@ class NeuraLynxFile(DataFile):
             tmp_all_files = filter_per_extension(tmp_all_files, ext)
             tmp_all_files.sort(key=natural_keys)
 
+            # if self.params['ncs_mapping'] != '':
+            #     files = numpy.loadtxt('')
+
             all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
             sources = []
