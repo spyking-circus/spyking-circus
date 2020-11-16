@@ -1127,7 +1127,10 @@ def nd_bhatta_dist(X1, X2):
     det_2 = numpy.linalg.det(cov_2)
     det = numpy.linalg.det(cov)
 
-    dist = (1/8.)*numpy.dot(numpy.dot(ms.T, numpy.linalg.inv(cov)), ms) + 0.5*numpy.log(det/numpy.sqrt(det_1*det_2))
+    if det_1*det_2 > 0:
+        dist = (1/8.)*numpy.dot(numpy.dot(ms.T, numpy.linalg.inv(cov)), ms) + 0.5*numpy.log(det/numpy.sqrt(det_1*det_2))
+    else:
+        dist = numpy.inf
     return dist
 
 

@@ -13,9 +13,12 @@ Release 1.0.1
 * divide and conquer assigment now based on barycenters instead of simple extremas
 * exit the clustering if too many centroids are found (sign of bad channels)
 * fixes in the meta merging GUI (RPV and dip)
+* optimizations for the second component, less double counting
 * fix to use at least 1 CPU
 * the code can be launched on a .params file with [data] file_name filled
 * add the mapping-file mode for neuralynx [mapping_file] (should be generalized?)
+* better estimation of amplitudes for axonal spikes
+* enhance the estimation of amplitudes by proper alignement
 
 =============
 Release 1.0.0
