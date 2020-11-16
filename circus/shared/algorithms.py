@@ -1026,15 +1026,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             offsets['neg'][i] = numpy.argmin(myslice) - template_shift
             offsets['pos'][i] = numpy.argmax(myslice) - template_shift
 
-            align_elecs['neg'][i] = numpy.argmin(mytemplate[:, template_shift])
-            align_elecs['pos'][i] = numpy.argmax(mytemplate[:, template_shift])
-
     comm.Barrier()
     for i in range(nb_temp):
         offsets['neg'][i] = comm.bcast(offsets['neg'][i], root=0)
         offsets['pos'][i] = comm.bcast(offsets['pos'][i], root=0)
-        align_elecs['neg'][i] = comm.bcast(align_elecs['neg'][i], root=0)
-        align_elecs['pos'][i] = comm.bcast(align_elecs['pos'][i], root=0)
 
     # For each electrode, get the local cluster labels.
     indices = {}

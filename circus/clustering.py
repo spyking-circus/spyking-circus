@@ -1418,11 +1418,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         raise ValueError("unexpected value %s" % extraction)
 
                     if use_savgol and savgol_window > 3:
-                        min_value = first_component[elec, template_shift]
+                        min_value = first_component[elec_positions[elec], template_shift]
                         tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
                         tmp_slow = scipy.signal.savgol_filter(first_component, 3 * savgol_window, 3, axis=1)
                         first_component = centered_filter * tmp_fast + (1 - centered_filter) * tmp_slow
-                        first_component[elec, template_shift] = min_value
+                        first_component[elec_positions[elec], template_shift] = min_value
 
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)

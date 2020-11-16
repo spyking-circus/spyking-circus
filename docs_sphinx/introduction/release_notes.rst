@@ -34,7 +34,7 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
-Release 1.0.1
+Release 1.0.2
 =============
 
 * possibility for the amplitudes [a_min, a_max] to depend on time
