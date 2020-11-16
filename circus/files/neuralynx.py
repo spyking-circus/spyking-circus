@@ -81,7 +81,6 @@ def parse_ncs_mapping(file):
     recordings = []
 
     for line in lines:
-        print(line, line.strip('\n').split('\t'))
         recordings += [parse_ncs_line(line.strip('\n').split('\t'))]
     myfile.close()
     return recordings
@@ -92,7 +91,7 @@ class NeuraLynxFile(DataFile):
     extension = [".ncs"]
     parallel_write = True
     is_writable = True
-    is_streamable = ['multi-files', 'multi-folders']
+    is_streamable = ['multi-files', 'multi-folders', 'mapping-file']
 
     # constants
     NUM_HEADER_BYTES = 16 * 1024  # 16 kilobytes of header
@@ -108,7 +107,8 @@ class NeuraLynxFile(DataFile):
 
     _default_values = {
         'ncs_pattern': '',
-        'ncs_mapping': ''
+        'ncs_mapping': '',
+        'idx_mapping': 0
     }
 
     def set_streams(self, stream_mode):
@@ -123,7 +123,6 @@ class NeuraLynxFile(DataFile):
             tmp_all_files.sort(key=natural_keys)
             all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
-            print(all_files)
             sources = []
             to_write = []
             global_time = 0
@@ -171,6 +170,30 @@ class NeuraLynxFile(DataFile):
             for fname in all_files:
                 params['ncs_pattern'] = self.params['ncs_pattern']
                 new_data = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data._t_start = global_time
+                global_time += new_data.duration
+                sources += [new_data]
+                to_write += ['We found the datafile %s with t_start %s and duration %s' % (new_data.file_name, new_data.t_start, new_data.duration)]
+
+            print_and_log(to_write, 'debug', logger)
+            return sources
+
+        elif stream_mode == 'mapping-file':
+            
+            if self.params['ncs_mapping'] != '':
+                all_files = parse_ncs_mapping(self.params['ncs_mapping'])
+            else:
+                all_files = []
+
+            sources = []
+            to_write = []
+            global_time = 0
+            params = self.get_description()
+
+            for count, fname in enumerate(all_files):
+                dirname = os.path.abspath(os.path.dirname(fname[0]))
+                params['idx_mapping'] = count
+                new_data = type(self)(fname[0], params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
                 sources += [new_data]
@@ -250,14 +273,9 @@ class NeuraLynxFile(DataFile):
 
     def _read_from_header(self):
 
-        print("MAPPPPING", self.params['ncs_mapping'])
+        
         if self.params['ncs_mapping'] != '':
-            files = parse_ncs_mapping(self.params['ncs_mapping'])
-        else:
-            files = []
-
-        if len(files) == 1:
-            self.all_files = files[0]
+            self.all_files = parse_ncs_mapping(self.params['ncs_mapping'])[self.params['idx_mapping']]
             self.all_channels = range(len(self.all_files))
         else:
             folder_path = os.path.dirname(os.path.abspath(self.file_name))
@@ -275,6 +293,7 @@ class NeuraLynxFile(DataFile):
                     self.all_channels += [int(regexpr.findall(f)[0])]
                     self.all_files += [f]
 
+        print("FILES CONSIDERED", self.all_files)
         self.header = self._read_header_(self.all_files[0])
         
         header = {}
