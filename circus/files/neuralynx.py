@@ -67,7 +67,7 @@ def parse_ncs_line(line):
         import glob
         all_files = glob.glob(filename)
     else:
-        all_files = line[0]
+        all_files = line
 
     res = []
     for f in all_files:
@@ -81,7 +81,7 @@ def parse_ncs_mapping(file):
     recordings = []
 
     for line in lines:
-        recordings += [parse_ncs_line(line.strip('\n').split('\t'))]
+        recordings += [parse_ncs_line(line.strip('\n').split())]
     myfile.close()
     return recordings
 
@@ -107,7 +107,7 @@ class NeuraLynxFile(DataFile):
 
     _default_values = {
         'ncs_pattern': '',
-        'ncs_mapping': '',
+        'mapping_file': '',
         'idx_mapping': 0
     }
 
@@ -180,11 +180,12 @@ class NeuraLynxFile(DataFile):
 
         elif stream_mode == 'mapping-file':
             
-            if self.params['ncs_mapping'] != '':
-                all_files = parse_ncs_mapping(self.params['ncs_mapping'])
+            if self.params['mapping_file'] != '':
+                all_files = parse_ncs_mapping(self.params['mapping_file'])
             else:
                 all_files = []
 
+            print(all_files)
             sources = []
             to_write = []
             global_time = 0
@@ -274,8 +275,8 @@ class NeuraLynxFile(DataFile):
     def _read_from_header(self):
 
         
-        if self.params['ncs_mapping'] != '':
-            self.all_files = parse_ncs_mapping(self.params['ncs_mapping'])[self.params['idx_mapping']]
+        if self.params['mapping_file'] != '':
+            self.all_files = parse_ncs_mapping(self.params['mapping_file'])[self.params['idx_mapping']]
             self.all_channels = range(len(self.all_files))
         else:
             folder_path = os.path.dirname(os.path.abspath(self.file_name))
@@ -293,7 +294,6 @@ class NeuraLynxFile(DataFile):
                     self.all_channels += [int(regexpr.findall(f)[0])]
                     self.all_files += [f]
 
-        print("FILES CONSIDERED", self.all_files)
         self.header = self._read_header_(self.all_files[0])
         
         header = {}

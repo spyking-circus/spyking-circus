@@ -14,6 +14,8 @@ Release 1.0.1
 * exit the clustering if too many centroids are found (sign of bad channels)
 * fixes in the meta merging GUI (RPV and dip)
 * fix to use at least 1 CPU
+* the code can be launched on a .params file with [data] file_name filled
+* add the mapping-file mode for neuralynx [mapping_file] (should be generalized?)
 
 =============
 Release 1.0.0
