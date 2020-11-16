@@ -185,7 +185,6 @@ class NeuraLynxFile(DataFile):
             else:
                 all_files = []
 
-            print(all_files)
             sources = []
             to_write = []
             global_time = 0
