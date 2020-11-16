@@ -105,6 +105,7 @@ class CircusParser(object):
                           ['data', 'status_bars', 'bool', 'True'],
                           ['data', 'custom_spikes', 'string', ''],
                           ['data', 'auto_cluster', 'bool', 'True'],
+                          ['data', 'file_name', 'string', ''],
                           ['detection', 'alignment', 'bool', 'True'],
                           ['detection', 'low_channels_thr', 'int', '3'],
                           ['detection', 'hanning', 'bool', 'True'],
