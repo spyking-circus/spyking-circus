@@ -34,6 +34,26 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 1.0.1
+=============
+
+* possibility for the amplitudes [a_min, a_max] to depend on time
+* median is now removed per shanks
+* common ground syntax slightly changed, to allow one ground per shank
+* fix a bug when collect_all and dense templates
+* fix if no templates are found
+* improvements of the smart search
+* add the option to collect normalized MSE during fitting. False by default
+* fix the rhd wrapper
+* divide and conquer assigment now based on barycenters instead of simple extremas
+* exit the clustering if too many centroids are found (sign of bad channels)
+* fixes in the meta merging GUI (RPV and dip)
+* optimizations for the second component, less double counting
+* fix to use at least 1 CPU
+* better estimation of amplitudes for axonal spikes
+* enhance the estimation of amplitudes by proper alignement
+
+=============
 Release 1.0.0
 =============
 
