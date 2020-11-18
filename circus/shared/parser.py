@@ -89,7 +89,7 @@ class CircusParser(object):
                           ['fitting', 'gpu_only', 'bool', 'False'],
                           ['fitting', 'ratio_thresh', 'float', '0.9'],
                           ['fitting', 'two_components', 'bool', 'True'],
-                          ['fitting', 'auto_nb_chances', 'bool', 'True'],
+                          ['fitting', 'auto_nb_chances', 'bool', 'False'],
                           ['fitting', 'sparse_thresh', 'float', '0.2'],
                           ['fitting', 'mse_error', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
