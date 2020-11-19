@@ -104,10 +104,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
-    sub_norm_templates = norm_templates[:n_tm]
+    sub_norm_templates = n_scalar * norm_templates[:n_tm].reshape(n_tm, 1)
     if not templates_normalization:
         norm_templates_2 = (norm_templates ** 2.0) * n_scalar
-        sub_norm_templates_2 = norm_templates_2[:n_tm]
+        sub_norm_templates_2 = norm_templates_2[:n_tm].reshape(n_tm, 1)
 
     if not SHARED_MEMORY:
         # Normalize templates (if necessary).
@@ -287,26 +287,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
 
-    if templates_normalization:
-        if not fixed_amplitudes:
-            min_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
-            max_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
-            for i in range(nb_amp_times):
-                min_scalar_product[i] = numpy.min(amp_limits[:, i, 0] * n_scalar * norm_templates[:n_tm])
-                max_scalar_product[i] = numpy.max(amp_limits[:, i, 1] * n_scalar * norm_templates[:n_tm])
-        else:
-            min_scalar_product = numpy.min(amp_limits[:, 0] * n_scalar * norm_templates[:n_tm])
-            max_scalar_product = numpy.max(amp_limits[:, 1] * n_scalar * norm_templates[:n_tm])
-    else:
-        if not fixed_amplitudes:
-            min_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
-            max_scalar_product = numpy.zeros(nb_amp_times, dtype=numpy.float32)
-            for i in range(nb_amp_times):
-                min_scalar_product[i] = numpy.min(amp_limits[:, i, 0] * norm_templates_2[:n_tm])
-                max_scalar_product[i] = numpy.max(amp_limits[:, i, 1] * norm_templates_2[:n_tm])
-        else:
-            min_scalar_product = numpy.min(amp_limits[:, 0] * norm_templates_2[:n_tm])
-            max_scalar_product = numpy.max(amp_limits[:, 1] * norm_templates_2[:n_tm])
+    min_scalar_products = amp_limits[:,0][:, numpy.newaxis]
+    max_scalar_products = amp_limits[:,1][:, numpy.newaxis]
 
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -477,11 +459,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             while True:
 
                 if templates_normalization:
-                    amplitudes = data / (n_scalar * sub_norm_templates[:, numpy.newaxis])
+                    amplitudes = data / sub_norm_templates
                 else:
-                    amplitudes = data / sub_norm_templates_2[:, numpy.newaxis]
+                    amplitudes = data / sub_norm_templates_2
 
-                is_valid = (amplitudes > amp_limits[:,0][:, numpy.newaxis])*(amplitudes < amp_limits[:,1][:, numpy.newaxis])
+                is_valid = (amplitudes >= min_scalar_products)*(amplitudes <= max_scalar_products)
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
