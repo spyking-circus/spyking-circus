@@ -37,17 +37,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
     tmp_limits = [float(v) for v in tmp_limits]
     amp_auto = params.getboolean('fitting', 'amp_auto')
-    auto_nb_chances = params.getboolean('fitting', 'auto_nb_chances')
-    if auto_nb_chances:
-        nb_chances = io.load_data(params, 'nb_chances')
-        max_nb_chances = params.getint('fitting', 'max_nb_chances')
-        percent_nb_chances = params.getfloat('fitting', 'percent_nb_chances')
-        total_nb_chances = max(1, numpy.nanpercentile(nb_chances, percent_nb_chances))
-        total_nb_chances = min(total_nb_chances, max_nb_chances)
-        if comm.rank == 0:
-            print_and_log(['nb_chances set automatically to %g' %total_nb_chances], 'debug', logger)
-    else:
-        total_nb_chances = params.getfloat('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
     # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')
@@ -468,8 +457,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_restriction = (t_offset, t_offset + my_chunk_size)
             all_spikes = local_peaktimes + g_offset
 
-            failure = numpy.zeros(nb_local_peak_times, dtype=numpy.int32)
-
             if collect_all:
                 c_all_times = numpy.zeros((len_chunk, n_e), dtype=numpy.bool)
                 c_min_times = numpy.maximum(numpy.arange(len_chunk) - template_shift, 0)
@@ -482,16 +469,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            numerous_argmax = False
-            nb_argmax = n_tm
-            best_indices = numpy.zeros(0, dtype=numpy.int32)
-
             data = b[:n_tm, :]
-            flatten_data = data.ravel()
-            idx_flatten = numpy.arange(flatten_data.size)
-            idx_lookup = idx_flatten.reshape(n_tm, nb_local_peak_times)
-
-            to_add_test = np.zeros((b.shape[0], s_over), dtype=np.float32)
 
             if not fixed_amplitudes:
                 amp_index = numpy.searchsorted(splits, local_restriction[0], 'right')
@@ -508,7 +486,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 if len(valid_indices[0]) == 0:
                     break
-                    print('no more valid spikes...')
 
                 best_amplitude_idx = data[is_valid].argmax()
 
