@@ -463,7 +463,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     amplitudes = data / sub_norm_templates_2
 
-                is_valid = (amplitudes >= min_scalar_products)*(amplitudes <= max_scalar_products)
+                is_valid = (amplitudes > min_scalar_products)*(amplitudes < max_scalar_products)
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
