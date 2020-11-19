@@ -115,8 +115,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
+    sub_norm_templates = norm_templates[:n_tm]
     if not templates_normalization:
         norm_templates_2 = (norm_templates ** 2.0) * n_scalar
+        sub_norm_templates_2 = norm_templates_2[:n_tm]
 
     if not SHARED_MEMORY:
         # Normalize templates (if necessary).
@@ -480,7 +482,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            numerous_argmax = True
+            numerous_argmax = False
             nb_argmax = n_tm
             best_indices = numpy.zeros(0, dtype=numpy.int32)
 
@@ -494,176 +496,81 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if not fixed_amplitudes:
                 amp_index = numpy.searchsorted(splits, local_restriction[0], 'right')
 
-            while numpy.mean(failure) < total_nb_chances:
-
-                # Is there a way to update sub_b * mask at the same time?
-                b_array = None
-
-                if numerous_argmax:
-                    if len(best_indices) < 2:
-                        best_indices = largest_indices(flatten_data, nb_argmax)
-
-                    best_template_index, peak_index = numpy.unravel_index(best_indices[0], data.shape)
-                else:
-                    best_indices = numpy.zeros(0, dtype=numpy.int32)
-                    best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
-
-                candidates = numpy.argsort(maxoverlap[best_template_index])[::-1][:3]
-                M = numpy.zeros((len(candidates), len(candidates)), dtype=numpy.float32)
-                V = numpy.zeros((len(candidates), 1), dtype=numpy.float32)
-
-                for count, i in enumerate(candidates):
-                    M[count, count] = overlaps[i][i, s_center]*(norm_templates_2[i]**2)
-                    for j in range(count+1, len(candidates)):
-                        M[count, j] = overlaps[i][j, s_center + maxlag[i,j]]*(norm_templates_2[i]*norm_templates_2[j])
-                        M[j, count] = overlaps[j][i, s_center + maxlag[j,i]]*(norm_templates_2[i]*norm_templates_2[j])
-
-                    V[count, 0] = sps[i]*(norm_templates_2[i]**2)
-
-                res = numpy.dot(scipy.linalg.inv(M), V)*n_scalar
-                res = res.flatten()
-
-                
-
-                peak_scalar_product = data[best_template_index, peak_index]
-                best_template2_index = best_template_index + n_tm
-
-                if not fixed_amplitudes:
-                    not_valid = peak_scalar_product < min_scalar_product[amp_index]
-                else:
-                    not_valid = peak_scalar_product < min_scalar_product
-
-                if not_valid:
-                    failure[:] = total_nb_chances
-                    break
+            while True:
 
                 if templates_normalization:
+                    amplitudes = data / (n_scalar * sub_norm_templates[:, numpy.newaxis])
+                else:
+                    amplitudes = data / sub_norm_templates_2[:, numpy.newaxis]
+
+                is_valid = (amplitudes > amp_limits[:,0][:, numpy.newaxis])*(amplitudes < amp_limits[:,1][:, numpy.newaxis])
+                valid_indices = numpy.where(is_valid)
+
+                if len(valid_indices[0]) == 0:
+                    break
+                    print('no more valid spikes...')
+
+                best_amplitude_idx = data[is_valid].argmax()
+
+                best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                peak_scalar_product = data[is_valid][best_amplitude_idx]
+
+                best_template2_index = best_template_index + n_tm
+                if templates_normalization:
                     best_amp = b[best_template_index, peak_index] / n_scalar
+                    best_amp_n = amplitudes[is_valid][best_amplitude_idx]
                     if two_components:
                         best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                        best_amp2_n = best_amp2 / norm_templates[best_template2_index]
                     else:
-                        best_amp2 = 0.0
-                    best_amp_n = best_amp / norm_templates[best_template_index]
-                    best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                        best_amp2 = 0
+                        best_amp2_n = 0
                 else:
-                    best_amp = b[best_template_index, peak_index]
-                    best_amp = best_amp / norm_templates_2[best_template_index]
-                    # TODO is `best_amp` value correct?
-                    if two_components:
-                        best_amp2 = b[best_template2_index, peak_index]
-                        best_amp2 = best_amp2 / norm_templates_2[best_template2_index]
-                        # TODO is `best_amp2` value correct?
-                    else:
-                        best_amp2 = 0.0
-
+                    best_amp = b[best_template_index, peak_index] / norm_templates_2[best_template_index]
                     best_amp_n = best_amp
-                    best_amp2_n = best_amp2
-
-                # Verify amplitude constraint.
-                if not fixed_amplitudes:
-                    scaling = 1/(splits[amp_index] - splits[amp_index - 1])
-                    a_min = amp_limits[best_template_index, amp_index, 0] + (amp_limits[best_template_index, amp_index, 0] - amp_limits[best_template_index, amp_index+1, 0])*scaling
-                    a_max = amp_limits[best_template_index, amp_index, 1] + (amp_limits[best_template_index, amp_index, 1] - amp_limits[best_template_index, amp_index+1, 0])*scaling
-                else:
-                    a_min, a_max = amp_limits[best_template_index, :]
-
-                has_been_fitted = False
-
-                if (a_min <= best_amp_n) & (best_amp_n <= a_max):
-                    # Keep the matching.
-                    peak_time_step = local_peaktimes[peak_index]
-
-                    peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
-                    is_neighbor = np.abs(peak_data) <= temp_2_shift
-                    idx_neighbor = peak_data[is_neighbor] + temp_2_shift
-
-                    tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                    if numpy.abs(best_amp2_n) > min_second_component:
-                        tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
-
-                    to_add = tmp1.toarray()[:, idx_neighbor]
-                    b[:, is_neighbor] += to_add
-
-                    # Add matching to the result.
-                    t_spike = all_spikes[peak_index]
-
-                    if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
-                        result['spiketimes'] += [t_spike]
-                        result['amplitudes'] += [(best_amp_n, best_amp2_n)]
-                        result['templates'] += [best_template_index]
-                    elif mse_error:
-                        mse_fit['spiketimes'] += [t_spike]
-                        mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
-                        mse_fit['templates'] += [best_template_index]
-                    # Mark current matching as tried.
-                    b[best_template_index, peak_index] = -numpy.inf
-
-                    mask_modified = to_add[:n_tm, :] != 0
-                    mask_increased = to_add[:n_tm, :] > 0
-
-                    modified = idx_lookup[:, is_neighbor][mask_modified]
-                    increased = idx_lookup[:, is_neighbor][mask_increased]
-
-                    ## Solution 2. Slower but accurate
-                    best_indices = best_indices[1:]
-                    modified_best = best_indices[numpy.in1d(best_indices, modified)]
-                    nb_candidates = len(best_indices) - len(modified_best)
-
-                    if len(modified_best) == 0 and len(increased) > 0:
-                        tmp = increased[numpy.argmax(flatten_data[increased])]
-                        modified_max = flatten_data[tmp]
-                        if len(best_indices) > 1:
-                            if modified_max > flatten_data[best_indices[0]]:
-                                best_indices = numpy.concatenate(([tmp], best_indices))
-                    elif nb_candidates < 2:
-                        # Old max candidates are modified, we need to resort everything
-                        best_indices = largest_indices(flatten_data, nb_argmax)
+                    if two_components:     
+                        best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                        best_amp2_n = best_amp2
                     else:
-                        # We still have one best max that is not modified, so higher than
-                        # the rest of the non modified matrix
-                        increased_elsewhere = increased[~numpy.in1d(increased, best_indices)]
-                        candidates = numpy.concatenate((best_indices, increased_elsewhere))
-                        best_indices = candidates[largest_indices(flatten_data[candidates], nb_candidates)]
+                        best_amp2 = 0
+                        best_amp2_n = 0
 
-                    # Save debug data.
-                    if debug:
-                        result_debug['chunk_nbs'] += [gidx]
-                        result_debug['iteration_nbs'] += [iteration_nb]
-                        result_debug['peak_nbs'] += [peak_index]
-                        result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
-                        result_debug['peak_time_steps'] += [all_spikes[peak_index]]
-                        result_debug['peak_scalar_products'] += [peak_scalar_product]
-                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
-                        result_debug['template_nbs'] += [best_template_index]
-                        result_debug['success_flags'] += [True]
+                peak_time_step = local_peaktimes[peak_index]
 
-                    has_been_fitted = True
+                peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
+                is_neighbor = np.abs(peak_data) <= temp_2_shift
+                idx_neighbor = peak_data[is_neighbor] + temp_2_shift
 
-                if not has_been_fitted:
+                tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                if numpy.abs(best_amp2_n) > min_second_component:
+                    tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
 
-                    # Update failure counter of the peak.
-                    failure[peak_index] += 1
-                    # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
-                    if failure[peak_index] >= total_nb_chances:
-                        # Mark all the matching associated to the current peak as tried.
-                        b[:, peak_index] = -numpy.inf
-                    else:
-                        # Mark current matching as tried.
-                        b[best_template_index, peak_index] = -numpy.inf
+                to_add = tmp1.toarray()[:, idx_neighbor]
+                b[:, is_neighbor] += to_add
 
-                    best_indices = best_indices[flatten_data[best_indices] > -numpy.inf]
+                # Add matching to the result.
+                t_spike = all_spikes[peak_index]
 
-                    # Save debug data.
-                    if debug:
-                        result_debug['chunk_nbs'] += [gidx]
-                        result_debug['iteration_nbs'] += [iteration_nb]
-                        result_debug['peak_nbs'] += [peak_index]
-                        result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
-                        result_debug['peak_time_steps'] += [all_spikes[peak_index]]
-                        result_debug['peak_scalar_products'] += [peak_scalar_product]
-                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
-                        result_debug['template_nbs'] += [best_template_index]
-                        result_debug['success_flags'] += [False]
+                if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
+                    result['spiketimes'] += [t_spike]
+                    result['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                    result['templates'] += [best_template_index]
+                elif mse_error:
+                    mse_fit['spiketimes'] += [t_spike]
+                    mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                    mse_fit['templates'] += [best_template_index]
+
+                # Save debug data.
+                if debug:
+                    result_debug['chunk_nbs'] += [gidx]
+                    result_debug['iteration_nbs'] += [iteration_nb]
+                    result_debug['peak_nbs'] += [peak_index]
+                    result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
+                    result_debug['peak_time_steps'] += [all_spikes[peak_index]]
+                    result_debug['peak_scalar_products'] += [peak_scalar_product]
+                    result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
+                    result_debug['template_nbs'] += [best_template_index]
+                    result_debug['success_flags'] += [True]
 
                 iteration_nb += 1
 
