@@ -287,8 +287,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
 
-    min_scalar_products = amp_limits[:,0][:, numpy.newaxis]
-    max_scalar_products = amp_limits[:,1][:, numpy.newaxis]
+    if fixed_amplitudes:
+        min_scalar_products = amp_limits[:,0][:, numpy.newaxis]
+        max_scalar_products = amp_limits[:,1][:, numpy.newaxis]
 
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
@@ -455,6 +456,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if not fixed_amplitudes:
                 amp_index = numpy.searchsorted(splits, local_restriction[0], 'right')
+                scaling = 1/(splits[amp_index] - splits[amp_index - 1])
+                min_scalar_products = amp_limits[:, amp_index, 0] + (amp_limits[:, amp_index, 0] - amp_limits[:, amp_index+1, 0])*scaling
+                max_scalar_products = amp_limits[:, amp_index, 1] + (amp_limits[:, amp_index, 1] - amp_limits[:, amp_index+1, 0])*scaling
+                    
+                min_scalar_products = min_scalar_products[:, numpy.newaxis]
+                max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
             while True:
 
@@ -467,7 +474,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
-                    break
+                    break   
 
                 best_amplitude_idx = data[is_valid].argmax()
 
@@ -506,6 +513,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 to_add = tmp1.toarray()[:, idx_neighbor]
                 b[:, is_neighbor] += to_add
+
+                b[best_template_index, peak_index] = -numpy.inf
 
                 # Add matching to the result.
                 t_spike = all_spikes[peak_index]
