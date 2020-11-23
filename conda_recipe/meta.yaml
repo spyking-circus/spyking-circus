@@ -52,6 +52,7 @@ test:
     - circus.scripts
   commands:
     - spyking-circus -h
+    - python -c 'import circus; print(circus.__version__)'
 
 about:
   home: http://spyking-circus.rtfd.org

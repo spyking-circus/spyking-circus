@@ -23,11 +23,13 @@ jobs:
       run: |
         pip install dist/*.tar.gz --no-binary=mpi4py
         spyking-circus -h
+        python -c 'import circus; print(circus.__version__)'
         pip uninstall -y -q spyking-circus
     - name: Try installing from wheel
       run: |
         pip install dist/*.whl --no-binary=mpi4py
         spyking-circus -h
+        python -c 'import circus; print(circus.__version__)'
     - name: Publish distribution release 📦 to PyPI
       if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@master
