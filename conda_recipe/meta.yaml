@@ -1,6 +1,8 @@
+{% set data = load_setup_py_data() %}
+
 package:
   name: spyking-circus
-  version: "1.0.4"
+  version: {{  data.get('version') }}
 
 requirements:
   build:
@@ -27,7 +29,7 @@ requirements:
     - hdf5
     - statsmodels
 source:
-  path: ..
+  git_url: ../
 
 build:
   noarch_python: False
@@ -50,6 +52,7 @@ test:
     - circus.scripts
   commands:
     - spyking-circus -h
+    - python -c "import circus; print(circus.__version__)"
 
 about:
   home: http://spyking-circus.rtfd.org

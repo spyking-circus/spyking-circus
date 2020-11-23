@@ -23,3 +23,5 @@ include probes/dan.prb
 include probes/ASSY-01-P.prb
 include probes/ASSY-37-P.prb
 include probes/ASSY-77-P.prb
+include versioneer.py
+include circus/_version.py
