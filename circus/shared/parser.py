@@ -252,21 +252,20 @@ class CircusParser(object):
         file_path = os.path.dirname(self.file_name)
 
         if extension == '.params':
-          parser         = configparser.ConfigParser()
-          parser.read(os.path.abspath(file_name))
-          if "data" not in parser.sections():
-            print_and_log(["No data section in the .params file!"], 'error', logger)
-            sys.exit(0)
-          try:
-            self.file_name = parser['data']['file_name']
-          except Exception:
-            print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
-            sys.exit(0)
-          self.params_only = True
+            parser         = configparser.ConfigParser()
+            parser.read(os.path.abspath(file_name))
+            if "data" not in parser.sections():
+              print_and_log(["No data section in the .params file!"], 'error', logger)
+              sys.exit(0)
+            try:
+              self.file_name = parser['data']['file_name']
+            except Exception:
+              print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
+              sys.exit(0)
+            self.params_only = True
         else:
-          self.params_only = False
-          self.file_name = file_name
-
+            self.params_only = False
+            self.file_name = file_name
         self.file_params = f_next + '.params'
         self.do_folders = create_folders
         self.parser = configparser.ConfigParser()

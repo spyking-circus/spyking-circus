@@ -138,8 +138,11 @@ but a subset x,y can be done. Steps are:
     f_next, extens = os.path.splitext(filename)
 
     params = CircusParser(real_file)
-    filename = os.path.abspath(params.get('data', 'file_name'))
     params_only = params.params_only
+    if params_only:
+        filename = os.path.abspath(params.get('data', 'file_name'))
+    else:
+        filename = params.file_name
 
     if info:
         if args.datafile.lower() in __supported_data_files__:
