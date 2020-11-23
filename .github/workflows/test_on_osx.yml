@@ -28,7 +28,7 @@ jobs:
       run: |
         conda install --yes --quiet anaconda-client
         anaconda -t "$ANACONDA_TOKEN" upload \
-        /usr/local/miniconda/envs/test/conda-bld/osx-64/spyking-circus/*.tar.bz2 \
+        /usr/local/miniconda/envs/test/conda-bld/osx-64/spyking-circus*.tar.bz2 \
         -u spyking-circus
       shell: bash -l {0}
       env:
