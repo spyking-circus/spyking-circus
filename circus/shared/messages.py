@@ -7,23 +7,26 @@ import sys
 def get_header():
 
     import circus
-    version = circus.__version__
+    version = "(" + circus.__version__ + ')'
 
-    if len(version) == 3:
-        title = '#####            Welcome to the SpyKING CIRCUS (%s)         #####' % version
-    elif len(version) == 5:
-        title = '#####           Welcome to the SpyKING CIRCUS (%s)        #####' % version
-    else:
-        title = '#####           Welcome to the SpyKING CIRCUS                #####'
+    title = '#####             Welcome to the SpyKING CIRCUS              #####'
+    nb_version = len(version)
+    nb_blank = 55 - nb_version 
+    white_spaces = ' '*(nb_blank //2)
+
+    nb_blank_2 = 66 - 10 - len(white_spaces) - len(version)
+    white_spaces_2 = ' '*nb_blank_2
+
+    version = '#####'+ white_spaces + version + white_spaces_2 + '#####'
 
     header = '''
 ##################################################################
 %s
-#####                                                        #####
-#####              Written by P.Yger and O.Marre             #####
+%s
+#####             Written by P.Yger and O.Marre              #####
 ##################################################################
 
-''' % title
+''' %(title, version)
 
     return header
 
