@@ -1,8 +1,9 @@
-{% set data = load_setup_py_data() %}
-
 package:
   name: spyking-circus
-  version: {{  data.get('version') }}
+  version: {{ GIT_DESCRIBE_TAG }}
+
+build:
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
 
 requirements:
   build:
