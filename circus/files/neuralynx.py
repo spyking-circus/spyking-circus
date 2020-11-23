@@ -61,6 +61,29 @@ def filter_name_duplicates(tmp_all_files, ncs_pattern=''):
 
     return all_files
 
+def parse_ncs_line(line):
+    if len(line) == 1 and line[0].find('*') > -1:
+        filename = os.path.abspath(line[0])
+        import glob
+        all_files = glob.glob(filename)
+    else:
+        all_files = line
+
+    res = []
+    for f in all_files:
+        res += [os.path.abspath(f)]
+    return res
+
+def parse_ncs_mapping(file):
+    import os
+    myfile = open(file, 'r')
+    lines = myfile.readlines()
+    recordings = []
+
+    for line in lines:
+        recordings += [parse_ncs_line(line.strip('\n').split())]
+    myfile.close()
+    return recordings
 
 class NeuraLynxFile(DataFile):
 
@@ -68,7 +91,7 @@ class NeuraLynxFile(DataFile):
     extension = [".ncs"]
     parallel_write = True
     is_writable = True
-    is_streamable = ['multi-files', 'multi-folders']
+    is_streamable = ['multi-files', 'multi-folders', 'mapping-file']
 
     # constants
     NUM_HEADER_BYTES = 16 * 1024  # 16 kilobytes of header
@@ -83,13 +106,14 @@ class NeuraLynxFile(DataFile):
     }
 
     _default_values = {
-        'ncs_pattern': ''
+        'ncs_pattern': '',
+        'mapping_file': '',
+        'idx_mapping': 0
     }
 
     def set_streams(self, stream_mode):
 
         # We assume that all names are in the forms XXXX_channel.ncs
-
         if stream_mode == 'multi-files':
             dirname = os.path.abspath(os.path.dirname(self.file_name))
             fname = os.path.basename(self.file_name)
@@ -97,7 +121,6 @@ class NeuraLynxFile(DataFile):
             tmp_all_files = os.listdir(dirname)
             tmp_all_files = filter_per_extension(tmp_all_files, ext)
             tmp_all_files.sort(key=natural_keys)
-
             all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
 
             sources = []
@@ -147,6 +170,30 @@ class NeuraLynxFile(DataFile):
             for fname in all_files:
                 params['ncs_pattern'] = self.params['ncs_pattern']
                 new_data = type(self)(os.path.join(os.path.abspath(dirname), fname), params)
+                new_data._t_start = global_time
+                global_time += new_data.duration
+                sources += [new_data]
+                to_write += ['We found the datafile %s with t_start %s and duration %s' % (new_data.file_name, new_data.t_start, new_data.duration)]
+
+            print_and_log(to_write, 'debug', logger)
+            return sources
+
+        elif stream_mode == 'mapping-file':
+            
+            if self.params['mapping_file'] != '':
+                all_files = parse_ncs_mapping(self.params['mapping_file'])
+            else:
+                all_files = []
+
+            sources = []
+            to_write = []
+            global_time = 0
+            params = self.get_description()
+
+            for count, fname in enumerate(all_files):
+                dirname = os.path.abspath(os.path.dirname(fname[0]))
+                params['idx_mapping'] = count
+                new_data = type(self)(fname[0], params)
                 new_data._t_start = global_time
                 global_time += new_data.duration
                 sources += [new_data]
@@ -226,19 +273,25 @@ class NeuraLynxFile(DataFile):
 
     def _read_from_header(self):
 
-        folder_path = os.path.dirname(os.path.abspath(self.file_name))
-        tmp_all_files = self._get_sorted_channels_()
-        regexpr = re.compile('\d+')
-        all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
+        
+        if self.params['mapping_file'] != '':
+            self.all_files = parse_ncs_mapping(self.params['mapping_file'])[self.params['idx_mapping']]
+            self.all_channels = range(len(self.all_files))
+        else:
+            folder_path = os.path.dirname(os.path.abspath(self.file_name))
+            tmp_all_files = self._get_sorted_channels_()
+            regexpr = re.compile('\d+')
+            all_files = filter_name_duplicates(tmp_all_files, self.params['ncs_pattern'])
+            #print(all_files)
 
-        name = '_'.join(all_files[0].split('_')[:-1])
-        self.all_channels = []
-        self.all_files = []
+            name = '_'.join(all_files[0].split('_')[:-1])
+            self.all_channels = []
+            self.all_files = []
 
-        for f in tmp_all_files:
-            if f.find(name) > -1:
-                self.all_channels += [int(regexpr.findall(f)[0])]
-                self.all_files += [f]
+            for f in tmp_all_files:
+                if f.find(name) > -1:
+                    self.all_channels += [int(regexpr.findall(f)[0])]
+                    self.all_files += [f]
 
         self.header = self._read_header_(self.all_files[0])
         
