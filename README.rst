@@ -35,8 +35,11 @@ SpyKING CIRCUS is currently still under development. Please do not hesitate to r
 .. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat
     :target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
 
-.. image:: https://ci.appveyor.com/api/projects/status/crb1gm862985hieq?svg=true
-    :target: https://ci.appveyor.com/project/spyking-circus/spyking-circus
+.. image:: https://github.com/spyking-circus/spyking-circus/workflows/Tests%20on%20Linux/badge.svg
+    :target: https://github.com/spyking-circus/spyking-circus/actions
 
-.. image:: https://travis-ci.org/spyking-circus/spyking-circus.svg?branch=master
-    :target: https://travis-ci.org/spyking-circus/spyking-circus
+.. image:: https://github.com/spyking-circus/spyking-circus/workflows/Tests%20on%20OS%20X/badge.svg
+    :target: https://github.com/spyking-circus/spyking-circus/actions
+
+.. image:: https://github.com/spyking-circus/spyking-circus/workflows/Tests%20on%20Windows/badge.svg
+    :target: https://github.com/spyking-circus/spyking-circus/actions

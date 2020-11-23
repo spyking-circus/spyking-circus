@@ -1,0 +1,36 @@
+name: Build and publish PyPI packages
+on: [push]
+
+jobs:
+  build-n-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: python -m pip install --upgrade pip setuptools wheel
+    - name: Install MPICH
+      run: |
+        sudo apt remove openmpi || echo openmpi is not installed
+        sudo apt install mpich libmpich-dev
+    - name: Build source tarball and wheel
+      run: |
+        python setup.py sdist bdist_wheel
+    - name: Try installing from source package
+      run: |
+        pip install dist/*.tar.gz --no-binary=mpi4py
+        spyking-circus -h
+        pip uninstall -y -q spyking-circus
+    - name: Try installing from wheel
+      run: |
+        pip install dist/*.whl --no-binary=mpi4py
+        spyking-circus -h
+    - name: Publish distribution release 📦 to PyPI
+      if: startsWith(github.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.pypi_password }}

@@ -1,0 +1,39 @@
+name: Tests on Linux
+
+on: [push]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        python: [3.6, 3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install MPICH
+      run: |
+        sudo apt remove openmpi || echo openmpi is not installed
+        sudo apt install mpich libmpich-dev
+    - name: Set up conda environment
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python }}
+    - name: Build conda package
+      run: |
+        conda install --yes --quiet conda-build
+        conda build -c spyking-circus -c conda-forge -c intel conda_recipe
+      shell: bash -l {0}
+    - name: Publish Conda package
+      if: startsWith(github.ref, 'refs/tags')
+      run: |
+        conda install --yes --quiet anaconda-client
+        anaconda -t "$ANACONDA_TOKEN" upload \
+        /usr/share/miniconda/conda-bld/linux-64/spyking-circus/*.tar.bz2 \
+        -u spyking-circus
+      shell: bash -l {0}
+      env:
+        ANACONDA_TOKEN: ${{ secrets.anaconda_token }}
