@@ -435,6 +435,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             b = templates.dot(sub_mat)
     
+            original = numpy.linalg.norm(sub_mat, axis=0)
             del sub_mat
 
             local_restriction = (t_offset, t_offset + my_chunk_size)
@@ -453,6 +454,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             iteration_nb = 0
             data = b[:n_tm, :]
+
             best_amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
 
             if not fixed_amplitudes:
@@ -465,10 +467,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
 
-            error_before = numpy.linalg.norm(data)/data.size
+            error_before = numpy.linalg.norm(data)
             error = numpy.inf
+            print(original.shape, original)
             
-            while numpy.abs(error) > 1e-3:
+            while numpy.abs(error) > 1:
 
                 best_amplitude_idx = data.argmax()
 
@@ -476,25 +479,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 peak_scalar_product = data[best_template_index, peak_index]
 
                 best_template2_index = best_template_index + n_tm
-                if templates_normalization:
-                    best_amp = b[best_template_index, peak_index] / n_scalar
-                    best_amp_n = best_amp / sub_norm_templates[best_template_index]
-                    if two_components:
-                        best_amp2 = b[best_template2_index, peak_index] / n_scalar
-                        best_amp2_n = best_amp2 / norm_templates[best_template2_index]
-                    else:
-                        best_amp2 = 0
-                        best_amp2_n = 0
-                else:
-                    best_amp = b[best_template_index, peak_index] / sub_norm_templates_2[best_template_index]
-                    best_amp_n = best_amp
-                    if two_components:     
-                        best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
-                        best_amp2_n = best_amp2
-                    else:
-                        best_amp2 = 0
-                        best_amp2_n = 0
-
+                best_amp = b[best_template_index, peak_index] / n_scalar
+                best_amp2 = b[best_template2_index, peak_index] / n_scalar
+    
                 peak_time_step = local_peaktimes[peak_index]
 
                 peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
@@ -509,7 +496,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 best_amplitudes[:, is_neighbor] -= to_add
                 
-                error_after = numpy.linalg.norm(data)/data.size
+                amplitudes = best_amplitudes / sub_norm_templates
+                is_valid = (amplitudes[:n_tm, :] > min_scalar_products)*(amplitudes[:n_tm, :] < max_scalar_products)
+
+                masked_data = data * is_valid
+
+                error_after = numpy.linalg.norm(masked_data)
                 error = error_before - error_after
                 error_before = error_after
 
