@@ -1,4 +1,11 @@
 =============
+Release 1.0.5
+=============
+
+* automatic versioning with versionneer
+* conda/pip packages built with git actions (thanks to Marcel)
+
+=============
 Release 1.0.4
 =============
 
