@@ -452,10 +452,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 c_max_times = None  # default assignment (for PyCharm code inspection)
 
             iteration_nb = 0
-            amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
             data = b[:n_tm, :]
-            amp_data = amplitudes[:n_tm, :]
-
+            best_amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
 
             if not fixed_amplitudes:
                 amp_index = numpy.searchsorted(splits, local_restriction[0], 'right')
@@ -466,16 +464,36 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 min_scalar_products = min_scalar_products[:, numpy.newaxis]
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
-            while data.max() > 1:
 
-                best_match, peak_index = numpy.unravel_index(data.argmax(), data.shape)
-                best_match_2 = best_match + n_tm
-                
+            error_before = numpy.linalg.norm(data)
+            error = numpy.inf
+            
+            while numpy.abs(error) > 1:
+
+                best_amplitude_idx = data.argmax()
+
+                best_template_index, peak_index = numpy.unravel_index(best_amplitude_idx, data.shape)
+                peak_scalar_product = data[best_template_index, peak_index]
+
+                best_template2_index = best_template_index + n_tm
                 if templates_normalization:
-                    amplitudes[best_match, peak_index] = b[best_match, peak_index] / sub_norm_templates[best_match]
-                    amplitudes[best_match_2, peak_index] = b[best_match_2, peak_index] / sub_norm_templates[best_match_2]
-                    best_amp = b[best_match, peak_index] / n_scalar
-                    best_amp2 = b[best_match_2, peak_index] / n_scalar
+                    best_amp = b[best_template_index, peak_index] / n_scalar
+                    best_amp_n = best_amp / sub_norm_templates[best_template_index]
+                    if two_components:
+                        best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                        best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                    else:
+                        best_amp2 = 0
+                        best_amp2_n = 0
+                else:
+                    best_amp = b[best_template_index, peak_index] / sub_norm_templates_2[best_template_index]
+                    best_amp_n = best_amp
+                    if two_components:     
+                        best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                        best_amp2_n = best_amp2
+                    else:
+                        best_amp2 = 0
+                        best_amp2_n = 0
 
                 peak_time_step = local_peaktimes[peak_index]
 
@@ -483,27 +501,29 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 is_neighbor = np.abs(peak_data) <= temp_2_shift
                 idx_neighbor = peak_data[is_neighbor] + temp_2_shift
 
-                tmp1  = c_overs[best_match].multiply(-best_amp)
-                tmp1 += c_overs[best_match_2].multiply(-best_amp2)
+                tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
+
                 to_add = tmp1.toarray()[:, idx_neighbor]
                 b[:, is_neighbor] += to_add
-                b[best_match, peak_index] = -numpy.inf
 
-                tmp1  = c_overs[best_match].multiply(-best_amp)
-                to_add = tmp1.toarray()[:, idx_neighbor]/(sub_norm_templates[best_match]*sub_norm_templates)
-                amplitudes[:, is_neighbor] += to_add
+                best_amplitudes[:, is_neighbor] -= to_add
+                
+                error_after = numpy.linalg.norm(data)
+                error = error_before - error_after
+                error_before = error_after
 
-            is_valid = (amp_data >= min_scalar_products)*(amp_data <= max_scalar_products)
 
+            amplitudes = best_amplitudes / (sub_norm_templates)
+
+            is_valid = (amplitudes[:n_tm, :] > min_scalar_products)*(amplitudes[:n_tm, :] < max_scalar_products)
             if numpy.any(is_valid):
+
                 valid_indices = numpy.where(is_valid)
+                for best_template_index, peak_index in zip(valid_indices[0], valid_indices[1]):
 
-                for idx in range(len(valid_indices[0])):
-
-                    best_template_index = valid_indices[0][idx]
-                    peak_index = valid_indices[1][idx]
                     best_amp_n = amplitudes[best_template_index, peak_index]
-                    best_amp2_n = amplitudes[best_template_index+n_tm, peak_index]
+                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index]
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
@@ -516,6 +536,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         mse_fit['spiketimes'] += [t_spike]
                         mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
                         mse_fit['templates'] += [best_template_index]
+
+                    # Save debug data.
+                    if debug:
+                        result_debug['chunk_nbs'] += [gidx]
+                        result_debug['iteration_nbs'] += [iteration_nb]
+                        result_debug['peak_nbs'] += [peak_index]
+                        result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
+                        result_debug['peak_time_steps'] += [all_spikes[peak_index]]
+                        result_debug['peak_scalar_products'] += [peak_scalar_product]
+                        result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
+                        result_debug['template_nbs'] += [best_template_index]
+                        result_debug['success_flags'] += [True]
 
             iteration_nb += 1
 
