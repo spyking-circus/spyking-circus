@@ -2265,7 +2265,12 @@ def get_overlaps(
                 maxoverlaps /= norm_templates[: N_half]
                 maxoverlaps /= norm_templates[: N_half][:, numpy.newaxis]
 
-            myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
+            version = circus.__version__
+            if version.find('+') > -1:
+                version = version.split('+')[0]
+
+            myfile2.create_dataset('version', data=numpy.array(version.split('.'), dtype=numpy.int32))
+
             if hdf5_compress:
                 myfile2.create_dataset('maxlag',  data=maxlags, compression='gzip')
                 myfile2.create_dataset('maxoverlap', data=maxoverlaps, compression='gzip')
