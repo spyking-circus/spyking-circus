@@ -465,10 +465,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
 
-            error_before = numpy.linalg.norm(data)
+            error_before = numpy.linalg.norm(data)/data.size
             error = numpy.inf
             
-            while numpy.abs(error) > 1:
+            while numpy.abs(error) > 1e-3:
 
                 best_amplitude_idx = data.argmax()
 
@@ -509,12 +509,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 best_amplitudes[:, is_neighbor] -= to_add
                 
-                error_after = numpy.linalg.norm(data)
+                error_after = numpy.linalg.norm(data)/data.size
                 error = error_before - error_after
                 error_before = error_after
 
 
-            amplitudes = best_amplitudes / (sub_norm_templates)
+            amplitudes = best_amplitudes / sub_norm_templates
 
             is_valid = (amplitudes[:n_tm, :] > min_scalar_products)*(amplitudes[:n_tm, :] < max_scalar_products)
             if numpy.any(is_valid):
@@ -522,8 +522,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 valid_indices = numpy.where(is_valid)
                 for best_template_index, peak_index in zip(valid_indices[0], valid_indices[1]):
 
-                    best_amp_n = amplitudes[best_template_index, peak_index]
-                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index]
+                    best_amp_n = amplitudes[best_template_index, peak_index] * norm_templates[best_template_index]
+                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index] * norm_templates[best_template_index + n_tm]
 
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
