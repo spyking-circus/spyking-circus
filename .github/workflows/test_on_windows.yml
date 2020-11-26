@@ -1,0 +1,57 @@
+name: Tests on Windows
+
+on: [push]
+
+jobs:
+  build-windows:
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        python: [3.6, 3.7]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Install MPI
+      run: |
+        $target = Get-Location
+        $url = "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisetup.exe"
+        $output = [IO.Path]::Combine($target, "MSMpiSetup.exe")
+        Write-Host "Downloading MSMpiSetup.exe " -ForegroundColor Green
+        (new-object system.net.webclient).DownloadFile($url, $output)
+        Write-Host "Installing MSMpiSetup.exe " -ForegroundColor Green
+        .\MSMpiSetup.exe -unattend -minimal
+        Write-Host "Downloading MSMpiSdk.msi" -ForegroundColor Green
+        $url = "https://download.microsoft.com/download/A/E/0/AE002626-9D9D-448D-8197-1EA510E297CE/msmpisdk.msi"
+        $output = [IO.Path]::Combine($target, "MSMpiSdk.msi")
+        (new-object system.net.webclient).DownloadFile($url, $output)
+        Write-Host "Installing MSMpiSdk.msi" -ForegroundColor Green
+        msiexec /i MSMpiSdk.msi /quiet /qn /norestart
+        Write-Host "Settings paths" -ForegroundColor Green
+        $env:PATH = "C:\Program Files\Microsoft MPI\Bin;$PATH"
+        $env:PATH = "C:\Program Files (x86)\Microsoft SDKs\MPI;$PATH"
+      shell: powershell
+    - name: Set up conda environment
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python }}
+    - name: Build conda package
+      run: |
+        conda config --add channels conda-forge
+        conda install --yes --quiet conda-build anaconda-client
+        conda build -c spyking-circus -c conda-forge -c intel conda_recipe
+      shell: bash -l {0}
+    - name: Publish Conda package
+      if: startsWith(github.ref, 'refs/tags')
+      run: |
+        conda install --yes --quiet anaconda-client
+        anaconda -t "$ANACONDA_TOKEN" upload \
+        /C/Miniconda/envs/test/conda-bld/win-64/spyking-circus*.tar.bz2 \
+        -u spyking-circus
+      shell: bash -l {0}
+      env:
+        ANACONDA_TOKEN: ${{ secrets.anaconda_token }}

@@ -1,8 +1,8 @@
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
+
 import importlib
-# import logging
-
-
-__version__ = '1.0.3'
 
 
 def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None, extension='', sim_same_elec=None):
@@ -21,3 +21,5 @@ def launch(task, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmark=None,
         module.main(params, nb_cpu, nb_gpu, use_gpu, extension)
     else:
         module.main(params, nb_cpu, nb_gpu, use_gpu)
+
+
