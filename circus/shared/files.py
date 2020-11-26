@@ -2270,6 +2270,7 @@ def get_overlaps(
                 version = version.split('+')[0]
 
             myfile2.create_dataset('version', data=numpy.array(version.split('.'), dtype=numpy.int32))
+
             if hdf5_compress:
                 myfile2.create_dataset('maxlag',  data=maxlags, compression='gzip')
                 myfile2.create_dataset('maxoverlap', data=maxoverlaps, compression='gzip')
