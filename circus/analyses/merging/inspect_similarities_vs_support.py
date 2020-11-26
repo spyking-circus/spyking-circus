@@ -1,13 +1,11 @@
-"""Inspect template similarities."""
+"""Inspect template similarities vs support sizes."""
 import argparse
-import matplotlib as mpl
-import matplotlib.cm
 import matplotlib.pyplot as plt
 import numpy as np
 
 from circus.shared.parser import CircusParser
 from circus.shared.files import load_data
-from circus.analyses.utils import load_templates_data
+from circus.analyses.utils import load_templates, load_templates_data
 
 
 # Parse arguments.
@@ -18,21 +16,27 @@ parser.add_argument(
 )
 parser.add_argument('-c', '--cc_merge', default=0.95, type=float, help="similarity threshold (between 0.0 and 1.0)", dest='cc_merge')
 args = parser.parse_args()
-# # Adjust arguments.
 
 # Load parameters.
 params = CircusParser(args.datafile)
-
 _ = params.get_data_file()
 sampling_rate = params.rate  # Hz
 file_out_suff = params.get('data', 'file_out_suff')
 nb_channels = params.getint('data', 'N_e')
 nb_time_steps = params.getint('detection', 'N_t')
+
 common_supports = load_data(params, 'common-supports')
 
 # Load maximum values of the overlaps as template similarities.
+templates = load_templates(params, extension='')
 templates_data = load_templates_data(params, extension='', keys=['maxoverlap', 'maxlag'])
 template_similarities = templates_data['maxoverlap'] / float(nb_channels * nb_time_steps)
+
+nb_templates, nb_time_steps, nb_channels = templates.shape
+template_ids = np.arange(0, nb_templates)
+template_ids_1, template_ids_2 = np.meshgrid(template_ids, template_ids, indexing='ij')
+
+template_supports = np.count_nonzero(np.any(templates != 0.0, axis=1), axis=1)
 
 assert np.min(template_similarities) >= 0.0, np.min(template_similarities)
 assert np.max(template_similarities) <= 1.0, np.max(template_similarities)
@@ -41,47 +45,102 @@ assert np.max(template_similarities) <= 1.0, np.max(template_similarities)
 print("template similarity max.: {}".format(np.max(template_similarities)))
 print("template_similarity min.: {}".format(np.min(template_similarities)))
 
-# Plot template similarities.
-fig, ax = plt.subplots(2)
+# ...
+selection = np.full_like(template_similarities, True, dtype=np.bool)
+# # Remove entries below the main diagonal
+for template_id in template_ids:
+    selection[template_id, 0:(template_id + 1)] = False
+# # Remove entries for noisy templates.
+for template_id in template_ids:
+    if template_supports[template_id] <= 1:  # i.e. support less than nb_channels
+        selection[template_id, :] = False
+        selection[:, template_id] = False
 
-data = template_similarities.flatten()
-support = common_supports.flatten()
+# Plot template similarities.
+fig, axes = plt.subplots(nrows=2, squeeze=False, sharex='all')
+
+data = template_similarities[selection]
+support = common_supports[selection]
+ids_1 = template_ids_1[selection]
+ids_2 = template_ids_2[selection]
 
 average = np.zeros(nb_channels, dtype=np.float32)
 variance = np.zeros(nb_channels, dtype=np.float32)
 for i in range(nb_channels):
-    idx = np.where(support == i)[0]
+    idx = np.where((support == i) & (data > 0.0))[0]
     average[i] = np.mean(data[idx])
     variance[i] = np.std(data[idx])
 
-idx = np.where(data < args.cc_merge)[0]
-ax[0].plot(support[idx].flatten(), data[idx].flatten(), '.', c='k')
-idx = np.where(data >= args.cc_merge)[0]
-ax[0].plot(support[idx].flatten(), data[idx].flatten(), '.', c='r')
+# Top subplot.
+ax = axes[0, 0]
+x = support
+y = data
+c = np.full_like(y, 'black', dtype=np.object)
+c[data < 0.0] = 'tab:gray'
+c[data >= args.cc_merge] = 'tab:red'
+pc = ax.scatter(x, y, s=(3 ** 2), c=c, picker=True)
+ax.fill_between(np.arange(nb_channels), average - variance, average + variance, color='black', alpha=0.25)
+ax.fill_between([0, nb_channels], [args.cc_merge, args.cc_merge], [1, 1], color='tab:red', alpha=0.25)
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+# ax.set_xlabel("nb. channels")
+ax.set_ylabel("similarity")
 
-ax[0].fill_between(np.arange(nb_channels), average -variance, average+variance, color='r', alpha=0.25)
-ax[0].fill_between([0, nb_channels], [args.cc_merge, args.cc_merge], [1, 1], color='k', alpha=0.25)
-ax[0].set_ylabel("similarity")
+annot = ax.annotate(
+    "", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
+    bbox=dict(boxstyle="round", fc="w"),
+    arrowprops=dict(arrowstyle="->")
+)
+annot.set_visible(False)
 
-exponents = np.exp(-support/args.adapted_thr)
-new_data = data**exponents
+
+def update_annot(k):
+
+    pos = pc.get_offsets()[k]
+    annot.xy = pos
+    text = "({}, {})".format(ids_1[k], ids_2[k])
+    annot.set_text(text)
+
+    return
+
+
+def pick_handler(event):
+
+    k = np.random.choice(event.ind)
+    update_annot(k)
+    annot.set_visible(True)
+    fig.canvas.draw_idle()
+
+    return
+
+
+fig.canvas.mpl_connect('pick_event', pick_handler)
+
+
+exponents = np.exp(- support / args.adapted_thr)
+new_data = data ** exponents
 
 average = np.zeros(nb_channels, dtype=np.float32)
 variance = np.zeros(nb_channels, dtype=np.float32)
 for i in range(nb_channels):
-    idx = np.where(support == i)[0]
+    idx = np.where((support == i) & (data > 0.0))[0]
     average[i] = np.mean(new_data[idx])
     variance[i] = np.std(new_data[idx])
 
-idx = np.where(new_data < args.cc_merge)[0]
-ax[1].plot(support[idx].flatten(), new_data[idx].flatten(), '.', c='k')
-idx = np.where(new_data >= args.cc_merge)[0]
-ax[1].plot(support[idx].flatten(), new_data[idx].flatten(), '.', c='r')
-
-ax[1].set_xlabel("# channels")
-ax[1].set_ylabel("similarity")
-ax[1].fill_between([0, nb_channels], [args.cc_merge, args.cc_merge], [1, 1], color='k', alpha=0.25)
-ax[1].fill_between(np.arange(nb_channels), average -variance, average+variance, color='r', alpha=0.25)
+# Bottom subplot.
+ax = axes[1, 0]
+x = support
+y = new_data
+c = np.full_like(y, 'black', dtype=np.object)
+c[new_data <= 0.0] = 'tab:gray'
+c[new_data >= args.cc_merge] = 'tab:red'
+ax.scatter(x, y, s=(3 ** 2), c=c)
+ax.fill_between(np.arange(nb_channels), average - variance, average + variance, color='black', alpha=0.25)
+ax.fill_between([0, nb_channels], [args.cc_merge, args.cc_merge], [1, 1], color='tab:red', alpha=0.25)
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+ax.set_xlabel("nb. channels")
+ax.set_ylabel("corrected similarity")
 
 
 fig.tight_layout()
