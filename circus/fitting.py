@@ -104,10 +104,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         amp_limits = io.load_data(params, 'limits')
 
     norm_templates = io.load_data(params, 'norm-templates')
-    sub_norm_templates = n_scalar * norm_templates[:n_tm].reshape(n_tm, 1)
+    sub_norm_templates = n_scalar * norm_templates[:n_tm]
     if not templates_normalization:
         norm_templates_2 = (norm_templates ** 2.0) * n_scalar
-        sub_norm_templates_2 = norm_templates_2[:n_tm].reshape(n_tm, 1)
+        sub_norm_templates_2 = norm_templates_2[:n_tm]
 
     if not SHARED_MEMORY:
         # Normalize templates (if necessary).
@@ -463,14 +463,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 min_scalar_products = min_scalar_products[:, numpy.newaxis]
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
+            if templates_normalization:
+                min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+            else:
+                min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+
             while True:
 
-                if templates_normalization:
-                    amplitudes = data / sub_norm_templates
-                else:
-                    amplitudes = data / sub_norm_templates_2
-
-                is_valid = (amplitudes > min_scalar_products)*(amplitudes < max_scalar_products)
+                is_valid = (data > min_sps)*(data < max_sps)
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
@@ -484,15 +486,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 best_template2_index = best_template_index + n_tm
                 if templates_normalization:
                     best_amp = b[best_template_index, peak_index] / n_scalar
-                    best_amp_n = amplitudes[is_valid][best_amplitude_idx]
+                    best_amp_n = best_amp / norm_templates[best_template_index]
                     if two_components:
                         best_amp2 = b[best_template2_index, peak_index] / n_scalar
-                        best_amp2_n = best_amp2 / norm_templates[best_template2_index]
+                        best_amp2_n = best_amp2 /  norm_templates[best_template2_index]
                     else:
                         best_amp2 = 0
                         best_amp2_n = 0
                 else:
-                    best_amp = amplitudes[is_valid][best_amplitude_idx]
+                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
                     best_amp_n = best_amp
                     if two_components:     
                         best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
