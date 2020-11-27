@@ -1632,15 +1632,29 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
                 to_add = tmp1.toarray()[to_consider, s_over]
                 b[:, peak_index] += to_add
 
-                amplitudes[best_template_index, peak_index] = best_amp_n
+                tmp1 = c_overs[best_template_index].multiply(-best_amp_n)
+                to_add = tmp1.toarray()[to_consider, s_over]
+
+                mask = amplitudes[:, peak_index] != 0
+                mask[best_template_index] = False
+                amplitudes[:, peak_index] += to_add*mask / n_scalar
+                amplitudes[best_template_index, peak_index] += best_amp_n / n_scalar
 
                 b[best_template_index, peak_index] = -numpy.inf
 
             for i in range(nb_consider):
                 are_valid = (amplitudes[i] > limits[to_consider[i], 0])*(amplitudes[i] < limits[to_consider[i], 1])
                 best_matches = numpy.where(are_valid)[0]
-                if len(best_matches) == 2:
-                    mixtures += [to_consider[i]]
+                if len(best_matches) > 0:
+                    reconstruction = numpy.zeros(n_scalar, dtype=numpy.float32)
+                    for j in best_matches:
+                        reconstruction += amplitudes[i, j]*templates[to_consider[j]]
+                    if is_sparse:
+                        cc = numpy.corrcoef(reconstruction, templates[i].toarray().flatten())[0, 1]
+                    else:
+                        cc = numpy.corrcoef(reconstruction, templates[i])[0, 1]
+                    if cc > 0.9:
+                        to_remove += [to_consider[i]]
 
             if len(mixtures) == 0:
                 find_mixtures = False
