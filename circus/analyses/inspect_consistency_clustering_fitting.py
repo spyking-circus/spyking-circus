@@ -3,12 +3,12 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import warnings
 
 from circus.shared.parser import CircusParser
 from circus.shared.files import load_data
 
 from circus.analyses.utils import load_clusters_data
+from circus.analyses.utils import load_templates
 
 
 # Parse arguments.
@@ -19,6 +19,8 @@ parser = argparse.ArgumentParser(  # noqa
 parser.add_argument('datafile', help="data file")
 parser.add_argument('-i', '--interval', default=3.0, type=float, help="threshold interval (in ms)")
 parser.add_argument('-t', '--template', default=None, type=int, help="template identifier", dest='template_id')
+# parser.add_argument('-s', '--size', choices=['amplitude', 'norm'], help="marker size")
+parser.add_argument('-c', '--color', choices=['amplitude', 'norm'], help="marker color")
 args = parser.parse_args()
 
 # Load parameters.
@@ -115,15 +117,28 @@ for k, template_id in enumerate(template_ids):
     proportion = np.count_nonzero(minimum_intervals < args.interval) / minimum_intervals.size
     proportions[k] = proportion
 
+templates = load_templates(params, extension='')  # TODO support other extensions?
+# nb_time_steps, nb_channels, nb_templates = templates.shape
+template_amplitudes = np.zeros_like(template_ids, dtype=np.float)
+template_norms = np.zeros_like(template_ids, dtype=np.float)
+for k, template_id in enumerate(template_ids):
+    template_amplitudes[k] = np.max(np.abs(templates[:, :, template_id]))
+    template_norms[k] = np.linalg.norm(templates[:, :, template_id])
+
 # Plot proportions.
 fig, ax = plt.subplots()
 x = template_ids
 y = proportions
 scatter_kwargs = {
     's': (3 ** 2),
-    'color': 'black',
 }
-ax.scatter(x, y, **scatter_kwargs)
+if args.color is None:
+    scatter_kwargs['color'] = 'black'
+elif args.color == 'amplitude':
+    scatter_kwargs['c'] = template_amplitudes
+elif args.color == 'norm':
+    scatter_kwargs['c'] = template_norms
+pc = ax.scatter(x, y, **scatter_kwargs)
 axline_kwargs = {
     'color': 'black',
     'linewidth': 0.5,
@@ -135,6 +150,9 @@ ax.spines['top'].set_visible(False)
 ax.set_xlabel("template")
 ax.set_ylabel("proportion")
 ax.set_title("peak times as spike times (+/- {} ms)".format(args.interval))
+if args.color is not None:
+    cb = fig.colorbar(pc, ax=ax)
+    cb.set_label("{}".format(args.color))
 fig.tight_layout()
 
 
