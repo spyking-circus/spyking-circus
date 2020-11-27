@@ -1523,7 +1523,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     template_shift = params.getint('detection', 'template_shift')
     cc_merge = params.getfloat('clustering', 'cc_merge')
     mixtures = []
-    norm = n_e * n_t
+    n_scalar = n_e * n_t
     # to_remove = []  # TODO remove (not used)?
 
     filename = params.get('data', 'file_out_suff') + '.overlap-mixtures.hdf5'
@@ -1535,10 +1535,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     inv_nodes[nodes] = numpy.arange(len(nodes))
     has_support = test_if_support(params, '')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
+    templates_normalization = params.getboolean('clustering', 'templates_normalization')
+    sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
-        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=False
+        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=True
     )
     overlap.close()
 
@@ -1554,112 +1556,102 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         )
 
     if SHARED_MEMORY:
-        templates, mpi_memory_2 = load_data_memshared(params, 'templates', normalize=True)
+        templates, mpi_memory_2 = load_data_memshared(params, 'templates', normalize=True, transpose=True, sparse_threshold=sparse_threshold)
+        is_sparse = not isinstance(templates, numpy.ndarray)
     else:
         templates = load_data(params, 'templates')
+        x, N_tm = templates.shape
+        if N_tm > 0:
+            sparsity = templates.nnz / (x * N_tm)
+            is_sparse = sparsity < sparse_threshold
+        else:
+            is_sparse = True
+        if not is_sparse:
+            if comm.rank == 0:
+                print_and_log(['Templates sparsity is low (%g): densified to speedup the algorithm' %sparsity], 'debug', logger)
+            templates = templates.toarray()
 
-    x, n_tm = templates.shape
+
+    n_tm, x = templates.shape
     nb_temp = int(n_tm // 2)
-    offset = n_t - 1
-    # merged = [nb_temp, 0]  # TODO remove (not used)?
+    s_over = c_overs[0].shape[1] //2
 
-    if has_support:
-        supports = load_data(params, 'supports')
-    else:
-        supports = {}
-        supports = numpy.zeros((nb_temp, n_e), dtype=numpy.bool)
-        for t in range(nb_temp):
-            elecs = numpy.take(inv_nodes, edges[nodes[best_elec[t]]])
-            supports[t, elecs] = True
+    if not SHARED_MEMORY:
+        # Normalize templates (if necessary).
+        if templates_normalization:
+            if is_sparse:
+                for idx in range(templates.shape[1]):
+                    myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+                    templates.data[myslice] /= norm_templates[idx]
+            else:
+                for idx in range(templates.shape[1]):
+                    templates[:, idx] /= norm_templates[idx]
+        # Transpose templates.
+        templates = templates.T
 
-    overlap_0 = numpy.zeros(nb_temp, dtype=numpy.float32)
-    distances = numpy.zeros((nb_temp, nb_temp), dtype=numpy.int32)
+    to_remove = []
 
-    for i in range(nb_temp - 1):
-        data = c_overs[i].toarray()
-        distances[i, i + 1:] = numpy.argmax(data[i + 1:, :], 1)
-        distances[i + 1:, i] = distances[i, i + 1:]
-        overlap_0[i] = data[i, n_t - 1]
-
-    all_temp = numpy.arange(comm.rank, nb_temp, comm.size)
-    sorted_temp = numpy.argsort(norm_templates[:nb_temp])[::-1]
-    M = numpy.zeros((2, 2), dtype=numpy.float32)
-    V = numpy.zeros((2, 1), dtype=numpy.float32)
-
-    to_explore = range(comm.rank, nb_temp, comm.size)
     if comm.rank == 0:
-        to_explore = get_tqdm_progressbar(params, to_explore)
 
-    for count, k in enumerate(to_explore):
+        all_templates = numpy.arange(nb_temp)
+        find_mixtures = True
+        mixtures = []
 
-        k = sorted_temp[k]
-        overlap_k = c_overs[k]
-        electrodes = numpy.where(supports[k])[0]
-        candidates = {}
-        for t1 in range(nb_temp):
-            candidates[t1] = []
-            masks = numpy.logical_or(supports[t1], supports[t1:])
-            masks = numpy.all(masks[:, electrodes], 1)
-            if t1 != k:
-                for count, t2 in enumerate(range(t1, nb_temp)):
-                    is_candidate = masks[count]
-                    if is_candidate and t2 != k and t2 != t1:
-                        candidates[t1] += [t2]
+        while find_mixtures:
 
-        been_found = False
-        t_k = None
+            to_remove += mixtures
+            to_ignore = numpy.in1d(all_templates, numpy.unique(to_remove))
+            to_consider = all_templates[~to_ignore]
+            nb_consider = len(to_consider)
 
-        for i in candidates.keys():
-            t_i = None
-            if not been_found and len(candidates[i]) > 0:
-                overlap_i = c_overs[i]
-                M[0, 0] = overlap_0[i]
-                V[0, 0] = overlap_k[i, distances[k, i]]
-                for j in candidates[i]:
-                    t_j = None
-                    value = (distances[k, i] - distances[k, j])//2 + offset
-                    M[1, 1] = overlap_0[j]
-                    M[1, 0] = overlap_i[j, value]
-                    M[0, 1] = M[1, 0]
-                    V[1, 0] = overlap_k[j, distances[k, j]]
-                    try:
-                        [a1, a2] = numpy.dot(scipy.linalg.inv(M), V)
-                    except Exception:
-                        [a1, a2] = [0, 0]
-                    a1_lim = limits[i]
-                    a2_lim = limits[j]
-                    if not fixed_amplitudes:
-                        is_a1 = numpy.any((a1_lim[:, 0] <= a1) & (a1 <= a1_lim[:, 1]))
-                        is_a2 = numpy.any((a2_lim[:, 0] <= a2) & (a2 <= a2_lim[:, 1]))
-                    else:
-                        is_a1 = (a1_lim[0] <= a1) and (a1 <= a1_lim[1])
-                        is_a2 = (a2_lim[0] <= a2) and (a2 <= a2_lim[1])
-                    if is_a1 and is_a2:
-                        if t_k is None:
-                            t_k = templates[:, k].toarray().ravel()
-                        if t_i is None:
-                            t_i = templates[:, i].toarray().ravel()
-                        if t_j is None:
-                            t_j = templates[:, j].toarray().ravel()
-                        new_template = (a1 * t_i + a2 * t_j)
-                        similarity = numpy.corrcoef(t_k, new_template)[0, 1]
-                        local_overlap = numpy.corrcoef(t_i, t_j)[0, 1]
-                        mytest1 = similarity > cc_merge
-                        mytest2 = local_overlap < 0.5
-                        if mytest1 and mytest2:
-                            if k not in mixtures:
-                                mixtures += [k]
-                                been_found = True
-                                break
+            if is_sparse:
+                snippets = templates[to_consider].T.toarray() * norm_templates[to_consider]
+            else:
+                snippets = templates[to_consider].T * norm_templates[to_consider]
 
-    sys.stderr.flush()
-    to_remove = numpy.unique(numpy.array(mixtures, dtype=numpy.int32))
-    to_remove = all_gather_array(to_remove, comm, 0, dtype='int32')
+            b = templates[to_consider].dot(snippets)
+            b[numpy.arange(nb_consider), numpy.arange(nb_consider)] = 0
 
-    if len(to_remove) > 0 and comm.rank == 0:
-        result = load_data(params, 'clusters')
-        slice_templates(params, to_remove)
-        slice_clusters(params, result, to_remove=to_remove)
+            amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
+            mixtures = []
+
+            while b.max() > -numpy.inf:
+
+                best_amplitude_idx = b.argmax()
+
+                best_template_index, peak_index = numpy.unravel_index(best_amplitude_idx, b.shape)
+
+                if templates_normalization:
+                    best_amp = b[best_template_index, peak_index] / n_scalar
+                    best_amp_n = best_amp / norm_templates[best_template_index]
+                else:
+                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                    best_amp_n = best_amp
+
+                tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                to_add = tmp1.toarray()[to_consider, s_over]
+                b[:, peak_index] += to_add
+
+                amplitudes[best_template_index, peak_index] = best_amp_n
+
+                b[best_template_index, peak_index] = -numpy.inf
+
+            for i in range(nb_consider):
+                are_valid = (amplitudes[i] > limits[to_consider[i], 0])*(amplitudes[i] < limits[to_consider[i], 1])
+                best_matches = numpy.where(are_valid)[0]
+                if len(best_matches) == 2:
+                    mixtures += [to_consider[i]]
+
+            if len(mixtures) == 0:
+                find_mixtures = False
+                to_remove = numpy.unique(to_remove)
+
+        if len(to_remove) > 0:
+            result = load_data(params, 'clusters')
+            slice_templates(params, to_remove)
+            slice_clusters(params, result, to_remove=to_remove)
+    else:
+        to_remove = []
 
     comm.Barrier()
 
