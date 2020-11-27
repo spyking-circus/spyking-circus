@@ -3,6 +3,7 @@ Release 1.0.6
 =============
 
 * optimizations of the fitting procedure
+* optimizations in the basis for PCA (smoothing waveforms)
 
 =============
 Release 1.0.5

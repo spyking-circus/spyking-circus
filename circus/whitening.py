@@ -583,6 +583,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
                                     if smoothed:
+                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factors[elec], k=3)
+                                    else:
                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
 
                                     sub_mat = f(ddata).astype(numpy.float32)
