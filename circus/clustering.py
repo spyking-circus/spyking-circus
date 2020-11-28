@@ -1490,8 +1490,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         if fine_amplitude:
-                            amp_min = 0.5
-                            amp_max = 1.5
+                            amp_min = 0.75
+                            amp_max = 1.25
                         else:
                             x, y, z = sub_data_raw.shape
                             sub_data_raw[:, to_delete, :] = 0
