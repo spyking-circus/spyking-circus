@@ -1509,8 +1509,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if not fixed_amplitudes:
                             data = numpy.ones((nb_amp_times, 2), dtype=numpy.float32)
-                            data[:, 0] = 0.5
-                            data[:, 1] = 1.5
+                            data[:, 0] = 0.75
+                            data[:, 1] = 1.25
                             amps_lims[g_count] = data
                         else:
                             amps_lims[g_count] = [amp_min, amp_max]
@@ -1771,7 +1771,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if remove_mixture:
             if comm.rank == 0:
                 print_and_log(["Removing mixtures of templates..."], 'default', logger)
-            merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+            merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu, debug_plots=debug_plots)
         else:
             merged2 = [0, 0]
         comm.Barrier()

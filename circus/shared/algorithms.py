@@ -554,7 +554,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             if not fine_amplitude:
                 limits[count] = new_limits
             else:
-                limits[count] = [0.5, 1.5]
+                limits[count] = [0.75, 1.25]
             if has_purity:
                 purity[count] = new_purity
             if has_confusion:
@@ -1514,7 +1514,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     return
 
 
-def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
+def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
     data_file = params.data_file
     n_e = params.getint('data', 'N_e')
@@ -1537,6 +1537,9 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
     templates_normalization = params.getboolean('clustering', 'templates_normalization')
     sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
+    plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
+    make_plots = params.get('clustering', 'make_plots')
+    cc_merge = params.getfloat('clustering', 'cc_merge')**2
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
@@ -1596,6 +1599,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
         all_templates = numpy.arange(nb_temp)
         find_mixtures = True
         mixtures = []
+        nb_mixtures = 0
 
         while find_mixtures:
 
@@ -1645,16 +1649,50 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu):
             for i in range(nb_consider):
                 are_valid = (amplitudes[i] > limits[to_consider[i], 0])*(amplitudes[i] < limits[to_consider[i], 1])
                 best_matches = numpy.where(are_valid)[0]
-                if len(best_matches) > 0:
+                best_amplitudes = amplitudes[i, best_matches]
+                if len(best_matches) > 1:
                     reconstruction = numpy.zeros(n_scalar, dtype=numpy.float32)
                     for j in best_matches:
                         reconstruction += amplitudes[i, j]*templates[to_consider[j]]
                     if is_sparse:
-                        cc = numpy.corrcoef(reconstruction, templates[i].toarray().flatten())[0, 1]
+                        cc = numpy.corrcoef(reconstruction, templates[to_consider[i]].toarray().flatten())[0, 1]
                     else:
-                        cc = numpy.corrcoef(reconstruction, templates[i])[0, 1]
-                    if cc > 0.9:
+                        cc = numpy.corrcoef(reconstruction, templates[to_consider[i]])[0, 1]
+                    if cc > cc_merge:
                         to_remove += [to_consider[i]]
+
+                        if debug_plots not in ['None', '']:
+                            save = [plot_path, '%d.%s' %(nb_mixtures, make_plots)]
+                            nb_mixtures += 1
+                            import pylab
+
+                            fig = pylab.figure()
+                            ax = fig.add_subplot(len(best_matches) + 2, 1, 1)
+                            ax.plot(templates[to_consider[i]])
+                            ax.legend(('Template %d' %to_consider[i], ))
+                            ax.set_ylabel('Amplitude')
+                            ax.set_xticks([])
+                            for count, j in enumerate(best_matches):
+                                ax = fig.add_subplot(len(best_matches) + 2, 1, 2+count)
+                                ax.plot(templates[to_consider[j]])
+                                ax.legend(('Template %d' %to_consider[j], ))
+                                ax.set_ylabel('Amplitude')
+                                ax.set_xticks([])
+
+                            ax = fig.add_subplot(len(best_matches) + 2, 1, len(best_matches) + 2)
+                            ax.plot(reconstruction)
+                            caption = ' + '.join(['%g*%d' %(x,y) for (x,y) in zip(best_amplitudes, to_consider[best_matches])])
+                            ax.legend((caption, ))
+                            ax.set_xlabel('Time Steps')
+                            ax.set_title('cc = %g' %cc)
+
+                            if save:
+                                pylab.savefig(os.path.join(save[0], 'mixture_' + save[1]))
+                                pylab.close()
+                            else:
+                                pylab.show()
+
+
 
             if len(mixtures) == 0:
                 find_mixtures = False
