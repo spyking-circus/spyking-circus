@@ -1653,7 +1653,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 if len(best_matches) > 1:
                     reconstruction = numpy.zeros(n_scalar, dtype=numpy.float32)
                     for j in best_matches:
-                        reconstruction += amplitudes[i, j]*templates[to_consider[j]]
+                        if is_sparse:
+                            reconstruction += amplitudes[i, j]*templates[to_consider[j]].toarray().flatten()
+                        else:
+                            reconstruction += amplitudes[i, j]*templates[to_consider[j]]
                     if is_sparse:
                         cc = numpy.corrcoef(reconstruction, templates[to_consider[i]].toarray().flatten())[0, 1]
                     else:
@@ -1687,7 +1690,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
                             ax = fig.add_subplot(len(best_matches) + 2, 1, len(best_matches) + 2)
                             ax.plot(reconstruction)
-                            caption = ' + '.join(['%g*%d' %(x,y) for (x,y) in zip(best_amplitudes, to_consider[best_matches])])
+                            caption = ' + '.join(['%.2g*%d' %(x,y) for (x,y) in zip(best_amplitudes, to_consider[best_matches])])
                             ax.legend((caption, ))
                             ax.set_xlabel('Time Steps')
                             ax.set_title('cc = %g' %cc)
