@@ -1668,13 +1668,19 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
                             fig = pylab.figure()
                             ax = fig.add_subplot(len(best_matches) + 2, 1, 1)
-                            ax.plot(templates[to_consider[i]])
+                            if is_sparse:
+                                ax.plot(templates[to_consider[i]].toarray().flatten())
+                            else:
+                                ax.plot(templates[to_consider[i]])
                             ax.legend(('Template %d' %to_consider[i], ))
                             ax.set_ylabel('Amplitude')
                             ax.set_xticks([])
                             for count, j in enumerate(best_matches):
                                 ax = fig.add_subplot(len(best_matches) + 2, 1, 2+count)
-                                ax.plot(templates[to_consider[j]])
+                                if is_sparse:
+                                    ax.plot(templates[to_consider[j]].toarray().flatten())
+                                else:
+                                    ax.plot(templates[to_consider[j]])
                                 ax.legend(('Template %d' %to_consider[j], ))
                                 ax.set_ylabel('Amplitude')
                                 ax.set_xticks([])
