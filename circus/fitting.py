@@ -105,6 +105,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     norm_templates = io.load_data(params, 'norm-templates')
     sub_norm_templates = n_scalar * norm_templates.reshape(N_tm, 1)
+    sub2_norm_templates = norm_templates.reshape(N_tm, 1)
     if not templates_normalization:
         norm_templates_2 = (norm_templates ** 2.0) * n_scalar
         sub_norm_templates_2 = norm_templates_2.reshape(N_tm, 1)
@@ -482,16 +483,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if templates_normalization:
                     best_amp = b[best_template_index, peak_index] / n_scalar
                     best_amp2 = b[best_template2_index, peak_index] / n_scalar
-
                     best_amp_n = best_amp / norm_templates[best_template_index]
                     best_amp2_n = best_amp2 / norm_templates[best_template2_index]
-
                 else:
                     best_amp = b[best_template_index, peak_index] / norm_templates_2[best_template_index]
                     best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
-
                     best_amp_n = best_amp
                     best_amp2_n = best_amp2
+
                 peak_time_step = local_peaktimes[peak_index]
 
                 peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
@@ -504,16 +503,18 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 to_add = tmp1.toarray()[:, idx_neighbor]
                 b[:, is_neighbor] += to_add
 
-                tmp1 = c_overs[best_template_index].multiply(-best_amp_n)
-                tmp1 += c_overs[best_template2_index].multiply(-best_amp2_n)
-                to_add = tmp1.toarray()[:, idx_neighbor]
+                #tmp1 = c_overs[best_template_index].multiply(-best_amp_n)
+                #tmp1 += c_overs[best_template2_index].multiply(-best_amp2_n)
+                #to_add = tmp1.toarray()[:, idx_neighbor]
+                to_add /= sub2_norm_templates
 
                 mask = (amplitudes != 0)
                 mask[best_template_index, peak_index] = False
                 mask[best_template2_index, peak_index] = False
                 amplitudes[:, is_neighbor] += to_add*mask[:, is_neighbor]
-                amplitudes[best_template_index, peak_index] += best_amp_n
-                amplitudes[best_template2_index, peak_index] += best_amp2_n
+                amplitudes[best_template_index, peak_index] = best_amp_n
+                amplitudes[best_template2_index, peak_index] = best_amp2_n
+
                 b[best_template_index, peak_index] = -numpy.inf
 
             # if templates_normalization:
@@ -529,8 +530,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 #print(valid_indices)
                 for best_template_index, peak_index in zip(valid_indices[0], valid_indices[1]):
 
-                    best_amp_n = amplitudes[best_template_index, peak_index]
-                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index]
+                    best_amp_n = amplitudes[best_template_index, peak_index]/sub_norm_templates[best_template_index]
+                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index]/sub_norm_templates[best_template_index + n_tm]
                     
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
