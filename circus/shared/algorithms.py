@@ -751,18 +751,35 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 if len(elements1) > len(elements2):
                     to_remove = one_merge[1]
                     to_keep = one_merge[0]
-                    elec = elec_ic2
-                    elements = elements2
+                    elec_keep = elec_ic1
+                    label_keep = tmp1[nic1]
+                    elec_remove = elec_ic2
+                    elements_remove = elements2
                 else:
                     to_remove = one_merge[0]
                     to_keep = one_merge[1]
-                    elec = elec_ic1
-                    elements = elements1
+                    elec_keep = elec_ic2
+                    elec_remove = elec_ic1
+                    elements_remove = elements1
+                    label_keep = tmp2[nic2]
 
-                result_['data_' + str(elec)] = numpy.delete(result_['data_' + str(elec)], elements, axis=0)
-                result_['clusters_' + str(elec)] = numpy.delete(result_['clusters_' + str(elec)], elements)
-                result_['times_' + str(elec)] = numpy.delete(result_['times_' + str(elec)], elements)
-                result_['peaks_' + str(elec)] = numpy.delete(result_['peaks_' + str(elec)], elements)
+                # We need to copy the data to the other templates, for better estimation of the amplitudes
+
+                copy = {'data' : result_['data_' + str(elec_remove)][elements_remove].copy(),
+                        'times': result_['times_' + str(elec_remove)][elements_remove].copy(),
+                        'peaks': result_['peaks_' + str(elec_remove)][elements_remove].copy(),
+                        'clusters' : label_keep*numpy.ones(len(elements_remove), dtype=numpy.int32)}
+
+                result_['data_' + str(elec_remove)] = numpy.delete(result_['data_' + str(elec_remove)], elements_remove, axis=0)
+                result_['clusters_' + str(elec_remove)] = numpy.delete(result_['clusters_' + str(elec_remove)], elements_remove)
+                result_['times_' + str(elec_remove)] = numpy.delete(result_['times_' + str(elec_remove)], elements_remove)
+                result_['peaks_' + str(elec_remove)] = numpy.delete(result_['peaks_' + str(elec_remove)], elements_remove)
+
+                result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], copy['data']))
+                result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
+                result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
+                result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
+
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
                 if 'local_clusters' in result_:
                     result_['local_clusters'] = numpy.delete(result_['local_clusters'], to_remove)
