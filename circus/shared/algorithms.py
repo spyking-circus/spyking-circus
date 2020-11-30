@@ -1153,7 +1153,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         times = clusters['noise_times_' + str(elec)]
 
         times_i = numpy.random.randint(N_t, params.data_file.duration - N_t, max_noise_snippets).astype(numpy.uint32)
-        labels_i = numpy.zeros(idx)
+        labels_i = numpy.zeros(max_noise_snippets)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
         nb_snippets, nb_electrodes, nb_times_steps = snippets.shape
