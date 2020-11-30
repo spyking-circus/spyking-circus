@@ -46,14 +46,12 @@ def load_phy_results(input_path):
         spike_clusters = spike_templates
 
     cluster_group_path = os.path.join(input_path, 'cluster_group.tsv')
+    cluster_group = {
+        cluster_id: 'none'
+        for cluster_id in spike_clusters
+    }
     if os.path.isfile(cluster_group_path):
-        cluster_group = load_cluster_group(cluster_group_path)
-    else:
-        nb_templates = len(templates)
-        cluster_group = {
-            template_id: 'unsorted'
-            for template_id in range(0, nb_templates)
-        }
+        cluster_group.update(load_cluster_group(cluster_group_path))
 
     phy_results = {
         'spike_times': spike_times,
@@ -267,7 +265,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 # Update internal variables.
                 clusters_to_templates[spike_cluster] = to_keep
                 to_merge.append((to_keep, to_delete))
-        elif spike_group in ['mua', 'noise']:
+        elif spike_group in ['mua', 'noise', 'none']:
             to_remove.append(spike_template)
         else:
             message = "Unexpected group value: {}".format(spike_group)
@@ -363,7 +361,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     templates_output_path = output_path + ".templates{}.hdf5".format(output_extension)
     templates_output_file = h5py.File(templates_output_path, mode='r+', libver='earliest')
     new_shape = (len(to_keep), len(to_keep))
-    version = templates_output_file.create_dataset('version', data=np.array(circus.__version__.split('.'), dtype=np.int32))
+    version = templates_output_file.create_dataset('version', data=np.array(circus.__version__.split('+')[0].split('.'), dtype=np.int32))
     maxoverlaps = templates_output_file.create_dataset('maxoverlap', shape=new_shape, dtype=np.float32)
     maxlag = templates_output_file.create_dataset('maxlag', shape=new_shape, dtype=np.int32)
     for k, index in enumerate(to_keep):
