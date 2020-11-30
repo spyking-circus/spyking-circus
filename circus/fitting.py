@@ -476,7 +476,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
-                    break   
+                    break
 
                 best_amplitude_idx = data[is_valid].argmax()
 
