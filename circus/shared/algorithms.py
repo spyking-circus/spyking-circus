@@ -1639,23 +1639,24 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 best_amplitude_idx = b.argmax()
 
                 best_template_index, peak_index = numpy.unravel_index(best_amplitude_idx, b.shape)
+                gbest = to_consider[best_template_index]
 
                 if templates_normalization:
                     best_amp = b[best_template_index, peak_index] / n_scalar
-                    best_amp_n = best_amp / norm_templates[best_template_index]
+                    best_amp_n = best_amp / norm_templates[gbest]
                 else:
-                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[gbest]
                     best_amp_n = best_amp
 
-                tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                tmp1 = c_overs[gbest].multiply(-best_amp)
                 to_add = tmp1.toarray()[to_consider, s_over]
                 b[:, peak_index] += to_add
 
-                to_add /= norm_templates[best_template_index]
+                to_add /= (n_scalar * norm_templates[gbest])
 
                 mask = amplitudes[:, peak_index] != 0
                 mask[best_template_index] = False
-                amplitudes[:, peak_index] += to_add*mask / (n_scalar*norm_templates[to_consider])
+                amplitudes[:, peak_index] += to_add*mask
                 amplitudes[best_template_index, peak_index] = best_amp_n
 
                 b[best_template_index, peak_index] = -numpy.inf
