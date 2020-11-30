@@ -1,4 +1,10 @@
 =============
+Release 1.0.6
+=============
+
+* can read non sorted channels with HDF5 file format
+
+=============
 Release 1.0.5
 =============
 

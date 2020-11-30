@@ -96,14 +96,30 @@ class H5File(DataFile):
 
     def _read_time_0_no_grid(self, do_slice, t_start, t_stop, nodes):
         if do_slice:
-            local_chunk = self.data[t_start:t_stop, nodes]
+            is_sorted = numpy.all(numpy.diff(nodes) > 0)
+            if not is_sorted:
+                mapping = numpy.argsort(nodes)
+                sorted_nodes = numpy.sort(nodes)
+            if not is_sorted:
+                local_chunk = self.data[t_start:t_stop, sorted_nodes]
+                local_chunk = local_chunk[:, mapping]
+            else:
+                local_chunk = self.data[t_start:t_stop, nodes]
         else:
             local_chunk = self.data[t_start:t_stop, :]
         return local_chunk
 
     def _read_time_1_no_grid(self, do_slice, t_start, t_stop, nodes):
         if do_slice:
-            local_chunk = self.data[nodes, t_start:t_stop].T
+            is_sorted = numpy.all(numpy.diff(nodes) > 0)
+            if not is_sorted:
+                mapping = numpy.argsort(nodes)
+            sorted_nodes = numpy.sort(nodes)
+            if not is_sorted:
+                local_chunk = self.data[sorted_nodes, t_start:t_stop].T
+                local_chunk = local_chunk[:, mapping]
+            else:
+                local_chunk = self.data[nodes, t_start:t_stop].T
         else:
             local_chunk = self.data[:, t_start:t_stop].T
         return local_chunk
