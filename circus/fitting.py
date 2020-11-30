@@ -105,7 +105,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     norm_templates = io.load_data(params, 'norm-templates')
     sub_norm_templates = n_scalar * norm_templates.reshape(N_tm, 1)
-    sub2_norm_templates = norm_templates.reshape(N_tm, 1)
     if not templates_normalization:
         norm_templates_2 = (norm_templates ** 2.0) * n_scalar
         sub_norm_templates_2 = norm_templates_2.reshape(N_tm, 1)
@@ -470,7 +469,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
             is_constant = False
-            nb_trials = int(0.5*nb_local_peak_times*n_tm)
+            nb_trials = int(nb_local_peak_times*n_tm)
 
             for i in range(nb_trials):
 
@@ -503,10 +502,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 to_add = tmp1.toarray()[:, idx_neighbor]
                 b[:, is_neighbor] += to_add
 
-                #tmp1 = c_overs[best_template_index].multiply(-best_amp_n)
-                #tmp1 += c_overs[best_template2_index].multiply(-best_amp2_n)
-                #to_add = tmp1.toarray()[:, idx_neighbor]
-                to_add /= sub2_norm_templates
+                to_add /= norm_templates[best_template_index]
 
                 mask = (amplitudes != 0)
                 mask[best_template_index, peak_index] = False
@@ -517,11 +513,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 b[best_template_index, peak_index] = -numpy.inf
 
-            # if templates_normalization:
-            #     amplitudes = best_amplitudes / sub_norm_templates
-            # else:
-            #     amplitudes = best_amplitudes / sub_norm_templates_2
-
             is_valid = (amplitudes[:n_tm, :] > min_scalar_products)*(amplitudes[:n_tm, :] < max_scalar_products)
 
             if numpy.any(is_valid):
@@ -530,8 +521,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 #print(valid_indices)
                 for best_template_index, peak_index in zip(valid_indices[0], valid_indices[1]):
 
-                    best_amp_n = amplitudes[best_template_index, peak_index]/sub_norm_templates[best_template_index]
-                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index]/sub_norm_templates[best_template_index + n_tm]
+                    best_amp_n = amplitudes[best_template_index, peak_index]
+                    best_amp2_n = amplitudes[best_template_index + n_tm, peak_index]
                     
                     # Add matching to the result.
                     t_spike = all_spikes[peak_index]
