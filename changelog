@@ -3,6 +3,7 @@ Release 1.0.6
 =============
 
 * can read non sorted channels with HDF5 file format
+* fix a regression with positive peaks introduced in 1.0.4
 
 =============
 Release 1.0.5
