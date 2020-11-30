@@ -84,7 +84,7 @@ def load_snippets(time_step_ids, params):
     return snippets
 
 
-def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, limits='auto'):
+def plot_snippets(ax, snippets, params, color='black', alpha=None, vmin=None, vmax=None, limits='auto'):
 
     nb_channels = params.getint('data', 'N_e')
     nb_time_steps = params.getint('detection', 'N_t')
@@ -109,7 +109,7 @@ def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, lim
         x = x_scaling * np.linspace(-0.5, + 0.5, num=nb_time_steps) + x_c
         for snippet in snippets:
             y = y_scaling * snippet[:, channel_id] + y_c
-            ax.plot(x, y, color=color)
+            ax.plot(x, y, color=color, alpha=alpha)
     set_limits(ax, limits, positions)
 
     return
@@ -283,3 +283,87 @@ def set_limits(ax, limits, positions):
         ax.set_ylim(*limits[2:4])
 
     return
+
+
+def load_mua_data(params):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = "{}.mua.hdf5".format(file_out_suff)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        data = dict()
+        for key in file.keys():
+            data[key] = dict()
+            if key in ['spiketimes', 'amplitudes']:
+                p = re.compile("^elec_\d*$")  # noqa
+                for sub_key in file[key].keys():
+                    m = p.search(sub_key)
+                    if m is None:
+                        raise ValueError(f"unexpected sub-key '{sub_key}' in {path}")
+                    else:
+                        k_start, k_stop = m.span()
+                        k_start = k_start + 5
+                        channel_id = int(sub_key[k_start:k_stop])
+                        data[key][channel_id] = file[key][sub_key][:]
+            elif key in ['info']:
+                for sub_key in file[key].keys():
+                    if sub_key in ['duration']:
+                        data[key][sub_key] = file[key][sub_key][:][0]
+            else:
+                raise ValueError(f"unexpected key '{key}' in {path}")
+
+    return data
+
+
+def load_result_data(params, extension=''):
+
+    file_out_suff = params.get('data', 'file_out_suff')
+    path = f"{file_out_suff}.result{extension}.hdf5"
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+
+    with h5py.File(path, mode='r', libver='earliest') as file:
+        data = dict()
+        for key in file.keys():
+            data[key] = dict()
+            if key in ['spiketimes', 'amplitudes']:
+                p = re.compile("^temp_\d*$")  # noqa
+                for sub_key in file[key].keys():
+                    m = p.search(sub_key)
+                    if m is None:
+                        raise ValueError(f"unexpected sub-key '{sub_key}' in {path}")
+                    else:
+                        k_start, k_stop = m.span()
+                        k_start = k_start + 5
+                        template_id = int(sub_key[k_start:k_stop])
+                        data[key][template_id] = file[key][sub_key][:]
+            elif key in ['mse']:
+                pass
+            elif key in ['info']:
+                pass
+            else:
+                raise ValueError(f"unexpected key '{key}' in {path}")
+
+    return data
+
+
+def compute_smallest_intervals(times, reference_times):
+
+    assert np.all(np.diff(times) >= 0)
+    assert np.all(np.diff(reference_times) >= 0)
+
+    indices = np.searchsorted(reference_times, times)
+
+    pre_intervals = np.full_like(times, np.inf, dtype=np.int)
+    selection = indices > 0
+    pre_intervals[selection] = reference_times[indices[selection] - 1] - times[selection]
+
+    post_intervals = np.full_like(times, np.inf, dtype=np.int)
+    selection = indices < len(reference_times)
+    post_intervals[selection] = reference_times[indices[selection]] - times[selection]
+
+    intervals = np.where(np.abs(pre_intervals) <= np.abs(post_intervals), pre_intervals, post_intervals)
+
+    return intervals
