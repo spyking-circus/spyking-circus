@@ -1,4 +1,6 @@
 import h5py
+import matplotlib.collections as mcollections
+import matplotlib.patches as mpatches
 import numpy as np
 import os
 import re
@@ -7,6 +9,41 @@ import scipy.ndimage
 
 from circus.shared.files import load_data
 from circus.shared.probes import get_nodes_and_edges
+
+
+def plot_probe(ax, params, channel_ids=None):
+
+    nb_channels = params.getint('data', 'N_e')
+
+    probe = params.probe
+    nodes, edges = get_nodes_and_edges(params)
+
+    positions = []
+    for i in probe['channel_groups'][1]['geometry'].keys():
+        positions.append(probe['channel_groups'][1]['geometry'][i])
+    positions = np.array(positions)
+    dx = np.median(np.diff(np.unique(positions[:, 0])))  # horizontal inter-electrode distance
+    dy = np.median(np.diff(np.unique(positions[:, 1])))  # vertical inter-electrode distance
+
+    if channel_ids is None:
+        channel_ids = np.arange(0, nb_channels)
+
+    patches = []
+    kwargs = dict(
+        radius=(min(dx, dy) / 2.0),
+        color='tab:gray',
+        alpha=0.5,
+    )
+    for channel_id in channel_ids:
+        xy = positions[nodes[channel_id]]
+        patch = mpatches.Circle(xy, **kwargs)
+        patches.append(patch)
+    collection = mcollections.PatchCollection(patches, match_original=True)
+
+    ax.set_aspect('equal')
+    ax.add_collection(collection)
+
+    return
 
 
 def load_snippets(time_step_ids, params):
@@ -59,8 +96,8 @@ def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, lim
     for i in probe['channel_groups'][1]['geometry'].keys():
         positions.append(probe['channel_groups'][1]['geometry'][i])
     positions = np.array(positions)
-    vmin = np.abs(np.min(snippets)) if vmin is None else vmin
-    vmax = np.abs(np.max(snippets)) if vmax is None else vmax
+    vmin = min(np.min(snippets), 0.0) if vmin is None else vmin
+    vmax = max(np.max(snippets), 0.0) if vmax is None else vmax
     dx = np.median(np.diff(np.unique(positions[:, 0])))  # horizontal inter-electrode distance
     dy = np.median(np.diff(np.unique(positions[:, 1])))  # vertical inter-electrode distance
     x_scaling = 0.8 * dx / 1.0
@@ -124,6 +161,23 @@ def load_template(template_id, params, extension=''):
     template = template.transpose()
 
     return template
+
+
+def load_templates(params, extension=''):
+
+    nb_channels = params.getint('data', 'N_e')
+    nb_time_steps = params.getint('detection', 'N_t')
+
+    templates = load_data(params, 'templates', extension=extension)
+
+    _, nb_template_components = templates.shape
+    nb_templates = nb_template_components // 2
+    templates = templates[:, 0:nb_templates]  # selected the wanted templates
+    templates = templates.toarray()
+    templates = templates.reshape(nb_channels, nb_time_steps, nb_templates)
+    templates = np.transpose(templates, axes=(1, 0, 2))
+
+    return templates
 
 
 def plot_template(ax, template, params, color='black', vmin=None, vmax=None, label=None, limits='auto'):

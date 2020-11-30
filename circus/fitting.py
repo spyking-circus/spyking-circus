@@ -468,9 +468,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 min_scalar_products = min_scalar_products[:, numpy.newaxis]
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
-
             is_constant = False
-            nb_trials = int(0.1*nb_local_peak_times*n_tm)
+            nb_trials = int(0.5*nb_local_peak_times*n_tm)
 
             for i in range(nb_trials):
 
@@ -493,7 +492,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     best_amp_n = best_amp
                     best_amp2_n = best_amp2
-
                 peak_time_step = local_peaktimes[peak_index]
 
                 peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
@@ -517,8 +515,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 amplitudes[best_template_index, peak_index] += best_amp_n
                 amplitudes[best_template2_index, peak_index] += best_amp2_n
                 b[best_template_index, peak_index] = -numpy.inf
-
-                print(amplitudes[best_template_index, peak_index])
 
             # if templates_normalization:
             #     amplitudes = best_amplitudes / sub_norm_templates

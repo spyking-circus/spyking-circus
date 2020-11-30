@@ -1,19 +1,20 @@
 """Inspect clusters snippets for given channel."""
 import argparse
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import re
 
 from circus.shared.parser import CircusParser
+from circus.analyses.utils import plot_probe
 from circus.analyses.utils import load_snippets, plot_snippets
+from circus.analyses.utils import load_clusters_data
 
 
 # Parse arguments.
 parser = argparse.ArgumentParser(description="Inspect clusters snippets for given channel.")
 parser.add_argument('datafile', help="data file")
-parser.add_argument('-c', '--channel', default=0, type=int, help="channel index", dest='channel_id')
+group = parser.add_mutually_exclusive_group()
+group.add_argument('-c', '--channel', default=0, type=int, help="channel index", dest='channel_id')
+group.add_argument('-t', '--template', default=None, type=int, help="template identifier", dest='template_id')
 args = parser.parse_args()
 
 # Load parameters.
@@ -24,24 +25,11 @@ file_out_suff = params.get('data', 'file_out_suff')
 nb_channels = params.getint('data', 'N_e')
 nb_time_steps = params.getint('detection', 'N_t')
 
-# Load clusters.
-clusters_path = "{}.clusters.hdf5".format(file_out_suff)
-if not os.path.isfile(clusters_path):
-    raise FileNotFoundError(clusters_path)
-with h5py.File(clusters_path, mode='r', libver='earliest') as clusters_file:
-    clusters_data = dict()
-    p = re.compile('_\d*$')  # noqa
-    for key in clusters_file.keys():
-        m = p.search(key)
-        if m is None:
-            clusters_data[key] = clusters_file[key][:]
-        else:
-            k_start, k_stop = m.span()
-            key_ = key[0:k_start]
-            channel_nb = int(key[k_start+1:k_stop])
-            if key_ not in clusters_data:
-                clusters_data[key_] = dict()
-            clusters_data[key_][channel_nb] = clusters_file[key][:]
+# Load clusters data.
+clusters_data = load_clusters_data(params, extension='')  # TODO support other extensions?
+
+if args.template_id is not None:
+    args.channel_id = clusters_data['electrodes'][args.template_id]
 
 data = clusters_data['data']
 electrode_nbs = np.sort(list(data.keys()))
@@ -59,6 +47,7 @@ clusters_ = clusters[args.channel_id]
 times_ = times[args.channel_id]
 unique_clusters_ = np.unique(clusters_)
 nb_clusters_ = unique_clusters_.size
+template_ids = np.where(clusters_data['electrodes'] == args.channel_id)[0]
 
 # Collect snippets.
 snippets = dict()
@@ -73,10 +62,11 @@ for cluster_nb in range(0, nb_clusters_):
     snippets[cluster_nb] = load_snippets(selected_times__, params)
 
 # Plot snippets.
-vmin = np.abs(np.min([np.min(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)]))
-vmax = np.abs(np.max([np.max(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)]))
+vmin = np.min([np.min(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)])
+vmax = np.max([np.max(snippets[cluster_nb]) for cluster_nb in range(0, nb_clusters_)])
 for cluster_nb in range(0, nb_clusters_):
     fig, ax = plt.subplots()
+    plot_probe(ax, params, channel_ids=[args.channel_id])
     kwargs = {
         'color': 'C{}'.format(unique_clusters_[cluster_nb] % 10),
         'vmin': vmin,
@@ -87,5 +77,6 @@ for cluster_nb in range(0, nb_clusters_):
     # ax.spines['top'].set_visible(False)
     # ax.set_xlabel("time")
     # ax.set_ylabel("voltage")
+    ax.set_title("t{} (e{}, c{})".format(template_ids[cluster_nb], args.channel_id, cluster_nb))
     fig.tight_layout()
 # plt.show()

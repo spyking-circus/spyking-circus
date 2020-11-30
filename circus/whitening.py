@@ -524,8 +524,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         if N_e > 1:
                             if use_barycenter:
                                 weighed_position = data[:, numpy.newaxis] * positions[all_elecs]
-                                barycenter = weighed_position.sum(0)/data[all_elecs].sum()
-                                elec = numpy.argmin(numpy.linalg.norm(barycenter - positions, axis=1))
+                                barycenter = weighed_position.sum(0)/data.sum()
+                                elec = numpy.argmax(numpy.linalg.norm(barycenter - positions[all_elecs], axis=1))
                             else:
                                 elec = numpy.argmax(data)
                         else:
@@ -583,6 +583,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     ddata = numpy.linspace(rmin-template_shift, rmin+template_shift, N_t)
 
                                     if smoothed:
+                                        f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=local_factors[elec], k=3)
+                                    else:
                                         f = scipy.interpolate.UnivariateSpline(xdata, sub_mat, s=0, k=3)
 
                                     sub_mat = f(ddata).astype(numpy.float32)

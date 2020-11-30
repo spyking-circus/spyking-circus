@@ -1181,6 +1181,16 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["No templates found! Check suffix?"], 'error', logger)
             sys.exit(0)
+    elif data == 'maxlag':
+        if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
+            myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
+            maxlag = myfile.get('maxlag')[:]
+            myfile.close()
+            return maxlag
+        else:
+            if comm.rank == 0:
+                print_and_log(["No templates found! Check suffix?"], 'error', logger)
+            sys.exit(0)
     elif data == 'supports':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')

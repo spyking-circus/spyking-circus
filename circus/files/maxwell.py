@@ -17,34 +17,34 @@ class MaxwellFile(H5File):
 
         header = {}
 
-        my_file = h5py.File(self.file_name, mode='r')
-        header['version'] = my_file['version'][0]
+        self.my_file = h5py.File(self.file_name, mode='r')
+        header['version'] = self.my_file['version'][0]
 
         if header['version'] == b'20160704':
             h5_key = 'sig'
             header['h5_key'] = 'sig'
             header['sampling_rate'] = 20000
             header['dtype_offset'] = 'auto'
-            header['gain'] = my_file.get('settings/lsb')[0]
+            header['gain'] = self.my_file.get('settings/lsb')[0]
         elif header['version'] == b'20190530':
-            if not 'data%s' %self.params['well'] in list(my_file['data_store'].keys()):
+            if not 'data%s' %self.params['well'] in list(self.my_file['data_store'].keys()):
                 print_and_log(['Well %s not found!' %self.params['well']], 'error', logger)
                 sys.exit(0)
             header['h5_key'] = '/data_store/data%s/groups/routed/raw' %self.params['well']
-            header['sampling_rate'] = my_file.get('/data_store/data%s/settings/sampling' %self.params['well'])[0]
+            header['sampling_rate'] = self.my_file.get('/data_store/data%s/settings/sampling' %self.params['well'])[0]
             header['dtype_offset'] = 512
-            header['gain'] = my_file.get('/data_store/data%s/settings/lsb' %self.params['well'])[0]
+            header['gain'] = self.my_file.get('/data_store/data%s/settings/lsb' %self.params['well'])[0]
         
-        header['data_dtype'] = my_file.get(header['h5_key']).dtype
-        self.compression = my_file.get(header['h5_key']).compression
+        header['data_dtype'] = self.my_file.get(header['h5_key']).dtype
+        self.compression = self.my_file.get(header['h5_key']).compression
 
         self._check_compression()
 
-        nb_channels, n_frames = my_file.get(header['h5_key']).shape
+        nb_channels, n_frames = self.my_file.get(header['h5_key']).shape
         self.size = nb_channels * n_frames
         header['nb_channels'] = nb_channels
         self._shape = (n_frames, header['nb_channels'])
-        my_file.close()
+        self.my_file.close()
         return header
 
     def _read_chunk(self, do_slice, t_start, t_stop, nodes):
