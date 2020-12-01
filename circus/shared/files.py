@@ -2279,6 +2279,9 @@ def get_overlaps(
             if version.find('+') > -1:
                 version = version.split('+')[0]
 
+            if version.find('/') > -1:
+                version = '1.0.6'
+
             myfile2.create_dataset('version', data=numpy.array(version.split('.'), dtype=numpy.int32))
 
             if hdf5_compress:

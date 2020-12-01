@@ -363,6 +363,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     templates_output_path = output_path + ".templates{}.hdf5".format(output_extension)
     templates_output_file = h5py.File(templates_output_path, mode='r+', libver='earliest')
     new_shape = (len(to_keep), len(to_keep))
+
+    version = circus.__version__
+    if version.find('+') > -1:
+        version = version.split('+')[0]
+
+    if version.find('/') > -1:
+        version = '1.0.6'
+
     version = templates_output_file.create_dataset('version', data=np.array(circus.__version__.split('.'), dtype=np.int32))
     maxoverlaps = templates_output_file.create_dataset('maxoverlap', shape=new_shape, dtype=np.float32)
     maxlag = templates_output_file.create_dataset('maxlag', shape=new_shape, dtype=np.int32)
