@@ -2280,7 +2280,7 @@ def get_overlaps(
                 version = version.split('+')[0]
 
             if version.find('/') > -1:
-                version = '1.0.6'
+                version = '1.0.0'
 
             myfile2.create_dataset('version', data=numpy.array(version.split('.'), dtype=numpy.int32))
 

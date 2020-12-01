@@ -369,7 +369,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         version = version.split('+')[0]
 
     if version.find('/') > -1:
-        version = '1.0.6'
+        version = '1.0.0'
 
     version = templates_output_file.create_dataset('version', data=np.array(circus.__version__.split('.'), dtype=np.int32))
     maxoverlaps = templates_output_file.create_dataset('maxoverlap', shape=new_shape, dtype=np.float32)

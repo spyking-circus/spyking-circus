@@ -1556,7 +1556,7 @@ class MergeWindow(QMainWindow):
                 version = version.split('+')[0]
 
             if version.find('/') > -1:
-                version = '1.0.6'
+                version = '1.0.0'
 
             version = mydata.create_dataset('version', data=numpy.array(version.split('.'), dtype=numpy.int32))
             maxoverlaps = mydata.create_dataset('maxoverlap', shape=(len(to_keep), len(to_keep)), dtype=numpy.float32)

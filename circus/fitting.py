@@ -291,6 +291,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         min_scalar_products = amp_limits[:,0][:, numpy.newaxis]
         max_scalar_products = amp_limits[:,1][:, numpy.newaxis]
 
+        if templates_normalization:
+            min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+            max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+        else:
+            min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+            max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
         # # We need to deal with the borders by taking chunks of size [0, chunck_size + template_shift].
@@ -463,12 +470,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 min_scalar_products = min_scalar_products[:, numpy.newaxis]
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
-            if templates_normalization:
-                min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
-                max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
-            else:
-                min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
-                max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                if templates_normalization:
+                    min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                    max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                else:
+                    min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                    max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
             while True:
 
