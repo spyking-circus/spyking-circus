@@ -1615,6 +1615,23 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         find_mixtures = True
         mixtures = []
         nb_mixtures = 0
+        sub_norm_templates = n_scalar * norm_templates[:nb_temp]
+
+        if not templates_normalization:
+            norm_templates_2 = (norm_templates ** 2.0) * n_scalar
+            sub_norm_templates_2 = norm_templates_2[:nb_temp]
+
+
+        if fixed_amplitudes:
+            min_scalar_products = limits[:,0][:, numpy.newaxis]
+            max_scalar_products = limits[:,1][:, numpy.newaxis]
+
+            if templates_normalization:
+                min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+            else:
+                min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
         while find_mixtures:
 
@@ -1634,7 +1651,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
             amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
             mixtures = []
 
-            while b.max() > -numpy.inf:
+            while True:
+
+                is_valid = (b > min_sps)*(b < max_sps)
+                valid_indices = numpy.where(is_valid)
+
+                if len(valid_indices[0]) == 0:
+                    break
 
                 best_amplitude_idx = b.argmax()
 
@@ -1645,18 +1668,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                     best_amp = b[best_template_index, peak_index] / n_scalar
                     best_amp_n = best_amp / norm_templates[gbest]
                 else:
-                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[gbest]
+                    best_amp = b[best_template_index, peak_index] / norm_templates_2[gbest]
                     best_amp_n = best_amp
 
                 tmp1 = c_overs[gbest].multiply(-best_amp)
                 to_add = tmp1.toarray()[to_consider, s_over]
                 b[:, peak_index] += to_add
-
-                to_add /= (n_scalar * norm_templates[gbest])
-
-                mask = amplitudes[:, peak_index] != 0
-                mask[best_template_index] = False
-                amplitudes[:, peak_index] += to_add*mask
                 amplitudes[best_template_index, peak_index] = best_amp_n
 
                 b[best_template_index, peak_index] = -numpy.inf
