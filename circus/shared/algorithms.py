@@ -1109,20 +1109,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels_i = labels[idx_i]
 
         snippets, snippets_raw = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p, raw_snippets=True)
-
-        #aligned_template = numpy.median(snippets, axis=0)
-        #tmpidx = numpy.unravel_index(aligned_template.argmin(), aligned_template.shape)
-
-        # shift = (template_shift - tmpidx[1])
-        # snippets_aligned = numpy.zeros(snippets.shape, dtype=numpy.float32)
-
-        # if shift > 0:
-        #     snippets_aligned[:, :, shift:] = snippets_raw[:, :, :-shift]
-        # elif shift < 0:
-        #     snippets_aligned[:, :, :shift] = snippets_raw[:, :, -shift:]
-        # else:
-        #     snippets_aligned = snippets_raw
-
         nb_snippets, nb_electrodes, nb_times_steps = snippets_raw.shape
         snippets = numpy.ascontiguousarray(snippets_raw.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
@@ -1151,8 +1137,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     for elec in to_explore:
         times = clusters['noise_times_' + str(elec)]
-
-        times_i = numpy.random.randint(N_t, params.data_file.duration - N_t, max_noise_snippets).astype(numpy.uint32)
+        if len(times) < max_noise_snippets:
+            more_times = numpy.random.randint(N_t, params.data_file.duration - N_t, max_noise_snippets - len(times)).astype(numpy.uint32)
+            times_i = numpy.concatenate((times, more_times))
+        else:
+            times_i = numpy.random.permutation(times)[:max_noise_snippets]
         labels_i = numpy.zeros(max_noise_snippets)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
@@ -1615,6 +1604,23 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         find_mixtures = True
         mixtures = []
         nb_mixtures = 0
+        sub_norm_templates = n_scalar * norm_templates[:nb_temp]
+
+        if not templates_normalization:
+            norm_templates_2 = (norm_templates ** 2.0) * n_scalar
+            sub_norm_templates_2 = norm_templates_2[:nb_temp]
+
+
+        if fixed_amplitudes:
+            min_scalar_products = limits[:,0][:, numpy.newaxis]
+            max_scalar_products = limits[:,1][:, numpy.newaxis]
+
+            if templates_normalization:
+                min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+            else:
+                min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
         while find_mixtures:
 
@@ -1634,7 +1640,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
             amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
             mixtures = []
 
-            while b.max() > -numpy.inf:
+            while True:
 
                 best_amplitude_idx = b.argmax()
 
@@ -1645,21 +1651,32 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                     best_amp = b[best_template_index, peak_index] / n_scalar
                     best_amp_n = best_amp / norm_templates[gbest]
                 else:
-                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[gbest]
+                    best_amp = b[best_template_index, peak_index] / norm_templates_2[gbest]
                     best_amp_n = best_amp
 
                 tmp1 = c_overs[gbest].multiply(-best_amp)
                 to_add = tmp1.toarray()[to_consider, s_over]
                 b[:, peak_index] += to_add
 
-                to_add /= (n_scalar * norm_templates[gbest])
+                if templates_normalization:
+                    to_add /= (sub_norm_templates[to_consider])
+                else:
+                    to_add /= (sub_norm_templates_2[to_consider])
 
                 mask = amplitudes[:, peak_index] != 0
-                mask[best_template_index] = False
-                amplitudes[:, peak_index] += to_add*mask
+                if numpy.any(mask) > 0:
+                    mask[best_template_index] = False
+                    amplitudes[mask, peak_index] += to_add[mask]
+
                 amplitudes[best_template_index, peak_index] = best_amp_n
 
                 b[best_template_index, peak_index] = -numpy.inf
+
+                is_valid = (b > min_sps)*(b < max_sps)
+                valid_indices = numpy.where(is_valid)
+
+                if len(valid_indices[0]) == 0:
+                    break
 
             for i in range(nb_consider):
                 are_valid = (amplitudes[i] > limits[to_consider[i], 0])*(amplitudes[i] < limits[to_consider[i], 1])
