@@ -1642,12 +1642,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
             while True:
 
-                is_valid = (b > min_sps)*(b < max_sps)
-                valid_indices = numpy.where(is_valid)
-
-                if len(valid_indices[0]) == 0:
-                    break
-
                 best_amplitude_idx = b.argmax()
 
                 best_template_index, peak_index = numpy.unravel_index(best_amplitude_idx, b.shape)
@@ -1677,6 +1671,12 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 amplitudes[best_template_index, peak_index] = best_amp_n
 
                 b[best_template_index, peak_index] = -numpy.inf
+
+                is_valid = (b > min_sps)*(b < max_sps)
+                valid_indices = numpy.where(is_valid)
+
+                if len(valid_indices[0]) == 0:
+                    break
 
             for i in range(nb_consider):
                 are_valid = (amplitudes[i] > limits[to_consider[i], 0])*(amplitudes[i] < limits[to_consider[i], 1])
