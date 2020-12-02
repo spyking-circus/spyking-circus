@@ -1474,7 +1474,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if debug_plots not in ['None', '']:
                         save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
-                        print(indices, channel_mads.shape, mads.shape)
                         plot.variance_template(first_component, channel_mads, mads[indices], save=save)
 
                     if is_noise:

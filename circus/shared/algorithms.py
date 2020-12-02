@@ -1663,6 +1663,17 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 tmp1 = c_overs[gbest].multiply(-best_amp)
                 to_add = tmp1.toarray()[to_consider, s_over]
                 b[:, peak_index] += to_add
+
+                if templates_normalization:
+                    to_add /= (sub_norm_templates[to_consider])
+                else:
+                    to_add /= (sub_norm_templates_2[to_consider])
+
+                mask = amplitudes[:, peak_index] != 0
+                if numpy.any(mask) > 0:
+                    mask[best_template_index] = False
+                    amplitudes[mask, peak_index] += to_add[mask]
+
                 amplitudes[best_template_index, peak_index] = best_amp_n
 
                 b[best_template_index, peak_index] = -numpy.inf
