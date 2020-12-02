@@ -1109,20 +1109,6 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels_i = labels[idx_i]
 
         snippets, snippets_raw = get_stas(params, times_i - offsets[p][i], labels_i, ref_elec, neighs=sindices, nodes=nodes, pos=p, raw_snippets=True)
-
-        #aligned_template = numpy.median(snippets, axis=0)
-        #tmpidx = numpy.unravel_index(aligned_template.argmin(), aligned_template.shape)
-
-        # shift = (template_shift - tmpidx[1])
-        # snippets_aligned = numpy.zeros(snippets.shape, dtype=numpy.float32)
-
-        # if shift > 0:
-        #     snippets_aligned[:, :, shift:] = snippets_raw[:, :, :-shift]
-        # elif shift < 0:
-        #     snippets_aligned[:, :, :shift] = snippets_raw[:, :, -shift:]
-        # else:
-        #     snippets_aligned = snippets_raw
-
         nb_snippets, nb_electrodes, nb_times_steps = snippets_raw.shape
         snippets = numpy.ascontiguousarray(snippets_raw.reshape(nb_snippets, nb_electrodes * nb_times_steps).T)
 
@@ -1151,8 +1137,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
     for elec in to_explore:
         times = clusters['noise_times_' + str(elec)]
-
-        times_i = numpy.random.randint(N_t, params.data_file.duration - N_t, max_noise_snippets).astype(numpy.uint32)
+        if len(times) < max_noise_snippets:
+            more_times = numpy.random.randint(N_t, params.data_file.duration - N_t, max_noise_snippets - len(times)).astype(numpy.uint32)
+            times_i = numpy.concatenate((times, more_times))
+        else:
+            times_i = numpy.random.permutation(times)[:max_noise_snippets]
         labels_i = numpy.zeros(max_noise_snippets)
         snippets = get_stas(params, times_i, labels_i, elec, neighs=sindices, nodes=nodes, auto_align=False)
 
