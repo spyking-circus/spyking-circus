@@ -8,6 +8,7 @@ Release 1.0.6
 * optimizations to make the automated amplitudes more robust
 * can read non sorted channels with HDF5 file format
 * fix a regression with positive peaks introduced in 1.0.4
+* fix a int overflow in windows only impacting the automatic amplitudes
 
 =============
 Release 1.0.5
