@@ -1509,8 +1509,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                         if not fixed_amplitudes:
                             data = numpy.ones((nb_amp_times, 2), dtype=numpy.float32)
-                            data[:, 0] = 0.75
-                            data[:, 1] = 1.25
+                            data[:, 0] = 0.5
+                            data[:, 1] = 1.5
                             amps_lims[g_count] = data
                         else:
                             amps_lims[g_count] = [amp_min, amp_max]
@@ -1780,6 +1780,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         merged1 = [0, 0]
         merged2 = [0, 0]
 
+    sys.stderr.flush()
     if comm.rank == 0:
 
         lines = [

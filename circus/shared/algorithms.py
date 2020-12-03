@@ -554,7 +554,7 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
             if not fine_amplitude:
                 limits[count] = new_limits
             else:
-                limits[count] = [0.75, 1.25]
+                limits[count] = [0.5, 1.5]
             if has_purity:
                 purity[count] = new_purity
             if has_confusion:
@@ -1596,155 +1596,157 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         # Transpose templates.
         templates = templates.T
 
+    all_temp = numpy.arange(comm.rank, nb_temp, comm.size)
+
     to_remove = []
+    temp_window = numpy.arange(-template_shift, template_shift + 1)
+    size_window = n_e * (2 * template_shift + 1)
+    temp_2_shift = 2 * template_shift
+
+    sub_norm_templates_full = n_scalar * norm_templates[:nb_temp, numpy.newaxis]
+    sub_norm_templates_2_full = n_scalar*(norm_templates[:nb_temp] ** 2.0)[:, numpy.newaxis]
+
+    all_temp = numpy.arange(comm.rank, nb_temp, comm.size)
 
     if comm.rank == 0:
+        to_explore = get_tqdm_progressbar(params, all_temp)
+    else:
+        to_explore = all_temp
 
-        all_templates = numpy.arange(nb_temp)
-        find_mixtures = True
+    nb_mixtures = 0
+    sub_norm_templates = n_scalar * norm_templates[:nb_temp]
+
+    local_peaktimes = numpy.arange(-template_shift//3, template_shift//3) + n_t
+    nb_local_peaktimes = len(local_peaktimes)
+
+    if templates_normalization:
+        min_sps = (limits[:, 0] * sub_norm_templates)[:, numpy.newaxis]
+        max_sps = (limits[:, 1] * sub_norm_templates)[:, numpy.newaxis]
+    else:
+        min_sps = (limits[:, 0] * sub_norm_templates_2)[:, numpy.newaxis]
+        max_sps = (limits[:, 1] * sub_norm_templates_2)[:, numpy.newaxis]
+
+    for k in to_explore:
+
+        local_chunk = numpy.zeros((n_t + 2*template_shift, n_e), dtype=numpy.float32)
+        if is_sparse:
+            local_chunk[template_shift:template_shift + n_t, :] = templates[k].toarray().reshape(n_e, n_t).T * norm_templates[k]
+        else:
+            local_chunk[template_shift:template_shift + n_t, :] = templates[k].reshape(n_e, n_t).T * norm_templates[k]
+
+        sub_mat = local_chunk[local_peaktimes[:, None] + temp_window]
+        sub_mat = sub_mat.transpose(2, 1, 0).reshape(size_window, nb_local_peaktimes)
+
+        b = templates[:nb_temp].dot(sub_mat)
+        b[k, :] = -numpy.inf
+
+        amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
+
         mixtures = []
-        nb_mixtures = 0
-        sub_norm_templates = n_scalar * norm_templates[:nb_temp]
 
-        if not templates_normalization:
-            norm_templates_2 = (norm_templates ** 2.0) * n_scalar
-            sub_norm_templates_2 = norm_templates_2[:nb_temp]
+        while True:
 
+            is_valid = (b > min_sps)*(b < max_sps)
+            valid_indices = numpy.where(is_valid)
 
-        if fixed_amplitudes:
-            min_scalar_products = limits[:,0][:, numpy.newaxis]
-            max_scalar_products = limits[:,1][:, numpy.newaxis]
+            if len(valid_indices[0]) == 0:
+                break
+
+            best_amplitude_idx = b[is_valid].argmax()
+            best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+
+            gbest = best_template_index
 
             if templates_normalization:
-                min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
-                max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                best_amp = b[best_template_index, peak_index] / n_scalar
+                best_amp_n = best_amp / norm_templates[gbest]
             else:
-                min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
-                max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                best_amp = b[best_template2_index, peak_index] / norm_templates_2[gbest]
+                best_amp_n = best_amp
 
-        while find_mixtures:
+            peak_time_step = local_peaktimes[peak_index]
 
-            to_remove += mixtures
-            to_ignore = numpy.in1d(all_templates, numpy.unique(to_remove))
-            to_consider = all_templates[~to_ignore]
-            nb_consider = len(to_consider)
+            peak_data = (local_peaktimes - peak_time_step).astype(numpy.int32)
+            is_neighbor = numpy.abs(peak_data) <= temp_2_shift
+            idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+
+            tmp1 = c_overs[best_template_index].multiply(-best_amp)
+            to_add = tmp1.toarray()[:, idx_neighbor]
+            b[:, is_neighbor] += to_add
+
+            amplitudes[best_template_index, peak_index] = best_amp_n
+            b[best_template_index, peak_index] = -numpy.inf
+
+        are_valid = (amplitudes > limits[:, 0][:, numpy.newaxis])*(amplitudes < limits[:, 1][:, numpy.newaxis])
+        best_matches = numpy.where(are_valid)
+        if len(best_matches[0]) > 1:
+            best_amplitudes = amplitudes[best_matches]
+            best_lags = local_peaktimes[best_matches[1]]
+            reconstruction = numpy.zeros((n_t + 2*template_shift, n_e), dtype=numpy.float32)
+            for i, j in zip(best_matches[0], best_matches[1]):
+                t_start = local_peaktimes[j] - template_shift
+                t_stop = local_peaktimes[j] + template_shift + 1
+                if is_sparse:
+                    reconstruction[t_start:t_stop, :] += amplitudes[i, j]*templates[i].toarray().reshape(n_e, n_t).T
+                else:
+                    reconstruction[t_start:t_stop, :] += amplitudes[i, j]*templates[i].reshape(n_e, n_t).T
+
+            reconstruction = reconstruction[template_shift:-template_shift].T.flatten()
+            reconstruction /= (numpy.linalg.norm(reconstruction)/numpy.sqrt(n_scalar))
 
             if is_sparse:
-                snippets = templates[to_consider].T.toarray() * norm_templates[to_consider]
+                cc = numpy.corrcoef(reconstruction, templates[k].toarray().flatten())[0, 1]
             else:
-                snippets = templates[to_consider].T * norm_templates[to_consider]
+                cc = numpy.corrcoef(reconstruction, templates[k])[0, 1]
 
-            b = templates[to_consider].dot(snippets)
-            b[numpy.arange(nb_consider), numpy.arange(nb_consider)] = 0
+            #print(k, "is sum of", best_matches[0], 'with amplitudes', best_amplitudes, "and optimal lags", best_lags, "and cc", cc)
 
-            amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
-            mixtures = []
+            if cc > cc_merge:
+                to_remove += [k]
 
-            while True:
+                if debug_plots not in ['None', '']:
+                    save = [plot_path, '%d.%s' %(nb_mixtures, make_plots)]
+                    nb_mixtures += 1
+                    import pylab
 
-                best_amplitude_idx = b.argmax()
-
-                best_template_index, peak_index = numpy.unravel_index(best_amplitude_idx, b.shape)
-                gbest = to_consider[best_template_index]
-
-                if templates_normalization:
-                    best_amp = b[best_template_index, peak_index] / n_scalar
-                    best_amp_n = best_amp / norm_templates[gbest]
-                else:
-                    best_amp = b[best_template_index, peak_index] / norm_templates_2[gbest]
-                    best_amp_n = best_amp
-
-                tmp1 = c_overs[gbest].multiply(-best_amp)
-                to_add = tmp1.toarray()[to_consider, s_over]
-                b[:, peak_index] += to_add
-
-                if templates_normalization:
-                    to_add /= (sub_norm_templates[to_consider])
-                else:
-                    to_add /= (sub_norm_templates_2[to_consider])
-
-                mask = amplitudes[:, peak_index] != 0
-                if numpy.any(mask) > 0:
-                    mask[best_template_index] = False
-                    amplitudes[mask, peak_index] += to_add[mask]
-
-                amplitudes[best_template_index, peak_index] = best_amp_n
-
-                b[best_template_index, peak_index] = -numpy.inf
-
-                is_valid = (b > min_sps)*(b < max_sps)
-                valid_indices = numpy.where(is_valid)
-
-                if len(valid_indices[0]) == 0:
-                    break
-
-            for i in range(nb_consider):
-                are_valid = (amplitudes[i] > limits[to_consider[i], 0])*(amplitudes[i] < limits[to_consider[i], 1])
-                best_matches = numpy.where(are_valid)[0]
-                best_amplitudes = amplitudes[i, best_matches]
-                if len(best_matches) > 1:
-                    reconstruction = numpy.zeros(n_scalar, dtype=numpy.float32)
-                    for j in best_matches:
-                        if is_sparse:
-                            reconstruction += amplitudes[i, j]*templates[to_consider[j]].toarray().flatten()
-                        else:
-                            reconstruction += amplitudes[i, j]*templates[to_consider[j]]
+                    fig = pylab.figure()
+                    ax = fig.add_subplot(len(best_amplitudes) + 1, 1, 1)
                     if is_sparse:
-                        cc = numpy.corrcoef(reconstruction, templates[to_consider[i]].toarray().flatten())[0, 1]
+                        ax.plot(templates[k].toarray().flatten())
                     else:
-                        cc = numpy.corrcoef(reconstruction, templates[to_consider[i]])[0, 1]
-                    if cc > cc_merge:
-                        to_remove += [to_consider[i]]
+                        ax.plot(templates[k])
+                    ax.set_ylabel('Amplitude')
+                    ax.plot(reconstruction)
+                    caption = ' + '.join(['%.2g.%d' %(x,y) for (x,y) in zip(best_amplitudes, best_matches[0])])
+                    ax.legend(('Template %d' %k, caption, ))
+                    ax.set_xlabel('Time Steps')
+                    ax.set_title('cc = %g' %cc)
 
-                        if debug_plots not in ['None', '']:
-                            save = [plot_path, '%d.%s' %(nb_mixtures, make_plots)]
-                            nb_mixtures += 1
-                            import pylab
+                    for count, j in enumerate(best_matches[0]):
+                        ax = fig.add_subplot(len(best_amplitudes) + 1, 1, 2+count)
+                        if is_sparse:
+                            ax.plot(templates[j].toarray().flatten())
+                        else:
+                            ax.plot(templates[j])
+                        ax.legend(('Template %d' %j, ))
+                        ax.set_ylabel('Amplitude')
+                        ax.set_xticks([])
 
-                            fig = pylab.figure()
-                            ax = fig.add_subplot(len(best_matches) + 2, 1, 1)
-                            if is_sparse:
-                                ax.plot(templates[to_consider[i]].toarray().flatten())
-                            else:
-                                ax.plot(templates[to_consider[i]])
-                            ax.legend(('Template %d' %to_consider[i], ))
-                            ax.set_ylabel('Amplitude')
-                            ax.set_xticks([])
-                            for count, j in enumerate(best_matches):
-                                ax = fig.add_subplot(len(best_matches) + 2, 1, 2+count)
-                                if is_sparse:
-                                    ax.plot(templates[to_consider[j]].toarray().flatten())
-                                else:
-                                    ax.plot(templates[to_consider[j]])
-                                ax.legend(('Template %d' %to_consider[j], ))
-                                ax.set_ylabel('Amplitude')
-                                ax.set_xticks([])
-
-                            ax = fig.add_subplot(len(best_matches) + 2, 1, len(best_matches) + 2)
-                            ax.plot(reconstruction)
-                            caption = ' + '.join(['%.2g*%d' %(x,y) for (x,y) in zip(best_amplitudes, to_consider[best_matches])])
-                            ax.legend((caption, ))
-                            ax.set_xlabel('Time Steps')
-                            ax.set_title('cc = %g' %cc)
-
-                            if save:
-                                pylab.savefig(os.path.join(save[0], 'mixture_' + save[1]))
-                                pylab.close()
-                            else:
-                                pylab.show()
+                    if save:
+                        pylab.savefig(os.path.join(save[0], 'mixture_' + save[1]))
+                        pylab.close()
+                    else:
+                        pylab.show()
 
 
+    to_remove = numpy.array(to_remove, dtype=numpy.int32)
+    to_remove = gather_array(to_remove, comm, 0, 1, 'int32')
 
-            if len(mixtures) == 0:
-                find_mixtures = False
-                to_remove = numpy.unique(to_remove)
-
+    if comm.rank == 0:
         if len(to_remove) > 0:
             result = load_data(params, 'clusters')
             slice_templates(params, to_remove)
             slice_clusters(params, result, to_remove=to_remove)
-    else:
-        to_remove = []
 
     comm.Barrier()
 
