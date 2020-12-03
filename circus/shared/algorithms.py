@@ -907,10 +907,10 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
 def compute_error(good_values, bad_values, bounds):
 
-    fn = numpy.sum((good_values < bounds[0]) | (good_values > bounds[1]))
-    fp = numpy.sum((bounds[0] <= bad_values) & (bad_values <= bounds[1]))
-    tp = numpy.sum((bounds[0] <= good_values) & (good_values <= bounds[1]))
-    tn = numpy.sum((bad_values < bounds[0]) | (bad_values > bounds[1]))
+    fn = numpy.int64(numpy.sum((good_values < bounds[0]) | (good_values > bounds[1])))
+    fp = numpy.int64(numpy.sum((bounds[0] <= bad_values) & (bad_values <= bounds[1])))
+    tp = numpy.int64(numpy.sum((bounds[0] <= good_values) & (good_values <= bounds[1])))
+    tn = numpy.int64(numpy.sum((bad_values < bounds[0]) | (bad_values > bounds[1])))
 
     #precision = tp / (tp + fp)
     #recall = tp / (tp + fp)
@@ -1311,7 +1311,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                 res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amplitude)
                 bounds[count] = res
             else:
-                if len(very_good_values)/len(good_values['data']) > 0.1:
+                if float(len(very_good_values))/len(good_values['data']) > 0.1:
                     res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values, max_amplitude))
                     a_min, a_max = res.x
                     bounds[count] = [a_min, a_max]
