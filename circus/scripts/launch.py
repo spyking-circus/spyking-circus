@@ -237,6 +237,7 @@ but a subset x,y can be done. Steps are:
             is_writable = __supported_data_files__['raw_binary'].is_writable
 
     if preview:
+
         print_and_log(['Preview mode, showing only seconds [%d-%d] of the recording' % (second, second+1)], 'info', logger)
         tmp_path_loc = os.path.join(os.path.abspath(params.get('data', 'file_out')), 'tmp')
 
@@ -444,6 +445,11 @@ but a subset x,y can be done. Steps are:
                             sys.exit(0)
 
     if preview or result:
+
+        if not('DISPLAY' in os.environ and os.environ['DISPLAY'] in [":0", ":1", ":2"]):
+            print_and_log(['Preview mode can not be used, check DISPLAY variable'], 'error', logger)
+            sys.exit(0)
+
         from circus.shared import gui
         import pylab
         try:
