@@ -501,7 +501,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         best_amp2 = 0
                         best_amp2_n = 0
                 else:
-                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                    best_amp = b[best_template_index, peak_index] / norm_templates_2[best_template_index]
                     best_amp_n = best_amp
                     if two_components:     
                         best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]

@@ -1615,6 +1615,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
     nb_mixtures = 0
     sub_norm_templates = n_scalar * norm_templates[:nb_temp]
+    norm_templates_2 = (norm_templates ** 2.0) * n_scalar
+    sub_norm_templates_2 = norm_templates_2[:nb_temp]
 
     local_peaktimes = numpy.arange(-template_shift//3, template_shift//3) + n_t
     nb_local_peaktimes = len(local_peaktimes)
@@ -1661,7 +1663,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 best_amp = b[best_template_index, peak_index] / n_scalar
                 best_amp_n = best_amp / norm_templates[gbest]
             else:
-                best_amp = b[best_template2_index, peak_index] / norm_templates_2[gbest]
+                best_amp = b[best_template_index, peak_index] / norm_templates_2[gbest]
                 best_amp_n = best_amp
 
             peak_time_step = local_peaktimes[peak_index]
