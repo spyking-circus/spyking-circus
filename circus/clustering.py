@@ -1474,7 +1474,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                     if debug_plots not in ['None', '']:
                         save     = [plot_path, '%s_%d_t%d.%s' %(p, ielec, count_templates, make_plots)]
-                        plot.variance_template(first_component, channel_mads[indices, :], mads[indices], save=save)
+                        plot.variance_template(first_component, channel_mads, mads[indices], save=save)
 
                     if is_noise:
                         templates_to_remove.append(numpy.array([count_templates], dtype='int32'))
@@ -1490,8 +1490,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 
                         if fine_amplitude:
-                            amp_min = 0.5
-                            amp_max = 1.5
+                            amp_min = 0.75
+                            amp_max = 1.25
                         else:
                             x, y, z = sub_data_raw.shape
                             sub_data_raw[:, to_delete, :] = 0
@@ -1771,7 +1771,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if remove_mixture:
             if comm.rank == 0:
                 print_and_log(["Removing mixtures of templates..."], 'default', logger)
-            merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu)
+            merged2 = algo.delete_mixtures(params, nb_cpu=nb_cpu, nb_gpu=nb_gpu, use_gpu=use_gpu, debug_plots=debug_plots)
         else:
             merged2 = [0, 0]
         comm.Barrier()
@@ -1780,6 +1780,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         merged1 = [0, 0]
         merged2 = [0, 0]
 
+    sys.stderr.flush()
     if comm.rank == 0:
 
         lines = [

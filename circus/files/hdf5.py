@@ -169,7 +169,10 @@ class H5File(DataFile):
         
     def _close(self):
         self.my_file.close()
-        del self.data
+        try:
+            del self.data
+        except Exception:
+            pass
 
     @property
     def h5_key(self):
