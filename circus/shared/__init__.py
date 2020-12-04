@@ -1,6 +1,7 @@
 import matplotlib
 import os
-if 'DISPLAY' in os.environ and os.environ['DISPLAY'] in [":0", ":1", ":2"]:
+import re
+if 'DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY']) != None:
     try:
         import PyQt5
         matplotlib.use('Qt5Agg')

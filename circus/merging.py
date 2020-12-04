@@ -3,6 +3,7 @@ from circus.shared import gui
 from circus.shared.messages import init_logging, print_and_log
 from circus.shared.utils import query_yes_no
 import pylab
+import re
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
@@ -50,7 +51,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     comm.Barrier()
 
     if params.getfloat('merging', 'auto_mode') == 0:
-        if not('DISPLAY' in os.environ and os.environ['DISPLAY'] in [":0", ":1", ":2"]):
+        if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
             if comm.rank == 0:
                 print_and_log(['Merging GUI can not be used, check DISPLAY variable'], 'error', logger)
             sys.exit(0)

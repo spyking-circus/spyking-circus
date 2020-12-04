@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import re
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
@@ -446,7 +447,7 @@ but a subset x,y can be done. Steps are:
 
     if preview or result:
 
-        if not('DISPLAY' in os.environ and os.environ['DISPLAY'] in [":0", ":1", ":2"]):
+        if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
             print_and_log(['Preview mode can not be used, check DISPLAY variable'], 'error', logger)
             sys.exit(0)
 
