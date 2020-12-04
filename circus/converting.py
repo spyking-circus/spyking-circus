@@ -350,7 +350,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     if do_export:
 
-        apply_patch_for_similarities(params, extension)
+        #apply_patch_for_similarities(params, extension)
 
         if comm.rank == 0:
             os.makedirs(output_path)

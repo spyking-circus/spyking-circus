@@ -133,7 +133,7 @@ def main(argv=None):
     else:
         filename = params.get('data', 'data_file')
 
-    apply_patch_for_similarities(params, extension)
+    #apply_patch_for_similarities(params, extension)
 
     gui_file = pkg_resources.resource_filename('circus', os.path.join('matlab_GUI', 'SortingGUI.m'))
     # Change to the directory of the matlab file

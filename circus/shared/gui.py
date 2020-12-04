@@ -134,7 +134,7 @@ class MergeWindow(QMainWindow):
         if comm.rank == 0 and app is not None:
             print_and_log(["Loading GUI with %d CPUs..." % comm.size], 'default', logger)
 
-        apply_patch_for_similarities(params, extension_in)
+        #apply_patch_for_similarities(params, extension_in)
 
         self.app = app
         self.params = params
