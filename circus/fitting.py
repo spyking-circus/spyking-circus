@@ -481,10 +481,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
                     max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
+
+
             is_valid = numpy.ones(data.shape, dtype=numpy.bool)
             valid_indices = numpy.where(is_valid)
 
             while True:
+
+                if len(valid_indices[0]) == 0:
+                    break
 
                 best_amplitude_idx = data[is_valid].argmax()
 
@@ -502,7 +507,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         best_amp2 = 0
                         best_amp2_n = 0
                 else:
-                    best_amp = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                    best_amp = b[best_template_index, peak_index] / norm_templates_2[best_template_index]
                     best_amp_n = best_amp
                     if two_components:     
                         best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
