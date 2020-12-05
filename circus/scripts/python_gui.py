@@ -117,12 +117,6 @@ def main(argv=None):
             print_and_log(['The package qtconsole required by phy is not installed'], 'error', logger)
             sys.exit(1)
 
-    if not test_patch_for_similarities(params, extension):
-        print_and_log(['You should re-export the data because of a fix in 0.6'], 'error', logger)
-        continue_anyway = query_yes_no(Fore.WHITE + "Continue anyway (results may not be fully correct)?", default=None)
-        if not continue_anyway:
-            sys.exit(1)
-
     data_file = params.get_data_file()
     data_dtype = data_file.data_dtype
     if data_file.params.has_key('data_offset'):
