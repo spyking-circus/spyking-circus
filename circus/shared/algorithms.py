@@ -775,10 +775,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 result_['times_' + str(elec_remove)] = numpy.delete(result_['times_' + str(elec_remove)], elements_remove)
                 result_['peaks_' + str(elec_remove)] = numpy.delete(result_['peaks_' + str(elec_remove)], elements_remove)
 
-                result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], copy['data']))
-                result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
-                result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
-                result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
+                try:
+                    result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], copy['data']))
+                    result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
+                    result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
+                    result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
+                except Exception:
+                    pass
 
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
                 if 'local_clusters' in result_:

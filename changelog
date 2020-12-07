@@ -1,4 +1,11 @@
 =============
+Release 1.0.7
+=============
+
+* can run meta merging even without a proper DISPLAY
+* fix a potential bug for positive peaks or electrodes without spikes
+
+=============
 Release 1.0.6
 =============
 

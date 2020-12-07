@@ -3,18 +3,7 @@ from circus.shared import gui
 from circus.shared.messages import init_logging, print_and_log
 from circus.shared.utils import query_yes_no
 import pylab
-
-try:
-    from PyQt5.QtWidgets import QApplication
-except ImportError:
-    from matplotlib.backends import qt_compat
-    use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
-
-    if use_pyside:
-        from PySide.QtGui import QApplication
-    else:
-        from PyQt4.QtGui import QApplication
-
+import re
 
 def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
@@ -61,12 +50,32 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
 
     comm.Barrier()
 
-    if comm.rank == 0 and params.getfloat('merging', 'auto_mode') == 0:
-        app = QApplication([])
-        try:
-            pylab.style.use('ggplot')
-        except Exception:
-            pass
+    if params.getfloat('merging', 'auto_mode') == 0:
+        if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
+            if comm.rank == 0:
+                print_and_log(['Merging GUI can not be used, check DISPLAY variable'], 'error', logger)
+            sys.exit(0)
+
+        elif comm.rank == 0:
+
+            try:
+                from PyQt5.QtWidgets import QApplication
+            except ImportError:
+                from matplotlib.backends import qt_compat
+                use_pyside = qt_compat.QT_API == qt_compat.QT_API_PYSIDE
+
+                if use_pyside:
+                    from PySide.QtGui import QApplication
+                else:
+                    from PyQt4.QtGui import QApplication
+
+            app = QApplication([])
+            try:
+                pylab.style.use('ggplot')
+            except Exception:
+                pass
+        else:
+            app = None
     else:
         app = None
 

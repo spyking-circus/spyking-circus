@@ -49,7 +49,6 @@ def main():
             extension = ''
         elif extension != '':
             extension = '-' + extension
-
         circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu, extension=extension)
     else:
         circus.launch(task, filename, nb_cpu, nb_gpu, use_gpu)
