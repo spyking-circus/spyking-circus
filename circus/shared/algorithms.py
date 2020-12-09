@@ -1649,7 +1649,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
         mixtures = []
 
-        is_valid = numpy.ones(data.shape, dtype=numpy.bool)
+        is_valid = numpy.ones(b.shape, dtype=numpy.bool)
         valid_indices = numpy.where(is_valid)
 
         while True:
