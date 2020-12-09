@@ -51,10 +51,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     comm.Barrier()
 
     if params.getfloat('merging', 'auto_mode') == 0:
-        if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
-            if comm.rank == 0:
-                print_and_log(['Merging GUI can not be used, check DISPLAY variable'], 'error', logger)
-            sys.exit(0)
+        from sys import platform
+        if not platform == 'win32':
+            if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
+                print_and_log(['Preview mode can not be used, check DISPLAY variable'], 'error', logger)
+                sys.exit(0)
 
         elif comm.rank == 0:
 

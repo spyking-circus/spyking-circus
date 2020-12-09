@@ -1,6 +1,7 @@
 import matplotlib
 import os
 import re
+
 if 'DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY']) != None:
     try:
         import PyQt5
