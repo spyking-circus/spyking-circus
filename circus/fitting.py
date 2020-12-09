@@ -482,14 +482,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
 
-
             is_valid = numpy.ones(data.shape, dtype=numpy.bool)
             valid_indices = numpy.where(is_valid)
 
             while True:
-
-                if len(valid_indices[0]) == 0:
-                    break
 
                 best_amplitude_idx = data[is_valid].argmax()
 
@@ -543,7 +539,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 b[best_template_index, peak_index] = -numpy.inf
 
-                is_valid = (data > min_sps)*(data < max_sps)
+                is_valid = data > 0.5*min_sps
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:

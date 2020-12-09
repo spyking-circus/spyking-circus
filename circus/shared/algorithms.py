@@ -1649,13 +1649,10 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
         mixtures = []
 
+        is_valid = numpy.ones(data.shape, dtype=numpy.bool)
+        valid_indices = numpy.where(is_valid)
+
         while True:
-
-            is_valid = (b > min_sps)*(b < max_sps)
-            valid_indices = numpy.where(is_valid)
-
-            if len(valid_indices[0]) == 0:
-                break
 
             best_amplitude_idx = b[is_valid].argmax()
             best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
@@ -1679,8 +1676,24 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
             to_add = tmp1.toarray()[:, idx_neighbor]
             b[:, is_neighbor] += to_add
 
+            if templates_normalization:
+                to_add /= sub_norm_templates_full
+            else:
+                to_add /= sub_norm_templates_2_full
+
+            mask = amplitudes != 0
+            if numpy.any(mask) > 0:
+                mask[best_template_index, peak_index] = False
+                amplitudes[:, is_neighbor] += to_add*mask[:, is_neighbor]
+
             amplitudes[best_template_index, peak_index] = best_amp_n
             b[best_template_index, peak_index] = -numpy.inf
+
+            is_valid = b > 0.5*min_sps
+            valid_indices = numpy.where(is_valid)
+
+            if len(valid_indices[0]) == 0:
+                break
 
         are_valid = (amplitudes > limits[:, 0][:, numpy.newaxis])*(amplitudes < limits[:, 1][:, numpy.newaxis])
         best_matches = numpy.where(are_valid)
