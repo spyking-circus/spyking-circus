@@ -485,59 +485,64 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_valid = numpy.ones(data.shape, dtype=numpy.bool)
             valid_indices = numpy.where(is_valid)
 
+            nb_selection = 5
+
             while True:
 
-                best_amplitude_idx = data[is_valid].argmax()
+                selection = numpy.zeros((2*nb_selection, 2), dtype=numpy.int32)
+                full_sps = numpy.zeros(2*nb_selection, dtype=numpy.float32)
 
-                best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
-                peak_scalar_product = data[is_valid][best_amplitude_idx]
+                for i in range(nb_selection):
 
-                best_template2_index = best_template_index + n_tm
-                if templates_normalization:
-                    best_amp = b[best_template_index, peak_index] / n_scalar
-                    best_amp_n = best_amp / norm_templates[best_template_index]
-                    if two_components:
-                        best_amp2 = b[best_template2_index, peak_index] / n_scalar
-                        best_amp2_n = best_amp2 /  norm_templates[best_template2_index]
-                    else:
-                        best_amp2 = 0
-                        best_amp2_n = 0
-                else:
-                    best_amp = b[best_template_index, peak_index] / norm_templates_2[best_template_index]
-                    best_amp_n = best_amp
-                    if two_components:     
-                        best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
-                        best_amp2_n = best_amp2
-                    else:
-                        best_amp2 = 0
-                        best_amp2_n = 0
+                    best_amplitude_idx = data[is_valid].argmax()
+                    best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                    
+                    full_sps[i] = b[best_template_index, peak_index]
+                    full_sps[i + nb_selection] = b[best_template_index + n_tm, peak_index]
 
-                peak_time_step = local_peaktimes[peak_index]
+                    selection[i] = [best_template_index, peak_index]
+                    selection[i + nb_selection] = [best_template_index + n_tm, peak_index]
 
-                peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
-                is_neighbor = np.abs(peak_data) <= temp_2_shift
-                idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+                    b[best_template_index, peak_index] = -numpy.inf
 
-                tmp1 = c_overs[best_template_index].multiply(-best_amp)
-                if numpy.abs(best_amp2_n) > min_second_component:
-                    tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
+                try:
+                    M = numpy.zeros((2*nb_selection, 2*nb_selection), dtype=numpy.float32)
+                    M[numpy.arange(2*nb_selection), numpy.arange(2*nb_selection)] = n_scalar
+                    for i in range(2*nb_selection):
+                        for j in range(i+1, 2*nb_selection):
+                            if numpy.abs(selection[i, 1] - selection[j, 1]) < n_t:
+                                M[i, j] = c_overs[selection[i, 0]][selection[j, 0], 60 + selection[i, 1] - selection[j, 1]]
+                                M[j, i] = M[i, j]
+                        
+                    all_amplitudes = numpy.dot(numpy.linalg.inv(M), full_sps)/norm_templates[selection[:, 0]]
+                except Exception:
+                    all_amplitudes = full_sps/norm_templates[selection[:, 0]]
 
-                to_add = tmp1.toarray()[:, idx_neighbor]
-                b[:, is_neighbor] += to_add
 
-                if templates_normalization:
-                    to_add /= sub_norm_templates_full
-                else:
-                    to_add /= sub_norm_templates_2_full
+                idx = numpy.where(all_amplitudes[:nb_selection] < 0)[0]
+                all_amplitudes[idx] = 0
+                all_amplitudes[idx + nb_selection] = 0
 
-                mask = amplitudes != 0
-                if numpy.any(mask) > 0:
-                    mask[best_template_index, peak_index] = False
-                    amplitudes[:, is_neighbor] += to_add*mask[:, is_neighbor]
+                amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
+ 
+ 
+                # for i in selection[:nb_selection]:
+                    
+                #     best_amp = amplitudes[i[0], i[1]]*norm_templates[i[0]]
+                #     best_amp2 = amplitudes[i[0] + n_tm, i[1]]*norm_templates[i[0] + n_tm]
 
-                amplitudes[best_template_index, peak_index] = best_amp_n
+                #     peak_time_step = local_peaktimes[i[1]]
 
-                b[best_template_index, peak_index] = -numpy.inf
+                #     peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
+                #     is_neighbor = np.abs(peak_data) <= temp_2_shift
+                #     idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+
+                #     tmp1 = c_overs[i[0]].multiply(-best_amp)
+                #     tmp1 += c_overs[i[0] + n_tm].multiply(-best_amp2)
+
+                #     to_add = tmp1.toarray()[:, idx_neighbor]
+                #     b[:, is_neighbor] += to_add
+                #     print(best_amp, best_amp2)
 
                 is_valid = data > 0.5*min_sps
                 valid_indices = numpy.where(is_valid)
