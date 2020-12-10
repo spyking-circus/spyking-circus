@@ -36,7 +36,6 @@ from circus.shared.utils import query_yes_no, get_shared_memory_flag
 from circus.shared.probes import get_averaged_n_edges
 from circus.files import __supported_data_files__, list_all_file_format
 
-
 def main(argv=None):
 
     if argv is None:
@@ -447,9 +446,11 @@ but a subset x,y can be done. Steps are:
 
     if preview or result:
 
-        if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
-            print_and_log(['Preview mode can not be used, check DISPLAY variable'], 'error', logger)
-            sys.exit(0)
+        from sys import platform
+        if not platform == 'win32':
+            if not ('DISPLAY' in os.environ and re.search(":\d", os.environ['DISPLAY'])!=None):
+                print_and_log(['Preview mode can not be used, check DISPLAY variable'], 'error', logger)
+                sys.exit(0)
 
         from circus.shared import gui
         import pylab
