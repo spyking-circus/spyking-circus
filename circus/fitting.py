@@ -485,66 +485,64 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_valid = numpy.ones(data.shape, dtype=numpy.bool)
             valid_indices = numpy.where(is_valid)
 
-            nb_selection = 5
+            M = scipy.sparse.csr_matrix((N_tm*nb_local_peak_times, N_tm*nb_local_peak_times), dtype=numpy.float32)
+            selection = numpy.zeros((0, 2), dtype=numpy.int32)
+
+            full_sps = b.copy()
 
             while True:
 
-                selection = numpy.zeros((2*nb_selection, 2), dtype=numpy.int32)
-                full_sps = numpy.zeros(2*nb_selection, dtype=numpy.float32)
-
-                for i in range(nb_selection):
-
-                    best_amplitude_idx = data[is_valid].argmax()
-                    best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                best_amplitude_idx = data[is_valid].argmax()
+                best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
                     
-                    full_sps[i] = b[best_template_index, peak_index]
-                    full_sps[i + nb_selection] = b[best_template_index + n_tm, peak_index]
+                to_add = numpy.array([[best_template_index, peak_index], [best_template_index+n_tm, peak_index]])
+                selection = numpy.vstack((selection, to_add))
 
-                    selection[i] = [best_template_index, peak_index]
-                    selection[i + nb_selection] = [best_template_index + n_tm, peak_index]
+                b[best_template_index, peak_index] = -numpy.inf
 
-                    b[best_template_index, peak_index] = -numpy.inf
+                nb_selection = len(selection)
+
+                res_sps = full_sps[selection[:, 0], selection[:, 1]]
 
                 try:
-                    M = numpy.zeros((2*nb_selection, 2*nb_selection), dtype=numpy.float32)
-                    M[numpy.arange(2*nb_selection), numpy.arange(2*nb_selection)] = n_scalar
-                    for i in range(2*nb_selection):
-                        for j in range(i+1, 2*nb_selection):
-                            if numpy.abs(selection[i, 1] - selection[j, 1]) < n_t:
-                                M[i, j] = c_overs[selection[i, 0]][selection[j, 0], 60 + selection[i, 1] - selection[j, 1]]
-                                M[j, i] = M[i, j]
-                        
-                    all_amplitudes = numpy.dot(numpy.linalg.inv(M), full_sps)/norm_templates[selection[:, 0]]
+                    for j in range(nb_selection):
+                        delta_t = local_peaktimes[selection[j, 1]] - local_peaktimes[selection[nb_selection - 1, 1]]
+                        if numpy.abs(delta_t) < temp_2_shift:
+                            M[nb_selection - 2, j] = c_overs[selection[nb_selection - 2, 0]][selection[j, 0], temp_2_shift + delta_t]
+                            M[j, nb_selection - 2] = M[nb_selection - 2, j]
+
+                            M[nb_selection - 1, j] = c_overs[selection[nb_selection - 1, 0]][selection[j, 0], temp_2_shift + delta_t]
+                            M[j, nb_selection - 1] = M[nb_selection - 1, j]
+                    
+                    all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
                 except Exception:
-                    all_amplitudes = full_sps/norm_templates[selection[:, 0]]
-
-
-                idx = numpy.where(all_amplitudes[:nb_selection] < 0)[0]
-                all_amplitudes[idx] = 0
-                all_amplitudes[idx + nb_selection] = 0
+                    all_amplitudes = res_sps/norm_templates[selection[:, 0]]
 
                 amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
- 
- 
-                # for i in selection[:nb_selection]:
+                
+                new_data = full_sps[:n_tm].copy()
+                new_data[selection[::2, 0], selection[::2, 1]] = -numpy.inf
+
+                for i in range(0, nb_selection, 2):
                     
-                #     best_amp = amplitudes[i[0], i[1]]*norm_templates[i[0]]
-                #     best_amp2 = amplitudes[i[0] + n_tm, i[1]]*norm_templates[i[0] + n_tm]
+                    tmp_best = selection[i, 0]
+                    tmp_peak = selection[i, 1]
+                    best_amp = amplitudes[tmp_best, tmp_peak]*norm_templates[tmp_best]
+                    best_amp2 = amplitudes[tmp_best + n_tm, tmp_peak]*norm_templates[tmp_best + n_tm]
 
-                #     peak_time_step = local_peaktimes[i[1]]
+                    peak_time_step = local_peaktimes[tmp_peak]
 
-                #     peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
-                #     is_neighbor = np.abs(peak_data) <= temp_2_shift
-                #     idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+                    peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
+                    is_neighbor = np.abs(peak_data) <= temp_2_shift
+                    idx_neighbor = peak_data[is_neighbor] + temp_2_shift
 
-                #     tmp1 = c_overs[i[0]].multiply(-best_amp)
-                #     tmp1 += c_overs[i[0] + n_tm].multiply(-best_amp2)
+                    tmp1 = c_overs[tmp_best].multiply(-best_amp)
+                    tmp1 += c_overs[tmp_best + n_tm].multiply(-best_amp2)
 
-                #     to_add = tmp1.toarray()[:, idx_neighbor]
-                #     b[:, is_neighbor] += to_add
-                #     print(best_amp, best_amp2)
+                    to_add = tmp1.toarray()[:n_tm, idx_neighbor]
+                    new_data[:, is_neighbor] += to_add
 
-                is_valid = data > 0.5*min_sps
+                is_valid = new_data > 0.5*min_sps
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
