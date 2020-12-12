@@ -542,7 +542,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     to_add = tmp1.toarray()[:, idx_neighbor]
                     b[:, is_neighbor] += to_add
 
-                is_valid = data > 0.5*min_sps
+                is_valid = data > min_sps
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:

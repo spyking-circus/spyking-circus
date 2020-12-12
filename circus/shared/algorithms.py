@@ -1699,7 +1699,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 to_add = tmp1.toarray()[:n_tm, idx_neighbor]
                 b[:, is_neighbor] += to_add
 
-            is_valid = b > 0.5*min_sps
+            is_valid = b > min_sps
             valid_indices = numpy.where(is_valid)
 
             if len(valid_indices[0]) == 0:
