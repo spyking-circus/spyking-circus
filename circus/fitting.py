@@ -503,32 +503,32 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 nb_selection = len(selection)
 
                 res_sps = full_sps[selection[:, 0], selection[:, 1]]
+    
+                delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[nb_selection - 1, 1]]
+                delta_t = numpy.clip(delta_t, -temp_2_shift, temp_2_shift)
 
-                try:
-                    for j in range(nb_selection):
-                        delta_t = local_peaktimes[selection[j, 1]] - local_peaktimes[selection[nb_selection - 1, 1]]
-                        if numpy.abs(delta_t) < temp_2_shift:
-                            M[nb_selection - 2, j] = c_overs[selection[nb_selection - 2, 0]][selection[j, 0], temp_2_shift + delta_t]
-                            M[j, nb_selection - 2] = M[nb_selection - 2, j]
+                M[nb_selection - 2, :nb_selection] = c_overs[selection[nb_selection - 2, 0]][selection[:, 0], temp_2_shift + delta_t]
+                M[:nb_selection, nb_selection - 2] = M[nb_selection - 2, :nb_selection].T
 
-                            M[nb_selection - 1, j] = c_overs[selection[nb_selection - 1, 0]][selection[j, 0], temp_2_shift + delta_t]
-                            M[j, nb_selection - 1] = M[nb_selection - 1, j]
-                    
-                    all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
-                except Exception:
-                    all_amplitudes = res_sps/norm_templates[selection[:, 0]]
+                M[nb_selection - 1, :nb_selection] = c_overs[selection[nb_selection - 1, 0]][selection[:, 0], temp_2_shift + delta_t]
+                M[:nb_selection, nb_selection - 1] = M[nb_selection - 1, :nb_selection].T
 
+                all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
+
+                diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
+                diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
+
+                modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-7)[0]
+                
                 amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
                 
-                new_data = full_sps[:n_tm].copy()
-                new_data[selection[::2, 0], selection[::2, 1]] = -numpy.inf
-
-                for i in range(0, nb_selection, 2):
+                for i in modified:
                     
-                    tmp_best = selection[i, 0]
-                    tmp_peak = selection[i, 1]
-                    best_amp = amplitudes[tmp_best, tmp_peak]*norm_templates[tmp_best]
-                    best_amp2 = amplitudes[tmp_best + n_tm, tmp_peak]*norm_templates[tmp_best + n_tm]
+                    tmp_best = selection[2*i, 0]
+                    tmp_peak = selection[2*i, 1]
+
+                    best_amp = diff_amplitudes[i]*norm_templates[tmp_best]
+                    best_amp2 = diff_amplitudes_2[i]*norm_templates[tmp_best + n_tm]
 
                     peak_time_step = local_peaktimes[tmp_peak]
 
@@ -539,10 +539,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     tmp1 = c_overs[tmp_best].multiply(-best_amp)
                     tmp1 += c_overs[tmp_best + n_tm].multiply(-best_amp2)
 
-                    to_add = tmp1.toarray()[:n_tm, idx_neighbor]
-                    new_data[:, is_neighbor] += to_add
+                    to_add = tmp1.toarray()[:, idx_neighbor]
+                    b[:, is_neighbor] += to_add
 
-                is_valid = new_data > min_sps
+                is_valid = data > 0.5*min_sps
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:

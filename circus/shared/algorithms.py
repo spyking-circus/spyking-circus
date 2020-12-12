@@ -1645,7 +1645,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         b = templates[:nb_temp].dot(sub_mat)
         b[k, :] = -numpy.inf
 
+        full_sps = b.copy()
         amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
+
+        M = scipy.sparse.csr_matrix((nb_temp*nb_local_peaktimes, nb_temp*nb_local_peaktimes), dtype=numpy.float32)
+        selection = numpy.zeros((0, 2), dtype=numpy.int32)
 
         mixtures = []
 
@@ -1656,38 +1660,44 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
             best_amplitude_idx = b[is_valid].argmax()
             best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                
+            to_add = numpy.array([[best_template_index, peak_index]])
+            selection = numpy.vstack((selection, to_add))
 
-            gbest = best_template_index
-
-            if templates_normalization:
-                best_amp = b[best_template_index, peak_index] / n_scalar
-                best_amp_n = best_amp / norm_templates[gbest]
-            else:
-                best_amp = b[best_template_index, peak_index] / norm_templates_2[gbest]
-                best_amp_n = best_amp
-
-            peak_time_step = local_peaktimes[peak_index]
-
-            peak_data = (local_peaktimes - peak_time_step).astype(numpy.int32)
-            is_neighbor = numpy.abs(peak_data) <= temp_2_shift
-            idx_neighbor = peak_data[is_neighbor] + temp_2_shift
-
-            tmp1 = c_overs[best_template_index].multiply(-best_amp)
-            to_add = tmp1.toarray()[:, idx_neighbor]
-            b[:, is_neighbor] += to_add
-
-            if templates_normalization:
-                to_add /= sub_norm_templates_full
-            else:
-                to_add /= sub_norm_templates_2_full
-
-            mask = amplitudes != 0
-            if numpy.any(mask) > 0:
-                mask[best_template_index, peak_index] = False
-                amplitudes[:, is_neighbor] += to_add*mask[:, is_neighbor]
-
-            amplitudes[best_template_index, peak_index] = best_amp_n
             b[best_template_index, peak_index] = -numpy.inf
+
+            nb_selection = len(selection)
+
+            res_sps = full_sps[selection[:, 0], selection[:, 1]]
+
+            delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[nb_selection - 1, 1]]
+
+            M[nb_selection - 1, :nb_selection] = c_overs[selection[nb_selection - 1, 0]][selection[:, 0], temp_2_shift + delta_t]
+            M[:nb_selection, nb_selection - 1] = M[nb_selection - 1, :nb_selection].T
+
+            all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
+
+            diff_amplitudes = (all_amplitudes - amplitudes[selection[:, 0], selection[:, 1]])
+            modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-7)[0]
+            
+            amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
+            
+            for i in modified:
+
+                tmp_best = selection[i, 0]
+                tmp_peak = selection[i, 1]
+                best_amp = diff_amplitudes[i]*norm_templates[tmp_best]
+
+                peak_time_step = local_peaktimes[tmp_peak]
+
+                peak_data = (local_peaktimes - peak_time_step).astype(numpy.int32)
+                is_neighbor = numpy.abs(peak_data) <= temp_2_shift
+                idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+
+                tmp1 = c_overs[tmp_best].multiply(-best_amp)
+                
+                to_add = tmp1.toarray()[:n_tm, idx_neighbor]
+                b[:, is_neighbor] += to_add
 
             is_valid = b > 0.5*min_sps
             valid_indices = numpy.where(is_valid)
