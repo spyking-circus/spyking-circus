@@ -505,12 +505,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 res_sps = full_sps[selection[:, 0], selection[:, 1]]
     
                 delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[nb_selection - 1, 1]]
-                delta_t = numpy.clip(delta_t, -temp_2_shift, temp_2_shift)
+                idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
 
-                M[nb_selection - 2, :nb_selection] = c_overs[selection[nb_selection - 2, 0]][selection[:, 0], temp_2_shift + delta_t]
+                M[nb_selection - 2, idx] = c_overs[selection[nb_selection - 2, 0]][selection[idx, 0], temp_2_shift + delta_t[idx]]
                 M[:nb_selection, nb_selection - 2] = M[nb_selection - 2, :nb_selection].T
 
-                M[nb_selection - 1, :nb_selection] = c_overs[selection[nb_selection - 1, 0]][selection[:, 0], temp_2_shift + delta_t]
+                M[nb_selection - 1, idx] = c_overs[selection[nb_selection - 1, 0]][selection[idx, 0], temp_2_shift + delta_t[idx]]
                 M[:nb_selection, nb_selection - 1] = M[nb_selection - 1, :nb_selection].T
 
                 all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
@@ -518,10 +518,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
                 diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
 
-                modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-7)[0]
+                modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-3)[0]
                 
                 amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
-                
                 for i in modified:
                     
                     tmp_best = selection[2*i, 0]
@@ -542,7 +541,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     to_add = tmp1.toarray()[:, idx_neighbor]
                     b[:, is_neighbor] += to_add
 
-                is_valid = data > min_sps
+                is_valid = data > 0.5*min_sps
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
