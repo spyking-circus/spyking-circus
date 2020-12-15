@@ -137,6 +137,21 @@ but a subset x,y can be done. Steps are:
 
     f_next, extens = os.path.splitext(filename)
 
+    file_params = f_next + '.params'
+    if not os.path.exists(file_params) and not batch:
+        print(Fore.RED + 'The parameter file %s is not present!' % file_params)
+        create_params = query_yes_no(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file?")
+
+        if create_params:
+            print(Fore.WHITE + "Creating %s" % file_params)
+            print(Fore.WHITE + "Fill it properly before launching the code! (see documentation)")
+            print_info(['Keep in mind that filtering is performed on site, so please',
+                        'be sure to keep a copy of your data elsewhere'])
+            shutil.copyfile(config_file, file_params)
+        sys.exit(0)
+    elif batch:
+        tasks_list = filename
+
     params = CircusParser(real_file)
     params_only = params.params_only
     if params_only:
@@ -164,21 +179,6 @@ but a subset x,y can be done. Steps are:
     if extens == '.params' and not params_only:
         print_error(['You should launch the code on the data file!'])
         sys.exit(0)
-
-    file_params = f_next + '.params'
-    if not os.path.exists(file_params) and not batch:
-        print(Fore.RED + 'The parameter file %s is not present!' % file_params)
-        create_params = query_yes_no(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file?")
-
-        if create_params:
-            print(Fore.WHITE + "Creating %s" % file_params)
-            print(Fore.WHITE + "Fill it properly before launching the code! (see documentation)")
-            print_info(['Keep in mind that filtering is performed on site, so please',
-                        'be sure to keep a copy of your data elsewhere'])
-            shutil.copyfile(config_file, file_params)
-        sys.exit(0)
-    elif batch:
-        tasks_list = filename
 
     if not batch:
         file_params = f_next + '.params'
