@@ -57,7 +57,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
                 print_and_log(['Preview mode can not be used, check DISPLAY variable'], 'error', logger)
                 sys.exit(0)
 
-        elif comm.rank == 0:
+        if comm.rank == 0:
 
             try:
                 from PyQt5.QtWidgets import QApplication
@@ -79,6 +79,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             app = None
     else:
         app = None
+
 
     if comm.rank == 0:
         print_and_log(['Launching the merging GUI...'], 'debug', logger)
