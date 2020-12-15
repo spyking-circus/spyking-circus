@@ -1547,10 +1547,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     make_plots = params.get('clustering', 'make_plots')
     cc_merge = params.getfloat('clustering', 'cc_merge')**2
+    decimation = params.getboolean('clustering', 'decimation')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
-        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=True
+        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation
     )
     overlap.close()
 

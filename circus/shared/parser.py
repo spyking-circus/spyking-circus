@@ -212,7 +212,7 @@ class CircusParser(object):
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
-                        ['clustering', 'decimation', 'bool', 'True'],
+                        ['clustering', 'decimation', 'bool', 'False'],
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'string', 'auto'],
                         ['clustering', 'nb_ss_rand', 'int', '10000'],
