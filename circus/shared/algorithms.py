@@ -1625,11 +1625,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
     nb_local_peaktimes = len(local_peaktimes)
 
     if templates_normalization:
-        min_sps = (limits[:, 0] * sub_norm_templates)[:, numpy.newaxis]
-        max_sps = (limits[:, 1] * sub_norm_templates)[:, numpy.newaxis]
+        min_sps = sub_norm_templates[:, numpy.newaxis]
+        max_sps = sub_norm_templates[:, numpy.newaxis]
     else:
-        min_sps = (limits[:, 0] * sub_norm_templates_2)[:, numpy.newaxis]
-        max_sps = (limits[:, 1] * sub_norm_templates_2)[:, numpy.newaxis]
+        min_sps = sub_norm_templates_2[:, numpy.newaxis]
+        max_sps = sub_norm_templates_2[:, numpy.newaxis]
 
     for k in to_explore:
 
@@ -1699,7 +1699,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 to_add = tmp1.toarray()[:n_tm, idx_neighbor]
                 b[:, is_neighbor] += to_add
 
-            is_valid = b > 0.5*min_sps
+            is_valid = b > 0.25*min_sps
             valid_indices = numpy.where(is_valid)
 
             if len(valid_indices[0]) == 0:
