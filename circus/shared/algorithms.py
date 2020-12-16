@@ -689,15 +689,6 @@ def slice_clusters(
         if debug:
             to_write += ['rho_', 'delta_']
 
-        if sign_peaks == 'negative':
-            to_write += ['pca_neg_']
-        elif sign_peaks == 'positive':
-            to_write += ['pca_pos_']
-        elif sign_peaks == 'both':
-            to_write += ['pca_neg_', 'pca_pos_']
-        else:
-            raise ValueError("unexpected value: %s" % sign_peaks)
-
         for ielec in range(n_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
         to_write = [key for key in ['electrodes', 'local_clusters'] if key in result]
