@@ -616,6 +616,7 @@ def slice_clusters(
     n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     debug = params.getboolean('clustering', 'debug')
+    sign_peaks = params.get('detection', 'peaks')
 
     if comm.rank == 0:
 
@@ -687,6 +688,16 @@ def slice_clusters(
         to_write = ['data_', 'clusters_', 'times_', 'peaks_', 'noise_times_']
         if debug:
             to_write += ['rho_', 'delta_']
+
+        if sign_peaks == 'negative':
+            to_write += ['pca_neg_']
+        elif sign_peaks == 'positive':
+            to_write += ['pca_pos_']
+        elif sign_peaks == 'both':
+            to_write += ['pca_neg_', 'pca_pos_']
+        else:
+            raise ValueError("unexpected value: %s" % sign_peaks)
+
         for ielec in range(n_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
         to_write = [key for key in ['electrodes', 'local_clusters'] if key in result]
@@ -755,12 +766,14 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                     label_keep = tmp1[nic1]
                     elec_remove = elec_ic2
                     elements_remove = elements2
+                    elements_keep = elements1
                 else:
                     to_remove = one_merge[0]
                     to_keep = one_merge[1]
                     elec_keep = elec_ic2
                     elec_remove = elec_ic1
                     elements_remove = elements1
+                    elements_keep = elements2
                     label_keep = tmp2[nic2]
 
                 # We need to copy the data to the other templates, for better estimation of the amplitudes
@@ -775,13 +788,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 result_['times_' + str(elec_remove)] = numpy.delete(result_['times_' + str(elec_remove)], elements_remove)
                 result_['peaks_' + str(elec_remove)] = numpy.delete(result_['peaks_' + str(elec_remove)], elements_remove)
 
-                try:
-                    result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], copy['data']))
-                    result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
-                    result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
-                    result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
-                except Exception:
-                    pass
+                ## We put 0 instead of real data, but this is just for visualization purpose in the MATLAB GUI...
+                new_data = numpy.zeros((len(elements_remove), result_['data_' + str(elec_keep)].shape[1]), dtype=numpy.float32)
+
+                result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], new_data))
+                result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
+                result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
+                result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
 
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
                 if 'local_clusters' in result_:

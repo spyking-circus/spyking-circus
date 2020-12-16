@@ -132,10 +132,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if sign_peaks == 'negative':
         search_peaks = ['neg']
+        to_write += ['pca_neg_']
     elif sign_peaks == 'positive':
         search_peaks = ['pos']
+        to_write += ['pca_pos_']
     elif sign_peaks == 'both':
         search_peaks = ['neg', 'pos']
+        to_write += ['pca_neg_', 'pca_pos_']
     else:
         raise ValueError("unexpected value: %s" % sign_peaks)
 
