@@ -1648,7 +1648,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         full_sps = b.copy()
         amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
 
-        M = scipy.sparse.csr_matrix((nb_temp*nb_local_peaktimes, nb_temp*nb_local_peaktimes), dtype=numpy.float32)
+        M = scipy.sparse.csr_matrix((0, 0), dtype=numpy.float32)
         selection = numpy.zeros((0, 2), dtype=numpy.int32)
 
         mixtures = []
@@ -1670,12 +1670,16 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
             res_sps = full_sps[selection[:, 0], selection[:, 1]]
 
-            delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[nb_selection - 1, 1]]
+            delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[-1, 1]]
+            idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
 
-            M[nb_selection - 1, :nb_selection] = c_overs[selection[nb_selection - 1, 0]][selection[:, 0], temp_2_shift + delta_t]
-            M[:nb_selection, nb_selection - 1] = M[nb_selection - 1, :nb_selection].T
+            M.resize(nb_selection, nb_selection)
+            line = temp_2_shift + delta_t[idx]
 
-            all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
+            M[-1] = c_overs[selection[-1, 0]][selection[:, 0], line]
+            M[:, -1] = M[-1].T
+
+            all_amplitudes = scipy.sparse.linalg.spsolve(M, res_sps)/norm_templates[selection[:, 0]]
 
             diff_amplitudes = (all_amplitudes - amplitudes[selection[:, 0], selection[:, 1]])
             modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-3)[0]

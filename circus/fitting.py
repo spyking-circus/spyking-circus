@@ -512,12 +512,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 line = temp_2_shift + delta_t[idx]
 
                 M[-2, idx] = c_overs[selection[-2, 0]][selection[idx, 0], line]
-                M[:nb_selection, -2] = M[-2, :nb_selection].T
+                M[:, -2] = M[-2].T
 
                 M[-1, idx] = c_overs[selection[-1, 0]][selection[idx, 0], line]
-                M[:nb_selection, -1] = M[-1, :nb_selection].T
+                M[:, -1] = M[-1].T
 
-                all_amplitudes = scipy.sparse.linalg.spsolve(M[:nb_selection, :nb_selection], res_sps)/norm_templates[selection[:, 0]]
+                all_amplitudes = scipy.sparse.linalg.spsolve(M, res_sps)/norm_templates[selection[:, 0]]
 
                 diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
                 diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
