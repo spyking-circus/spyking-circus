@@ -1723,8 +1723,8 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
             best_lags = local_peaktimes[best_matches[1]]
             reconstruction = numpy.zeros((n_t + 2*template_shift, n_e), dtype=numpy.float32)
             for i, j in zip(best_matches[0], best_matches[1]):
-                t_start = local_peaktimes[j] - template_shift - 1
-                t_stop = local_peaktimes[j] + template_shift
+                t_start = local_peaktimes[j] - template_shift
+                t_stop = local_peaktimes[j] + template_shift + 1
                 if is_sparse:
                     reconstruction[t_start:t_stop, :] += amplitudes[i, j]*templates[i].toarray().reshape(n_e, n_t).T
                 else:
