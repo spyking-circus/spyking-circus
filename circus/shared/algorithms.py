@@ -1631,6 +1631,9 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         min_sps = sub_norm_templates_2[:, numpy.newaxis]
         max_sps = sub_norm_templates_2[:, numpy.newaxis]
 
+    min_scalar_products = limits[:, 0][:, numpy.newaxis]
+    max_scalar_products = limits[:, 1][:, numpy.newaxis]
+
     for k in to_explore:
 
         local_chunk = numpy.zeros((n_t + 2*template_shift, n_e), dtype=numpy.float32)
@@ -1655,6 +1658,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
         is_valid = numpy.ones(b.shape, dtype=numpy.bool)
         valid_indices = numpy.where(is_valid)
+
+        peaks_times = local_peaktimes - local_peaktimes[:, numpy.newaxis]
+        all_neighbors = numpy.abs(peaks_times) <= temp_2_shift
+        neighbors = {}
+        for i in range(len(all_neighbors)):
+            idx = numpy.where(all_neighbors[i])[0]
+            neighbors[i] = {'idx' : idx, 'tdx' : peaks_times[i][idx] + temp_2_shift }
 
         while True:
 
@@ -1692,16 +1702,13 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 tmp_peak = selection[i, 1]
                 best_amp = diff_amplitudes[i]*norm_templates[tmp_best]
 
-                peak_time_step = local_peaktimes[tmp_peak]
-
-                peak_data = (local_peaktimes - peak_time_step).astype(numpy.int32)
-                is_neighbor = numpy.abs(peak_data) <= temp_2_shift
-                idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+                idx = neighbors[tmp_peak]['idx']
+                tdx = neighbors[tmp_peak]['tdx']
 
                 tmp1 = c_overs[tmp_best].multiply(-best_amp)
                 
-                to_add = tmp1.toarray()[:n_tm, idx_neighbor]
-                b[:, is_neighbor] += to_add
+                to_add = tmp1.toarray()[:n_tm, tdx]
+                b[:, idx] += to_add
 
             is_valid = b > 0.25*min_sps
             valid_indices = numpy.where(is_valid)
@@ -1709,15 +1716,15 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
             if len(valid_indices[0]) == 0:
                 break
 
-        are_valid = (amplitudes > limits[:, 0][:, numpy.newaxis])*(amplitudes < limits[:, 1][:, numpy.newaxis])
+        are_valid = (amplitudes > min_scalar_products)*(amplitudes < max_scalar_products)
         best_matches = numpy.where(are_valid)
         if len(best_matches[0]) > 1:
             best_amplitudes = amplitudes[best_matches]
             best_lags = local_peaktimes[best_matches[1]]
             reconstruction = numpy.zeros((n_t + 2*template_shift, n_e), dtype=numpy.float32)
             for i, j in zip(best_matches[0], best_matches[1]):
-                t_start = local_peaktimes[j] - template_shift
-                t_stop = local_peaktimes[j] + template_shift + 1
+                t_start = local_peaktimes[j] - template_shift - 1
+                t_stop = local_peaktimes[j] + template_shift
                 if is_sparse:
                     reconstruction[t_start:t_stop, :] += amplitudes[i, j]*templates[i].toarray().reshape(n_e, n_t).T
                 else:
