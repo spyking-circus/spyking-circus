@@ -1549,7 +1549,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
     cc_merge = params.getfloat('clustering', 'cc_merge')**2
 
     overlap = get_overlaps(
-        params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
+        params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=False,
         use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=False
     )
     overlap.close()
