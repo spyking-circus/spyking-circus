@@ -507,13 +507,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
 
                 M.resize(nb_selection, nb_selection)
-                line = temp_2_shift + delta_t[idx]
+                myline = temp_2_shift + delta_t[idx]
+                line = c_overs[selection[-2, 0]][selection[idx, 0], myline]
 
-                M[-2, idx] = c_overs[selection[-2, 0]][selection[idx, 0], line]
-                M[:, -2] = M[-2].T
+                M[-2, idx] = line
+                M[idx, -2] = line
 
-                M[-1, idx] = c_overs[selection[-1, 0]][selection[idx, 0], line]
-                M[:, -1] = M[-1].T
+                line = c_overs[selection[-1, 0]][selection[idx, 0], myline]
+
+                M[-1, idx] = line
+                M[idx, -1] = line
 
                 all_amplitudes = scipy.sparse.linalg.spsolve(M, res_sps)/norm_templates[selection[:, 0]]
 
