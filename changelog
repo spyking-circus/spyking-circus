@@ -7,6 +7,7 @@ Release 1.0.7
 * the .params file was not created automatically anymore
 * fix a bug while computing the support if shanks
 * fix bugs in the RHD file wrapper
+* add clean_merging option to remove duplicated spikes in pairs during meta merging
 
 =============
 Release 1.0.6

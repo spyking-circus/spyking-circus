@@ -152,6 +152,7 @@ class MergeWindow(QMainWindow):
         self.cc_bin = params.getfloat('merging', 'cc_bin')
         self.auto_mode = params.getfloat('merging', 'auto_mode')
         self.merge_drifts = params.getboolean('merging', 'merge_drifts')
+        self.clean_merging = params.getboolean('merging', 'clean_merging')
         self.drift_limit = params.getfloat('merging', 'drift_limit')
         self.default_lag = params.getfloat('merging', 'default_lag')
         self.remove_noise = params.getboolean('merging', 'remove_noise')
@@ -161,6 +162,7 @@ class MergeWindow(QMainWindow):
         self.low_channels_thr = params.getint('detection', 'low_channels_thr')
         self.mse_error = params.getboolean('fitting', 'mse_error')
         self.hdf5_compress = params.getboolean('data', 'hdf5_compress')
+        self.refractory = params.getint('fitting', 'refractory')
 
         try:
             self.duration = io.load_data(params, 'duration')
@@ -1448,6 +1450,7 @@ class MergeWindow(QMainWindow):
                     spikes = spikes.astype(numpy.int64)
                     spikes += self.lag[to_keep, to_remove]
                     spikes = spikes.astype(numpy.uint32)
+
                 amplitudes = self.result['amplitudes'][key2]
                 n1, n2 = len(self.result['amplitudes'][key2]), len(self.result['amplitudes'][key])
                 self.result['amplitudes'][key] = numpy.vstack((self.result['amplitudes'][key].reshape(n2, 2), amplitudes.reshape(n1, 2)))
@@ -1457,6 +1460,12 @@ class MergeWindow(QMainWindow):
                 self.result['amplitudes'][key] = self.result['amplitudes'][key][idx]
                 self.result['spiketimes'].pop(key2)
                 self.result['amplitudes'].pop(key2)
+
+                if self.clean_merging:
+                    if self.refractory > 0:
+                        violations = numpy.where(numpy.diff(self.result['spiketimes'][key]) <= self.refractory)[0] + 1
+                        self.result['spiketimes'][key] = numpy.delete(self.result['spiketimes'][key], violations)
+                        self.result['amplitudes'][key] = numpy.delete(self.result['amplitudes'][key], violations, axis=0)
 
                 self.all_merges = numpy.vstack((self.all_merges, [self.indices[to_keep], self.indices[to_remove]]))
                 idx = numpy.where(self.indices == to_remove)[0]
