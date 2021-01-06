@@ -6,6 +6,7 @@ Release 1.0.7
 * fix a potential bug for positive peaks or electrodes without spikes
 * the .params file was not created automatically anymore
 * fix a bug while computing the support if shanks
+* fix bugs in the RHD file wrapper
 
 =============
 Release 1.0.6
