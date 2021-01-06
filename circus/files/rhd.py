@@ -301,9 +301,9 @@ class RHDFile(DataFile):
             if inc == len(data_slice) - 1:
                 s1 = s + (t_stop % self.SAMPLES_PER_RECORD)*self.nb_channels
             else:
-                s1 = min(self.size, s + self.SAMPLES_PER_RECORD*self.nb_channels)
+                s1 = min(len(self.data), s + self.SAMPLES_PER_RECORD*self.nb_channels)
 
-            block_slice = numpy.arange(s0, s1).astype(numpy.int32)
+            block_slice = numpy.arange(s0, s1).astype(numpy.int64)
             t_block_slice = len(block_slice) // self.nb_channels
             local_chunk[:, count:count + t_block_slice] = self.data[block_slice].reshape(self.nb_channels, t_block_slice)
             count += t_block_slice
@@ -340,7 +340,7 @@ class RHDFile(DataFile):
             if inc == len(data_slice) - 1:
                 s1 = s + (t_stop % self.SAMPLES_PER_RECORD)*self.nb_channels
             else:
-                s1 = min(self.size, s + self.SAMPLES_PER_RECORD*self.nb_channels)
+                s1 = min(len(self.data), s + self.SAMPLES_PER_RECORD*self.nb_channels)
 
             #s_max = min(len(self.data), s + block_duration)
             block_slice = numpy.arange(s0, s1).astype(numpy.int32)
