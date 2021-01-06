@@ -439,6 +439,11 @@ class MergeWindow(QMainWindow):
     def closeEvent(self, event):
         if comm.rank == 0:
             self.mpi_wait = comm.bcast(numpy.array([2], dtype=numpy.int32), root=0)
+
+            if self.SHARED_MEMORY:
+                for memory in self.mpi_memory_1 + self.mpi_memory_2:
+                    memory.Free()
+
             super(MergeWindow, self).closeEvent(event)
 
     def init_gui_layout(self):
