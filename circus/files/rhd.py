@@ -257,7 +257,7 @@ class RHDFile(DataFile):
         if bytes_remaining % self.bytes_per_block != 0:
             print_and_log(['Something is wrong with file size : should have a whole number of data blocks'], 'error', logger)
 
-        self.num_data_blocks = int(bytes_remaining / self.bytes_per_block)
+        self.num_data_blocks = numpy.int64(bytes_remaining / self.bytes_per_block)
         self.num_amplifier_samples = self.SAMPLES_PER_RECORD * self.num_data_blocks
 
         self.size = self.num_amplifier_samples
@@ -343,7 +343,7 @@ class RHDFile(DataFile):
                 s1 = min(len(self.data), s + self.SAMPLES_PER_RECORD*self.nb_channels)
 
             #s_max = min(len(self.data), s + block_duration)
-            block_slice = numpy.arange(s0, s1).astype(numpy.int32)
+            block_slice = numpy.arange(s0, s1).astype(numpy.int64)
             t_block_slice = len(block_slice)//self.nb_channels
             self.data[block_slice] = data[count:count + t_block_slice, :].T.ravel()
             count += t_block_slice
