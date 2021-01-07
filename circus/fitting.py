@@ -475,8 +475,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             is_valid = numpy.ones(data.shape, dtype=numpy.bool)
             valid_indices = numpy.where(is_valid)
 
-            #M = scipy.sparse.csr_matrix((0, 0), dtype=numpy.float32)
-            M = numpy.zeros((nb_local_peak_times*10, nb_local_peak_times*10), dtype=numpy.float32)
+            M = scipy.sparse.csr_matrix((0, 0), dtype=numpy.float32)
+            #M = numpy.zeros((nb_local_peak_times*10, nb_local_peak_times*10), dtype=numpy.float32)
 
             selection = numpy.zeros((0, 2), dtype=numpy.int32)
             res_sps = numpy.zeros(0, dtype=numpy.float32)
@@ -508,17 +508,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[-1, 1]]
                 idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
 
-                #M.resize(nb_selection, nb_selection)
+                M.resize(nb_selection, nb_selection)
                 myline = temp_2_shift + delta_t[idx]
                 line = c_overs[selection[-2, 0]][selection[idx, 0], myline]
 
                 M[nb_selection-2, idx] = line
-                M[idx, nb_selection-2] = line
+                M[idx, nb_selection-2] = line.T
 
                 line = c_overs[selection[-1, 0]][selection[idx, 0], myline]
 
                 M[nb_selection-1, idx] = line
-                M[idx, nb_selection-1] = line
+                M[idx, nb_selection-1] = line.T
 
                 Z = scipy.sparse.csr_matrix(M[:nb_selection, :nb_selection])
                 all_amplitudes = scipy.sparse.linalg.spsolve(Z, res_sps)/norm_templates[selection[:, 0]]
@@ -546,7 +546,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     to_add = tmp1.toarray()[:, tdx]
                     b[:, idx] += to_add
 
-                is_valid = data > 0.25*min_sps
+                is_valid = data > 0.5*min_sps
                 valid_indices = numpy.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
