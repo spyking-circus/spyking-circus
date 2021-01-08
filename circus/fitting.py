@@ -514,18 +514,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 line_2 = c_overs[selection[-1, 0]][selection[idx, 0], myline]
 
                 M[nb_selection-2, idx] = line_1
-                M[idx, nb_selection-2] = line_1
-
                 M[nb_selection-1, idx] = line_2
-                M[idx, nb_selection-1] = line_2
 
                 if nb_selection >= (M.shape[0] - 1):
                     Z = numpy.zeros((2*M.shape[0], 2*M.shape[1]), dtype=numpy.float32)
                     Z[:nb_selection, :nb_selection] = M[:nb_selection, :nb_selection]
                     M = Z
 
-                Z = scipy.sparse.csr_matrix(M[:nb_selection, :nb_selection])
-                all_amplitudes = scipy.sparse.linalg.spsolve(Z, res_sps)/norm_templates[selection[:, 0]]
+                all_amplitudes = scipy.linalg.solve(M[:nb_selection, :nb_selection], res_sps, assume_a='sym', check_finite=False, lower=True)/norm_templates[selection[:, 0]]
+                #all_amplitudes = scipy.sparse.linalg.spsolve(Z, res_sps)/norm_templates[selection[:, 0]]
 
                 diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
                 diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
