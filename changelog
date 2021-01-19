@@ -8,6 +8,7 @@ Release 1.0.7
 * fix a bug while computing the support if shanks
 * fix bugs in the RHD file wrapper
 * add clean_merging option to remove duplicated spikes in pairs during meta merging
+* fix the info function in the launcher
 
 =============
 Release 1.0.6

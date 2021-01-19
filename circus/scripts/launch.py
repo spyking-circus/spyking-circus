@@ -135,6 +135,23 @@ but a subset x,y can be done. Steps are:
     filename = os.path.abspath(args.datafile)
     real_file = filename
 
+    if info:
+        if args.datafile.lower() in __supported_data_files__:
+            filename = 'tmp'
+            if len(__supported_data_files__[args.datafile.lower()].extension) > 0:
+                filename += __supported_data_files__[args.datafile.lower()].extension[0]
+
+            __supported_data_files__[args.datafile.lower()](filename, {}, is_empty=True)._display_requirements_()
+        else:
+            print_and_log([
+                '',
+                'To get info on any particular file format, do:',
+                '>> spyking-circus file_format -i',
+                ''
+            ], 'default')
+            print_and_log(list_all_file_format())
+        sys.exit(0)
+
     f_next, extens = os.path.splitext(filename)
 
     file_params = f_next + '.params'
@@ -158,23 +175,6 @@ but a subset x,y can be done. Steps are:
         filename = os.path.abspath(params.get('data', 'file_name'))
     else:
         filename = params.file_name
-
-    if info:
-        if args.datafile.lower() in __supported_data_files__:
-            filename = 'tmp'
-            if len(__supported_data_files__[args.datafile.lower()].extension) > 0:
-                filename += __supported_data_files__[args.datafile.lower()].extension[0]
-
-            __supported_data_files__[args.datafile.lower()](filename, {}, is_empty=True)._display_requirements_()
-        else:
-            print_and_log([
-                '',
-                'To get info on any particular file format, do:',
-                '>> spyking-circus file_format -i',
-                ''
-            ], 'default')
-            print_and_log(list_all_file_format())
-        sys.exit(0)
 
     if extens == '.params' and not params_only:
         print_error(['You should launch the code on the data file!'])
