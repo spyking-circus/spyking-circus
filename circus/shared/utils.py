@@ -9,7 +9,7 @@ from scipy import linalg
 import scipy.interpolate
 from scipy.stats import gamma
 import numpy, os, tempfile
-import scipy.linalg, scipy.optimize, cPickle, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
+import scipy.linalg, scipy.optimize, socket, tempfile, shutil, scipy.ndimage.filters, scipy.signal
 import six
 
 with warnings.catch_warnings():

@@ -135,7 +135,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if nb_shanks > 1:
             shank_channels = {}
             for i in params.probe['channel_groups'].keys():
-                shank_channels[i] = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32) 
+                shank_channels[i] = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32)
+        else:
+            channel_group = params.probe['channel_groups'].keys()[0]
 
         process_all_channels = numpy.all(nodes == numpy.arange(N_total))
         duration = int(0.1*params.rate)
@@ -198,9 +200,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         local_chunk[:, shank_channels[i]] -= global_median[:, numpy.newaxis]
 
             if do_remove_ground:
-                for i in params.probe['channel_groups'].keys():
-                    ground = local_chunk[:, common_ground[i]]
-                    local_chunk[:, shank_channels[i]] -= ground[:, numpy.newaxis]
+                if nb_shanks == 1:
+                    ground = local_chunk[:, common_ground[channel_group]]
+                    local_chunk -= ground[:, numpy.newaxis]
+                else:
+                    for i in params.probe['channel_groups'].keys():
+                        ground = local_chunk[:, common_ground[i]]
+                        local_chunk[:, shank_channels[i]] -= ground[:, numpy.newaxis]
 
             if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
                 if data_file_in.is_stream:
