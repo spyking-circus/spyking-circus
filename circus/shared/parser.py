@@ -160,6 +160,7 @@ class CircusParser(object):
                           ['clustering', 'nb_amplitude_snippets', 'int', '250'],
                           ['clustering', 'fixed_amplitudes', 'bool', 'True'],
                           ['clustering', 'nb_amp_bins', 'int', '3'],
+                          ['clustering', 'max_amplitude', 'float', '2'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.75'],

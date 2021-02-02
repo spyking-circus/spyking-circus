@@ -989,9 +989,8 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
     max_trials = params.getint('fitting', 'max_nb_chances')
-
     max_noise_snippets = min(max_snippets, 10000 // N_e)
-    max_amplitude = 2
+    max_amplitude = params.getfloat('clustering', 'max_amplitude')
 
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
