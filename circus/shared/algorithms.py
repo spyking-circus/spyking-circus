@@ -990,7 +990,12 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
     max_trials = params.getint('fitting', 'max_nb_chances')
     max_noise_snippets = min(max_snippets, 10000 // N_e)
-    max_amplitude = params.getfloat('clustering', 'max_amplitude')
+    max_amplitude = params.get('clustering', 'max_amplitude')
+    if max_amplitude == 'auto':
+        auto_amplitude = True
+    else:
+        auto_amplitude = False
+        max_amplitude = float(max_amplitude)
 
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
@@ -1312,13 +1317,18 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         very_good_times  = good_values['times'][mask_good_values]
         not_good_values = good_values['data'][~mask_good_values]
 
+        if auto_amplitude:
+            max_amp = 1.25*very_good_values.max()
+        else:
+            max_amp = max_amplitude
+
         if fine_amplitude:
             if not fixed_amplitudes:
-                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amplitude)
+                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amp)
                 bounds[count] = res
             else:
                 if float(len(very_good_values))/len(good_values['data']) > 0.1:
-                    res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values, max_amplitude))
+                    res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amp)], args=(very_good_values, all_bad_values, max_amp))
                     a_min, a_max = res.x
                     bounds[count] = [a_min, a_max]
                 else:
@@ -1413,19 +1423,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # ax.set_xticklabels([])
             axs.set_xticks([])
             axs.set_title('%g good / %g bad / %g purity' %(len(very_good_values), len(all_bad_values), purity_level[count]))
-            axs.set_ylim(-1, max_amplitude+1)
+            axs.set_ylim(-1, max_amp+1)
             axmin, axmax = axs.get_xlim()
 
 
             axs = fig.add_subplot(gs[0,4])
             nbins = 50
-            ybins = numpy.linspace(-1, max_amplitude+1, nbins)
+            ybins = numpy.linspace(-1, max_amp+1, nbins)
             x = numpy.histogram(very_good_values, ybins, density=True)
             y = numpy.histogram(all_bad_values, ybins, density=True)
             bin_size = ybins[1] - ybins[0]
             axs.barh(x[1][1:], x[0], bin_size, color='tab:green', alpha=0.5)
             axs.barh(y[1][1:], y[0], bin_size, color='tab:red', alpha=0.5)
-            axs.set_ylim(-1, max_amplitude+1)
+            axs.set_ylim(-1, max_amp+1)
             xmin, xmax = axs.get_xlim()
             if fixed_amplitudes:
                 axs.plot([xmin, xmax], [a_min, a_min], color='gray')
