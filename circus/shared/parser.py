@@ -309,12 +309,13 @@ class CircusParser(object):
         except Exception:
             stream_mode = None
 
-        try:
-            self.file_name = parser['data']['file_name']
-        except Exception:
-            if stream_mode != 'mapping-file':
-                print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
-                sys.exit(0)
+        if self.params_only:
+          try:
+              self.file_name = parser['data']['file_name']
+          except Exception:
+              if stream_mode != 'mapping-file':
+                  print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
+                  sys.exit(0)
 
 
         for item in self.__default_values__ + self.__extra_values__:
