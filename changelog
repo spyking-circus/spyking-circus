@@ -11,7 +11,7 @@ Release 1.0.7
 * fix the info function in the launcher
 * fix for common ground if only one shank
 * adaptive global maximal amplitude for every templates
-* optimization of the mapping stream mode
+* optimization of the mapping-file mode
 
 =============
 Release 1.0.6
