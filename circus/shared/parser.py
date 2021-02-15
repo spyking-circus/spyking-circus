@@ -23,6 +23,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+STREAM_MODES = ['mapping-file', 'multi-folders', 'multi-files', 'single-file']
+
 class CircusParser(object):
     """
     Circus class to read *param files.
@@ -304,14 +306,15 @@ class CircusParser(object):
             else:
                 self.parser.add_section(section)
 
-        try:
-            stream_mode = self.parser.get('data', 'stream_mode').lower()
-        except Exception:
-            stream_mode = None
+        stream_mode = self.parser.get('data', 'stream_mode').lower()
+
+        if stream_mode not in ['none'] + STREAM_MODES:
+            print_and_log(["The stream mode is not a valid one"], 'error', logger)
+            sys.exit(0)
 
         if self.params_only:
           try:
-              self.file_name = parser['data']['file_name']
+              self.file_name = self.parser['data']['file_name']
           except Exception:
               if stream_mode != 'mapping-file':
                   print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
