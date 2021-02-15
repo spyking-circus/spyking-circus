@@ -172,7 +172,11 @@ but a subset x,y can be done. Steps are:
     params = CircusParser(real_file)
     params_only = params.params_only
     if params_only:
-        filename = os.path.abspath(params.get('data', 'file_name'))
+        stream_mode = params.get('data', 'stream_mode').lower()
+        if stream_mode == 'mapping-file':
+            filename = os.path.abspath(real_file)
+        else:
+            filename = os.path.abspath(params.get('data', 'file_name'))
     else:
         filename = params.file_name
 

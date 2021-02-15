@@ -133,7 +133,8 @@ class DataFile(object):
 
         f_next, extension = os.path.splitext(self.file_name)
 
-        self._check_extension(extension)
+        if extension != '.params':
+            self._check_extension(extension)
         self._fill_from_params(params)
 
         if not self.is_empty:

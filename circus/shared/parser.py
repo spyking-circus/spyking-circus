@@ -259,23 +259,20 @@ class CircusParser(object):
             if "data" not in parser.sections():
               print_and_log(["No data section in the .params file!"], 'error', logger)
               sys.exit(0)
-            try:
-              self.file_name = parser['data']['file_name']
-            except Exception:
-              print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
-              sys.exit(0)
             self.params_only = True
         else:
             self.params_only = False
-            self.file_name = file_name
+
+        self.file_name = file_name
         self.file_params = f_next + '.params'
         self.do_folders = create_folders
         self.parser = configparser.ConfigParser()
 
-        valid_path = check_valid_path(self.file_params)
-        if not valid_path:
-            print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
-            sys.exit(0)
+        if not self.params_only:
+            valid_path = check_valid_path(self.file_params)
+            if not valid_path:
+                print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
+                sys.exit(0)
 
         # # First, we remove all tabulations from the parameter file, in order to secure the parser.
         if comm.rank == 0:
@@ -306,6 +303,20 @@ class CircusParser(object):
                     self.parser.set(section, key, value.split('#')[0].rstrip())
             else:
                 self.parser.add_section(section)
+
+        try:
+            stream_mode = self.parser.get('data', 'stream_mode').lower()
+        except Exception:
+            stream_mode = None
+
+        if self.params_only:
+          try:
+              self.file_name = parser['data']['file_name']
+          except Exception:
+              if stream_mode != 'mapping-file':
+                  print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
+                  sys.exit(0)
+
 
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item
