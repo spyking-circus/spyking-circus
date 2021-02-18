@@ -306,16 +306,19 @@ class CircusParser(object):
             else:
                 self.parser.add_section(section)
 
-        stream_mode = self.parser.get('data', 'stream_mode').lower()
+        try:
+          stream_mode = self.parser.get('data', 'stream_mode').lower()
+        except Exception:
+          stream_mode = 'none'
 
         if stream_mode not in ['none'] + STREAM_MODES:
             print_and_log(["The stream mode is not a valid one"], 'error', logger)
             sys.exit(0)
 
         if self.params_only:
-          try:
+          if 'file_name' in self.parser['data'].keys():
               self.file_name = self.parser['data']['file_name']
-          except Exception:
+          else:
               if stream_mode != 'mapping-file':
                   print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
                   sys.exit(0)
