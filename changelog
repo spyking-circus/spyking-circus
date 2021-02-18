@@ -12,6 +12,7 @@ Release 1.0.7
 * fix for common ground if only one shank
 * adaptive global maximal amplitude for every templates
 * optimization of the mapping-file mode
+* bug in the batch mode
 
 =============
 Release 1.0.6

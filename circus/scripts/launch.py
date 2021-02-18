@@ -172,7 +172,6 @@ but a subset x,y can be done. Steps are:
     if not batch:
         params = CircusParser(real_file)
         params_only = params.params_only
-        print(params_only)
         if params_only:
             stream_mode = params.get('data', 'stream_mode').lower()
             if stream_mode == 'mapping-file':
