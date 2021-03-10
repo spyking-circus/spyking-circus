@@ -210,12 +210,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if data_file_in != data_file_out:
                 if data_file_in.is_stream:
-                    cidx = data_file_in._get_streams_index_by_time(t_offset)
-                    g_offset = t_offset - data_file_in._times[cidx]
+                    g_offset = t_offset
                 else:
                     g_offset = t_offset - data_file_in.t_start
             else:
                 g_offset = t_offset
+
 
             data_file_out.set_data(g_offset, local_chunk)
 
