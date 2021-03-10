@@ -13,6 +13,7 @@ Release 1.0.7
 * adaptive global maximal amplitude for every templates
 * optimization of the mapping-file mode
 * bug in the batch mode
+* fix a bug when filtering multi files and not overwriting
 
 =============
 Release 1.0.6
