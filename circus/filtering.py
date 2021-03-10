@@ -208,9 +208,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         ground = local_chunk[:, common_ground[i]]
                         local_chunk[:, shank_channels[i]] -= ground[:, numpy.newaxis]
 
-            if data_file_in != data_file_out and data_file_in.is_first_chunk(gidx, nb_chunks):
+            if data_file_in != data_file_out:
                 if data_file_in.is_stream:
-                    g_offset = t_offset - numpy.sum(data_file_in._times[:data_file_in._get_streams_index_by_time(t_offset) + 1])
+                    cidx = data_file_in._get_streams_index_by_time(t_offset)
+                    g_offset = t_offset - data_file_in._times[cidx]
                 else:
                     g_offset = t_offset - data_file_in.t_start
             else:
