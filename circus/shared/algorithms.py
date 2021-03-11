@@ -1322,6 +1322,9 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         else:
             max_amp = max_amplitude
 
+        if max_amp <= 1:
+            max_amp = 3
+
         if fine_amplitude:
             if not fixed_amplitudes:
                 res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amp)
