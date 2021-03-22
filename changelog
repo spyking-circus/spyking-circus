@@ -1,4 +1,10 @@
 =============
+Release 1.0.8
+=============
+
+* script circus-artefacts now saves everything in ms, to be consistent
+
+=============
 Release 1.0.7
 =============
 

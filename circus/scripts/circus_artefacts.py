@@ -117,14 +117,14 @@ concatenate them automatically taking care of file offsets
             output_file = os.path.join(os.path.dirname(filename), 'dead_zones.txt')
             print_and_log(['Saving global artefact file in %s' % output_file], 'default', logger)
             if dead_in_ms:
-                all_times_dead = all_times_dead.astype(numpy.float32)/data_file.sampling_rate
+                all_times_dead = 1000*all_times_dead.astype(numpy.float32)/data_file.sampling_rate
             numpy.savetxt(output_file, all_times_dead)
 
         if len(all_times_trig) > 0:
             output_file = os.path.join(os.path.dirname(filename), 'triggers.txt')
             print_and_log(['Saving global artefact file in %s' % output_file], 'default', logger)
             if trig_in_ms:
-                all_times_trig = all_times_trig.astype(numpy.float32)/data_file.sampling_rate
+                all_times_trig = 1000*all_times_trig.astype(numpy.float32)/data_file.sampling_rate
             numpy.savetxt(output_file, all_times_trig)
 
     elif params.get('data', 'stream_mode') == 'single-file':
