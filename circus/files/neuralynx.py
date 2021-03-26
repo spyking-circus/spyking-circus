@@ -305,7 +305,7 @@ class NeuraLynxFile(DataFile):
             header['gain'] *= -1
 
         g = open(self.all_files[0], 'rb')
-        self.size = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE - 1) * self.SAMPLES_PER_RECORD
+        self.size = ((os.fstat(g.fileno()).st_size - self.NUM_HEADER_BYTES)//self.RECORD_SIZE) * self.SAMPLES_PER_RECORD
         self._shape = (self.size, header['nb_channels'])
         g.close()
 
