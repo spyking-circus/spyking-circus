@@ -1318,7 +1318,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         not_good_values = good_values['data'][~mask_good_values]
 
         if auto_amplitude:
-            max_amp = 1.25*very_good_values.max()
+            if len(very_good_values) > 0:
+                max_amp = 1.25*very_good_values.max()
+            else:
+                max_amp = 3
         else:
             max_amp = max_amplitude
 
