@@ -10,7 +10,7 @@ import versioneer
 
 requires = [
     'mpi4py', 'numpy', 'cython', 'scipy', 'matplotlib', 'h5py', 'colorama',
-    'psutil', 'tqdm', 'blosc', 'statsmodels',
+    'psutil', 'tqdm', 'blosc', 'statsmodels', 'setuptools',
 ]
 
 
