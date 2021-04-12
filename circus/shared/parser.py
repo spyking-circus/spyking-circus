@@ -255,26 +255,10 @@ class CircusParser(object):
         f_next, extension = os.path.splitext(self.file_name)
         file_path = os.path.dirname(self.file_name)
 
-        if extension == '.params':
-            parser         = configparser.ConfigParser()
-            parser.read(os.path.abspath(file_name))
-            if "data" not in parser.sections():
-              print_and_log(["No data section in the .params file!"], 'error', logger)
-              sys.exit(0)
-            self.params_only = True
-        else:
-            self.params_only = False
-
         self.file_name = file_name
         self.file_params = f_next + '.params'
         self.do_folders = create_folders
         self.parser = configparser.ConfigParser()
-
-        if not self.params_only:
-            valid_path = check_valid_path(self.file_params)
-            if not valid_path:
-                print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
-                sys.exit(0)
 
         # # First, we remove all tabulations from the parameter file, in order to secure the parser.
         if comm.rank == 0:
@@ -284,9 +268,26 @@ class CircusParser(object):
             myfile = open(self.file_params, 'w')
             for l in lines:
                 myfile.write(l.replace('\t', ''))
+            myfile.flush()
+            os.fsync(myfile.fileno())
             myfile.close()
 
         comm.Barrier()
+
+        if extension == '.params':
+            self.parser.read(os.path.abspath(self.file_name))
+            if "data" not in parser.sections():
+              print_and_log(["No data section in the .params file!"], 'error', logger)
+              sys.exit(0)
+            self.params_only = True
+        else:
+            self.params_only = False
+
+        if not self.params_only:
+            valid_path = check_valid_path(self.file_params)
+            if not valid_path:
+                print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
+                sys.exit(0)
 
         self._N_t = None
 
