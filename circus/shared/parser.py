@@ -276,7 +276,7 @@ class CircusParser(object):
 
         if extension == '.params':
             self.parser.read(os.path.abspath(self.file_name))
-            if "data" not in parser.sections():
+            if "data" not in self.parser.sections():
               print_and_log(["No data section in the .params file!"], 'error', logger)
               sys.exit(0)
             self.params_only = True
