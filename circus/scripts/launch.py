@@ -266,6 +266,7 @@ but a subset x,y can be done. Steps are:
         if nb_chunks <= (second + 1):
             print_and_log(['Recording is too short to display seconds [%d-%d]' % (second, second+1)])
             sys.exit(0)
+
         local_chunk = data_file.get_snippet(int(second*params.rate), int(1.2*chunk_size))
         description = data_file.get_description()
         data_file.close()
@@ -277,6 +278,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'data_dtype', 'float32')
         new_params.write('data', 'data_offset', '0')
         new_params.write('data', 'dtype_offset', '0')
+        new_params.write('data', 'gain', '%g' %data_file.gain)
         new_params.write('data', 'stream_mode', 'None')
         new_params.write('data', 'overwrite', 'True')
         new_params.write('triggers', 'ignore_times', 'False')
@@ -290,7 +292,7 @@ but a subset x,y can be done. Steps are:
         description['data_dtype'] = 'float32'
         description['dtype_offset'] = 0
         description['data_offset'] = 0
-        description['gain'] = 1.
+        description['gain'] = data_file.gain
         new_params = CircusParser(filename)
         data_file_out = new_params.get_data_file(is_empty=True, params=description)
 
@@ -299,7 +301,7 @@ but a subset x,y can be done. Steps are:
 
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
-        data_file_out.set_data(0, local_chunk)
+        data_file_out.set_data(0, local_chunk/data_file.gain)
         data_file_out.close()
 
     if tasks_list is not None:
