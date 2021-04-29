@@ -1337,7 +1337,10 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
                     a_min, a_max = res.x
                     bounds[count] = [a_min, a_max]
                 else:
-                    a_min, a_max = 0.5, 1.5
+                    if len(very_good_values) > 0:
+                        a_min, a_max = 0.75*very_good_values.min(), 1.25*very_good_values.max()
+                    else:
+                        a_min, a_max = 0.5, 1.5
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
         else:
             a_min, a_max = limits[i]
