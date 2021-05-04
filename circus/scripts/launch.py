@@ -135,30 +135,6 @@ but a subset x,y can be done. Steps are:
     filename = os.path.abspath(args.datafile)
     real_file = filename
 
-    f_next, extens = os.path.splitext(filename)
-
-    file_params = f_next + '.params'
-    if not os.path.exists(file_params) and not batch:
-        print(Fore.RED + 'The parameter file %s is not present!' % file_params)
-        create_params = query_yes_no(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file?")
-
-        if create_params:
-            print(Fore.WHITE + "Creating %s" % file_params)
-            print(Fore.WHITE + "Fill it properly before launching the code! (see documentation)")
-            print_info(['Keep in mind that filtering is performed on site, so please',
-                        'be sure to keep a copy of your data elsewhere'])
-            shutil.copyfile(config_file, file_params)
-        sys.exit(0)
-    elif batch:
-        tasks_list = filename
-
-    params = CircusParser(real_file)
-    params_only = params.params_only
-    if params_only:
-        filename = os.path.abspath(params.get('data', 'file_name'))
-    else:
-        filename = params.file_name
-
     if info:
         if args.datafile.lower() in __supported_data_files__:
             filename = 'tmp'
@@ -175,6 +151,23 @@ but a subset x,y can be done. Steps are:
             ], 'default')
             print_and_log(list_all_file_format())
         sys.exit(0)
+
+    f_next, extens = os.path.splitext(filename)
+
+    if not batch:
+        params = CircusParser(real_file)
+        params_only = params.params_only
+        if params_only:
+            try:
+                stream_mode = params.get('data', 'stream_mode').lower()
+            except Exception:
+                stream_mode = 'none'
+            if stream_mode == 'mapping-file':
+                filename = os.path.abspath(real_file)
+            else:
+                filename = os.path.abspath(params.get('data', 'file_name'))
+        else:
+            filename = params.file_name
 
     if extens == '.params' and not params_only:
         print_error(['You should launch the code on the data file!'])
@@ -258,6 +251,7 @@ but a subset x,y can be done. Steps are:
         if nb_chunks <= (second + 1):
             print_and_log(['Recording is too short to display seconds [%d-%d]' % (second, second+1)])
             sys.exit(0)
+
         local_chunk = data_file.get_snippet(int(second*params.rate), int(1.2*chunk_size))
         description = data_file.get_description()
         data_file.close()
@@ -269,6 +263,7 @@ but a subset x,y can be done. Steps are:
         new_params.write('data', 'data_dtype', 'float32')
         new_params.write('data', 'data_offset', '0')
         new_params.write('data', 'dtype_offset', '0')
+        new_params.write('data', 'gain', '%g' %data_file.gain)
         new_params.write('data', 'stream_mode', 'None')
         new_params.write('data', 'overwrite', 'True')
         new_params.write('triggers', 'ignore_times', 'False')
@@ -282,7 +277,7 @@ but a subset x,y can be done. Steps are:
         description['data_dtype'] = 'float32'
         description['dtype_offset'] = 0
         description['data_offset'] = 0
-        description['gain'] = 1.
+        description['gain'] = data_file.gain
         new_params = CircusParser(filename)
         data_file_out = new_params.get_data_file(is_empty=True, params=description)
 
@@ -291,7 +286,7 @@ but a subset x,y can be done. Steps are:
 
         data_file_out.allocate(shape=local_chunk.shape, data_dtype=numpy.float32)
         data_file_out.open('r+')
-        data_file_out.set_data(0, local_chunk)
+        data_file_out.set_data(0, local_chunk/data_file.gain)
         data_file_out.close()
 
     if tasks_list is not None:

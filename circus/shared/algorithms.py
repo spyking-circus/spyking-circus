@@ -616,6 +616,7 @@ def slice_clusters(
     n_t = params.getint('detection', 'N_t')
     template_shift = params.getint('detection', 'template_shift')
     debug = params.getboolean('clustering', 'debug')
+    sign_peaks = params.get('detection', 'peaks')
 
     if comm.rank == 0:
 
@@ -687,6 +688,7 @@ def slice_clusters(
         to_write = ['data_', 'clusters_', 'times_', 'peaks_', 'noise_times_']
         if debug:
             to_write += ['rho_', 'delta_']
+
         for ielec in range(n_e):
             write_datasets(cfile, to_write, result, ielec, compression=hdf5_compress)
         to_write = [key for key in ['electrodes', 'local_clusters'] if key in result]
@@ -714,7 +716,6 @@ def slice_result(result, times):
             spike_times = result['spiketimes'][key]
             spike_times = spike_times.ravel()
             amplitudes = result['amplitudes'][key]
-            amplitudes = amplitudes.ravel()
             indices = numpy.where((spike_times >= t[0]) & (spike_times <= t[1]))[0]
             sub_result['spiketimes'][key] = spike_times[indices] - t[0]
             sub_result['amplitudes'][key] = amplitudes[indices]
@@ -755,12 +756,14 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                     label_keep = tmp1[nic1]
                     elec_remove = elec_ic2
                     elements_remove = elements2
+                    elements_keep = elements1
                 else:
                     to_remove = one_merge[0]
                     to_keep = one_merge[1]
                     elec_keep = elec_ic2
                     elec_remove = elec_ic1
                     elements_remove = elements1
+                    elements_keep = elements2
                     label_keep = tmp2[nic2]
 
                 # We need to copy the data to the other templates, for better estimation of the amplitudes
@@ -775,13 +778,13 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 result_['times_' + str(elec_remove)] = numpy.delete(result_['times_' + str(elec_remove)], elements_remove)
                 result_['peaks_' + str(elec_remove)] = numpy.delete(result_['peaks_' + str(elec_remove)], elements_remove)
 
-                try:
-                    result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], copy['data']))
-                    result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
-                    result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
-                    result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
-                except Exception:
-                    pass
+                ## We put 0 instead of real data, but this is just for visualization purpose in the MATLAB GUI...
+                new_data = numpy.zeros((len(elements_remove), result_['data_' + str(elec_keep)].shape[1]), dtype=numpy.float32)
+
+                result_['data_' + str(elec_keep)] = numpy.vstack((result_['data_' + str(elec_keep)], new_data))
+                result_['clusters_' + str(elec_keep)] = numpy.concatenate((result_['clusters_' + str(elec_keep)], copy['clusters']))
+                result_['times_' + str(elec_keep)] = numpy.concatenate((result_['times_' + str(elec_keep)], copy['times']))
+                result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
 
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
                 if 'local_clusters' in result_:
@@ -985,9 +988,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
     sparse_threshold = params.getfloat('fitting', 'sparse_thresh')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
     max_trials = params.getint('fitting', 'max_nb_chances')
-
     max_noise_snippets = min(max_snippets, 10000 // N_e)
-    max_amplitude = 2
+    max_amplitude = params.get('clustering', 'max_amplitude')
+    if max_amplitude == 'auto':
+        auto_amplitude = True
+    else:
+        auto_amplitude = False
+        max_amplitude = float(max_amplitude)
 
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
@@ -1309,17 +1316,31 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         very_good_times  = good_values['times'][mask_good_values]
         not_good_values = good_values['data'][~mask_good_values]
 
+        if auto_amplitude:
+            if len(very_good_values) > 0:
+                max_amp = 1.25*very_good_values.max()
+            else:
+                max_amp = 3
+        else:
+            max_amp = max_amplitude
+
+        if max_amp <= 1:
+            max_amp = 3
+
         if fine_amplitude:
             if not fixed_amplitudes:
-                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amplitude)
+                res, error = interpolate(score, splits, good_values['data'], all_bad_values, nb_chances, good_values['times'], all_bad_times, max_trials, max_amp)
                 bounds[count] = res
             else:
                 if float(len(very_good_values))/len(good_values['data']) > 0.1:
-                    res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amplitude)], args=(very_good_values, all_bad_values, max_amplitude))
+                    res = scipy.optimize.differential_evolution(score, bounds=[(0,1), (1, max_amp)], args=(very_good_values, all_bad_values, max_amp))
                     a_min, a_max = res.x
                     bounds[count] = [a_min, a_max]
                 else:
-                    a_min, a_max = 0.5, 1.5
+                    if len(very_good_values) > 0:
+                        a_min, a_max = 0.75*very_good_values.min(), 1.25*very_good_values.max()
+                    else:
+                        a_min, a_max = 0.5, 1.5
                 error = compute_error(very_good_values, all_bad_values, [a_min, a_max])
         else:
             a_min, a_max = limits[i]
@@ -1410,19 +1431,19 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
             # ax.set_xticklabels([])
             axs.set_xticks([])
             axs.set_title('%g good / %g bad / %g purity' %(len(very_good_values), len(all_bad_values), purity_level[count]))
-            axs.set_ylim(-1, max_amplitude+1)
+            axs.set_ylim(-1, max_amp+1)
             axmin, axmax = axs.get_xlim()
 
 
             axs = fig.add_subplot(gs[0,4])
             nbins = 50
-            ybins = numpy.linspace(-1, max_amplitude+1, nbins)
+            ybins = numpy.linspace(-1, max_amp+1, nbins)
             x = numpy.histogram(very_good_values, ybins, density=True)
             y = numpy.histogram(all_bad_values, ybins, density=True)
             bin_size = ybins[1] - ybins[0]
             axs.barh(x[1][1:], x[0], bin_size, color='tab:green', alpha=0.5)
             axs.barh(y[1][1:], y[0], bin_size, color='tab:red', alpha=0.5)
-            axs.set_ylim(-1, max_amplitude+1)
+            axs.set_ylim(-1, max_amp+1)
             xmin, xmax = axs.get_xlim()
             if fixed_amplitudes:
                 axs.plot([xmin, xmax], [a_min, a_min], color='gray')
@@ -1547,10 +1568,11 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
     plot_path = os.path.join(params.get('data', 'file_out_suff'), 'plots')
     make_plots = params.get('clustering', 'make_plots')
     cc_merge = params.getfloat('clustering', 'cc_merge')**2
+    decimation = params.getboolean('clustering', 'decimation')
 
     overlap = get_overlaps(
         params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=False,
-        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=False
+        use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation
     )
     overlap.close()
 

@@ -77,7 +77,7 @@ Alternatively, you can download the source package directly and uncompress it, o
 
 Or even better, you can install it with the develop mode::
 
-    >> pip install . -e --user
+    >> pip install -e . --user
 
 
 Such that if you do a git pull in the software directory, you do not need to reinstall it.
@@ -89,7 +89,9 @@ For those that are not pip users, it is equivalent to::
 
 Or to keep the folder in sync with the install in a develop mode::
 
-    >> python setup.py develop 
+    >> python setup.py develop
+    
+A potential disadvantage of circumventing `pip` like this is the lack of a easy possibility to remove the installed files at a later point in time.
 
 
 .. note::

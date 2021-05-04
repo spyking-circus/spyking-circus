@@ -190,7 +190,6 @@ def read_qstring(fid):
         return ""
 
     if length > (os.fstat(fid.fileno()).st_size - fid.tell() + 1):
-        print(length)
         raise Exception('Length too long.')
 
     # convert length from bytes to 16-bit Unicode words
@@ -204,7 +203,7 @@ def read_qstring(fid):
     if sys.version_info >= (3, 0):
         a = ''.join([chr(c) for c in data])
     else:
-        a = ''.join([unichr(c) for c in data])
+        a = ''.join([chr(c) for c in data])
     
     return a
 
@@ -251,14 +250,15 @@ class RHDFile(DataFile):
         self.bytes_per_block_div = self.bytes_per_block / 2
         self.block_offset_div = self.block_offset / 2
         self.block_size_div = self.block_size / 2
+        self.block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
 
         if bytes_remaining > 0:
             data_present = True
         if bytes_remaining % self.bytes_per_block != 0:
             print_and_log(['Something is wrong with file size : should have a whole number of data blocks'], 'error', logger)
 
-        num_data_blocks = int(bytes_remaining / self.bytes_per_block)
-        self.num_amplifier_samples = self.SAMPLES_PER_RECORD * num_data_blocks
+        self.num_data_blocks = numpy.int64(bytes_remaining / self.bytes_per_block)
+        self.num_amplifier_samples = self.SAMPLES_PER_RECORD * self.num_data_blocks
 
         self.size = self.num_amplifier_samples
         self._shape = (self.size, header['nb_channels'])
@@ -291,26 +291,22 @@ class RHDFile(DataFile):
         self._open()
         count = 0
 
-        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
-
         for inc, s in enumerate(data_slice):
             
             if inc == 0:
-                s0 = s + numpy.mod(t_start, self.SAMPLES_PER_RECORD)
+                s0 = s + (t_start % self.SAMPLES_PER_RECORD)*self.nb_channels
             else:
                 s0 = s
 
             if inc == len(data_slice) - 1:
-                s1 = s + numpy.mod(t_stop, self.SAMPLES_PER_RECORD)
+                s1 = s + (t_stop % self.SAMPLES_PER_RECORD)*self.nb_channels
             else:
-                s1 = s + block_duration //self.nb_channels
+                s1 = min(len(self.data), s + self.SAMPLES_PER_RECORD*self.nb_channels)
 
-            s_max = min(len(self.data), s + block_duration)
-            block_slice = numpy.arange(s, s_max).astype(numpy.int32)
-            t_block_slice = len(block_slice)//self.nb_channels
-            t_slice = (s1 - s0)
-            local_chunk[:, count:count + t_slice] = self.data[block_slice].reshape(self.nb_channels, t_block_slice)[:, (s0-s):(s1-s)]
-            count += t_slice
+            block_slice = numpy.arange(s0, s1).astype(numpy.int64)
+            t_block_slice = len(block_slice) // self.nb_channels
+            local_chunk[:, count:count + t_block_slice] = self.data[block_slice].reshape(self.nb_channels, t_block_slice)
+            count += t_block_slice
 
         local_chunk = local_chunk.T
         self._close()
@@ -331,28 +327,24 @@ class RHDFile(DataFile):
         data = self._unscale_data_from_float32(data)
         data_slice = self._get_slice_(t_start, t_stop)
 
-        block_duration = numpy.int64(self.bytes_per_block_div - self.block_offset_div)
-
         self._open(mode='r+')
         count = 0
 
         for inc, s in enumerate(data_slice):
 
             if inc == 0:
-                s0 = s + numpy.mod(t_start, self.SAMPLES_PER_RECORD) * self.nb_channels
+                s0 = s + (t_start % self.SAMPLES_PER_RECORD)*self.nb_channels
             else:
                 s0 = s
 
             if inc == len(data_slice) - 1:
-                s1 = s + numpy.mod(t_stop, self.SAMPLES_PER_RECORD) * self.nb_channels
+                s1 = s + (t_stop % self.SAMPLES_PER_RECORD)*self.nb_channels
             else:
-                s1 = min(len(self.data), s + block_duration)
+                s1 = min(len(self.data), s + self.SAMPLES_PER_RECORD*self.nb_channels)
 
             #s_max = min(len(self.data), s + block_duration)
-            block_slice = numpy.arange(s0, s1).astype(numpy.int32)
+            block_slice = numpy.arange(s0, s1).astype(numpy.int64)
             t_block_slice = len(block_slice)//self.nb_channels
-            t_slice = (s1 - s0)
-
             self.data[block_slice] = data[count:count + t_block_slice, :].T.ravel()
             count += t_block_slice
 

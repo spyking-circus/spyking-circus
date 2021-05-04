@@ -1485,7 +1485,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         temp_y.append(count_templates * numpy.ones(len(dx), dtype=numpy.uint32))
                         temp_data.append(templates[dx])
 
-                        to_keep = indices[~numpy.in1d(indices, to_delete)]
+                        to_keep = numpy.delete(indices, to_delete)
                         supports[g_count, to_keep] = True
                         norms[g_count] = numpy.sqrt(numpy.sum(templates.ravel() ** 2) / n_scalar)
 

@@ -19,6 +19,22 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 2020
 ~~~~
 
+* Hudetz, A. G. et al, *Desflurane Anesthesia Alters Cortical Layer–specific Hierarchical Interactions in Rat Cerebral Cortex*, Anesthesiology: The Journal of the American Society of Anesthesiologists, 132(5), 1080-1090.
+
+* Morningstar M. D. et al, *Ethanol Alters Variability, But Not Rate, of Firing in Medial Prefrontal Cortex Neurons of Awake‐Behaving Rats*, Alcoholism: Clinical and Experimental Research, 44(11), 2225-2238.
+
+* Zhang Z. et al, *Network Dynamics in the Developing Piriform Cortex of Unanesthetized Rats*,F Cerebral Cortex.
+
+* Lee H. et al, *Differential effect of anesthesia on visual cortex neurons with diverse population coupling*. Neuroscience.
+
+* García-Rosales F., et al, *Fronto-Temporal Coupling Dynamics During Spontaneous Activity and Auditory Processing in the Bat Carollia perspicillata*, Frontiers in systems neuroscience, 14, 14.
+
+* Weineck K et al, *Neural oscillations in the fronto-striatal network predict vocal output in bats*, PLoS biology, 18(3), e3000658.
+
+* Lee H. et al, *State-dependent cortical unit activity reflects dynamic brain state transitions in anesthesia*, Journal of Neuroscience, 40(49), 9440-9454.
+
+* Bolding K. A. et al, *Recurrent circuitry is required to stabilize piriform cortex odor representations across brain states*, Elife, 9, e53125.
+
 * Jin M. et al, *Mouse higher visual areas provide both distributed and discrete contributions to visually guided behaviors*, bioRxiv, 001446
 
 * Petersen P. C,  et al.,  *CellExplorer: a graphical user interface and standardized pipeline for visualizing and characterizing single neuron features*, bioRxiv, 083436

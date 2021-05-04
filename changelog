@@ -1,10 +1,30 @@
 =============
+Release 1.0.8
+=============
+
+* script circus-artefacts now saves everything in ms, to be consistent
+* fix a bug in the neuralynx wrapper, causing last chunk to be ignored
+* add the option, in circus-multi to export everything for phy
+* optimization for clusters, to secure the .params file during overwritting
+* fix a bug in the preview mode with the gain
+* orthogonal matching pursuit for mixtures and fitting
+
+=============
 Release 1.0.7
 =============
 
 * can run meta merging even without a proper DISPLAY
 * fix a potential bug for positive peaks or electrodes without spikes
-* orthogonal matching pursuit for mixtures and fitting
+* the .params file was not created automatically anymore
+* fix a bug while computing the support if shanks
+* fix bugs in the RHD file wrapper
+* add clean_merging option to remove duplicated spikes in pairs during meta merging
+* fix the info function in the launcher
+* fix for common ground if only one shank
+* adaptive global maximal amplitude for every templates
+* optimization of the mapping-file mode
+* bug in the batch mode
+* fix a bug when filtering multi files and not overwriting
 
 =============
 Release 1.0.6

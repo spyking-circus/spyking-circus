@@ -23,6 +23,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+STREAM_MODES = ['mapping-file', 'multi-folders', 'multi-files', 'single-file']
+
 class CircusParser(object):
     """
     Circus class to read *param files.
@@ -160,6 +162,7 @@ class CircusParser(object):
                           ['clustering', 'nb_amplitude_snippets', 'int', '250'],
                           ['clustering', 'fixed_amplitudes', 'bool', 'True'],
                           ['clustering', 'nb_amp_bins', 'int', '3'],
+                          ['clustering', 'max_amplitude', 'string', 'auto'],
                           ['extracting', 'cc_merge', 'float', '0.95'],
                           ['merging', 'erase_all', 'bool', 'True'],
                           ['merging', 'cc_overlap', 'float', '0.75'],
@@ -175,6 +178,7 @@ class CircusParser(object):
                           ['merging', 'time_rpv', 'float', '5'],
                           ['merging', 'rpv_threshold', 'float', '0.02'],
                           ['merging', 'min_spikes', 'int', '20'],
+                          ['merging', 'clean_merging', 'bool', 'False'],
                           ['converting', 'export_pcs', 'string', 'prompt'],
                           ['converting', 'erase_all', 'bool', 'True'],
                           ['converting', 'export_all', 'bool', 'False'],
@@ -212,7 +216,7 @@ class CircusParser(object):
                         ['clustering', 'm_ratio', 'float', '0.01'],
                         ['clustering', 'debug', 'bool', 'False'],
                         ['clustering', 'sub_dim', 'int', '10'],
-                        ['clustering', 'decimation', 'bool', 'True'],
+                        ['clustering', 'decimation', 'bool', 'False'],
                         ['clustering', 'sparsify', 'float', '0.25'],
                         ['clustering', 'nb_ss_bins', 'string', 'auto'],
                         ['clustering', 'nb_ss_rand', 'int', '10000'],
@@ -251,29 +255,10 @@ class CircusParser(object):
         f_next, extension = os.path.splitext(self.file_name)
         file_path = os.path.dirname(self.file_name)
 
-        if extension == '.params':
-            parser         = configparser.ConfigParser()
-            parser.read(os.path.abspath(file_name))
-            if "data" not in parser.sections():
-              print_and_log(["No data section in the .params file!"], 'error', logger)
-              sys.exit(0)
-            try:
-              self.file_name = parser['data']['file_name']
-            except Exception:
-              print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
-              sys.exit(0)
-            self.params_only = True
-        else:
-            self.params_only = False
-            self.file_name = file_name
+        self.file_name = file_name
         self.file_params = f_next + '.params'
         self.do_folders = create_folders
         self.parser = configparser.ConfigParser()
-
-        valid_path = check_valid_path(self.file_params)
-        if not valid_path:
-            print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
-            sys.exit(0)
 
         # # First, we remove all tabulations from the parameter file, in order to secure the parser.
         if comm.rank == 0:
@@ -283,9 +268,26 @@ class CircusParser(object):
             myfile = open(self.file_params, 'w')
             for l in lines:
                 myfile.write(l.replace('\t', ''))
+            myfile.flush()
+            os.fsync(myfile.fileno())
             myfile.close()
 
         comm.Barrier()
+
+        if extension == '.params':
+            self.parser.read(os.path.abspath(self.file_name))
+            if "data" not in self.parser.sections():
+              print_and_log(["No data section in the .params file!"], 'error', logger)
+              sys.exit(0)
+            self.params_only = True
+        else:
+            self.params_only = False
+
+        if not self.params_only:
+            valid_path = check_valid_path(self.file_params)
+            if not valid_path:
+                print_and_log(["Not all nodes can read/write the data file. Check path?"], 'error', logger)
+                sys.exit(0)
 
         self._N_t = None
 
@@ -304,6 +306,24 @@ class CircusParser(object):
                     self.parser.set(section, key, value.split('#')[0].rstrip())
             else:
                 self.parser.add_section(section)
+
+        try:
+          stream_mode = self.parser.get('data', 'stream_mode').lower()
+        except Exception:
+          stream_mode = 'none'
+
+        if stream_mode not in ['none'] + STREAM_MODES:
+            print_and_log(["The stream mode is not a valid one"], 'error', logger)
+            sys.exit(0)
+
+        if self.params_only:
+          if 'file_name' in self.parser['data'].keys():
+              self.file_name = self.parser['data']['file_name']
+          else:
+              if stream_mode != 'mapping-file':
+                  print_and_log(["No file_name in the [data] section of the .params file!"], 'error', logger)
+                  sys.exit(0)
+
 
         for item in self.__default_values__ + self.__extra_values__:
             section, name, val_type, value = item

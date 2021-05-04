@@ -3,6 +3,7 @@ import os
 import sys
 import subprocess
 import pkg_resources
+import shutil
 import argparse
 import circus
 import tempfile
@@ -31,6 +32,8 @@ into N individual results files, one per stream
     parser.add_argument('datafile', help='data file')
     parser.add_argument('-e', '--extension', help='extension to consider for slicing results',
                         default='')
+    parser.add_argument('-p', '--phy', help='duplicate templates and clusters for phy export',
+                        action='store_true')
 
     if len(argv) == 0:
         parser.print_help()
@@ -39,6 +42,8 @@ into N individual results files, one per stream
     args = parser.parse_args(argv)
 
     filename = os.path.abspath(args.datafile)
+    export_phy = args.phy
+    print(export_phy)
     extension = args.extension
     if extension != '':
         extension = '-' + extension
@@ -55,6 +60,7 @@ into N individual results files, one per stream
 
     data_file = params.get_data_file()
     result = circus.shared.files.get_results(params, extension=extension)
+
     times = []
     for source in data_file._sources:
         times += [[source.t_start, source.t_stop]]
@@ -63,10 +69,16 @@ into N individual results files, one per stream
 
     for count, result in enumerate(sub_results):
         keys = ['spiketimes', 'amplitudes']
-        mydata = h5py.File(file_out_suff + '.result%s_%d.hdf5' % (extension, count), 'w', libver='earliest')
+        mydata = h5py.File(file_out_suff + '.result%s-%d.hdf5' % (extension, count), 'w', libver='earliest')
         for key in keys:
             mydata.create_group(key)
             for temp in result[key].keys():
                 tmp_path = '%s/%s' % (key, temp)
                 mydata.create_dataset(tmp_path, data=result[key][temp])
         mydata.close()
+
+        if export_phy:
+            for file_type in ['clusters', 'templates', 'basis']:
+                src_file = file_out_suff + '.%s%s.hdf5' % (file_type, extension)
+                tgt_file = file_out_suff + '.%s%s-%d.hdf5' % (file_type, extension, count)
+                shutil.copy(src_file, tgt_file)

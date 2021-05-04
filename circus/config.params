@@ -75,6 +75,7 @@ time_rpv       = 5          # Time [in ms] to consider for Refraction Period Vio
 rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
 merge_drifts   = True       # Try to automatically merge drifts, i.e. non overlapping spiking neurons
 drift_limit    = 1          # Distance for drifts. The higher, the more non-overlapping the activities should be
+clean_merging  = False      # When templates are merged, automatically remove spike duplicated (less than 0.5ms appart)
 
 [converting]
 erase_all      = True       # If False, a prompt will ask you to export if export has already been done
