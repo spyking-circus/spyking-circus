@@ -16,6 +16,40 @@ Publications refering to SpyKING CIRCUS
 
 Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to send us a mail in order update this list, the more the merrier
 
+
+2021
+~~~~
+
+* Kajiwara, M. et al, *Inhibitory neurons exhibit high controlling ability in the cortical microconnectome*, PLOS Computational Biology, 17(4), e1008846
+
+* Sans-Dublanc, A. et al, *Optogenetic fUSI for brain-wide mapping of neural activity mediating collicular-dependent behaviors*, Neuron
+
+* Passaro, A. P. et Stice, S. L., *Electrophysiological analysis of brain organoids: current approaches and advancements*, Frontiers in Neuroscience, 14, 1405.
+
+* Li, W. et al, *A facile and comprehensive algorithm for electrical response identification in mouse retinal ganglion cells*, Plos one, 16(3), e0246547.
+
+* Araya, J. et al, *Retinal Ganglion Cells Functional Changes in a Mouse Model of Alzheimer’s Disease Are Linked with Neurotransmitter Alterations*, Journal of Alzheimer's Disease, (Preprint), 1-14.
+
+* Rokai, J. et al, *ELVISort: encoding latent variables for instant sorting, an artificial intelligence-based end-to-end solution*, Journal of Neural Engineering, 18(4), 046033.
+
+* Provansal, M. et al *Functional ultrasound imaging of the spreading activity following optogenetic stimulation of the rat visual cortex*, bioRxiv.
+
+* Saif-ur-Rehman, M. et al, *SpikeDeep-Classifier: A deep-learning based fully automatic offline spike sorting algorithm*, Journal of Neural Engineering, 18(1), 016009.
+
+* Sedaghat-Nejad, E. et al, *P-sort: an open-source software for cerebellar neurophysiology*, bioRxiv.
+
+* Perez-Ortega, J. E. et al, *Parallel processing of natural images by overlapping retinal neuronal ensembles*, bioRxiv.
+
+* Hall, N. J. et al, *Evaluation and resolution of many challenges of neural spike-sorting: a new sorter*, bioRxiv.
+
+* Sorochynskyi, O. et al, *Predicting synchronous firing of large neural populations from sequential recordings*, PLoS computational biology, 17(1), e1008501.
+
+* Malfatti, T. et al, *Activity of CaMKIIa+ dorsal cochlear nucleus neurons are crucial for tinnitus perception but not for tinnitus induction*, bioRxiv.
+
+* Waschke, L. et al, *Behavior needs neural variability*, Neuron.
+
+* Chen, Z. S. et Pesaran, B., *Improving scalability in systems neuroscience*, Neuron.
+
 2020
 ~~~~
 
@@ -23,7 +57,7 @@ Here is a non exhaustive list of papers using SpyKING CIRCUS. Do not hesitate to
 
 * Morningstar M. D. et al, *Ethanol Alters Variability, But Not Rate, of Firing in Medial Prefrontal Cortex Neurons of Awake‐Behaving Rats*, Alcoholism: Clinical and Experimental Research, 44(11), 2225-2238.
 
-* Zhang Z. et al, *Network Dynamics in the Developing Piriform Cortex of Unanesthetized Rats*,F Cerebral Cortex.
+* Zhang Z. et al, *Network Dynamics in the Developing Piriform Cortex of Unanesthetized Rats*, Cerebral Cortex.
 
 * Lee H. et al, *Differential effect of anesthesia on visual cortex neurons with diverse population coupling*. Neuroscience.
 
