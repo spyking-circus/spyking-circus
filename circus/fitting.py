@@ -41,6 +41,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     # noise_thr = params.getfloat('clustering', 'noise_thr')
     collect_all = params.getboolean('fitting', 'collect_all')
     min_second_component = params.getfloat('fitting', 'min_second_component')
+    strict_threshold = params.getboolean('fitting', 'strict_threshold')
     debug = params.getboolean('fitting', 'debug')
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
@@ -529,9 +530,28 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 t_spike = all_spikes[peak_index]
 
                 if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
-                    result['spiketimes'] += [t_spike]
-                    result['amplitudes'] += [(best_amp_n, best_amp2_n)]
-                    result['templates'] += [best_template_index]
+
+                    if not strict_threshold:
+                        crossing_threshold = True
+                    else:
+                        if is_sparse:
+                            scaled_template = best_amp_n * templates[best_template_index].toarray().reshape(n_e, n_t)
+                        else:
+                            scaled_template = best_amp_n * templates[best_template_index].reshape(n_e, n_t)
+                        if sign_peaks == 'negative':
+                            extrema = numpy.argmin(scaled_template)
+                        elif sign_peaks == 'positive':
+                            extrema = numpy.argmax(scaled_template)
+                        elif sign_peaks == 'both':
+                            extrema = numpy.argmax(numpy.abs(scaled_template))
+
+                        good_elec, good_time = numpy.unravel_index(extrema, (n_e, n_t))
+                        crossing_threshold = numpy.abs(scaled_template[good_elec, good_time]) > thresholds[good_elec]
+
+                    if crossing_threshold:
+                        result['spiketimes'] += [t_spike]
+                        result['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                        result['templates'] += [best_template_index]
                 elif mse_error:
                     mse_fit['spiketimes'] += [t_spike]
                     mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
