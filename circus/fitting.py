@@ -42,6 +42,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     collect_all = params.getboolean('fitting', 'collect_all')
     min_second_component = params.getfloat('fitting', 'min_second_component')
     debug = params.getboolean('fitting', 'debug')
+    full_omp = params.getboolean('fitting', 'full_omp')
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes = numpy.zeros(n_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
@@ -294,6 +295,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         min_scalar_products = amp_limits[:,0][:, numpy.newaxis]
         max_scalar_products = amp_limits[:,1][:, numpy.newaxis]
 
+        if not full_omp:
+            if templates_normalization:
+                min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+            else:
+                min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+
     if templates_normalization:
         min_sps = sub_norm_templates[:, numpy.newaxis]
     else:
@@ -472,104 +481,186 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 min_scalar_products = min_scalar_products[:, numpy.newaxis]
                 max_scalar_products = max_scalar_products[:, numpy.newaxis]
 
-            is_valid = numpy.ones(data.shape, dtype=numpy.bool)
-            valid_indices = numpy.where(is_valid)
+                if not full_omp:
+                    if templates_normalization:
+                        min_sps = min_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                        max_sps = max_scalar_products * sub_norm_templates[:, numpy.newaxis]
+                    else:
+                        min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
+                        max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
-            #M = scipy.sparse.csr_matrix((0, 0), dtype=numpy.float32)
-            M = numpy.zeros((10*nb_local_peak_times, 10*nb_local_peak_times), dtype=numpy.float32)
+            if full_omp:
 
-            selection = numpy.zeros((0, 2), dtype=numpy.int32)
-            res_sps = numpy.zeros(0, dtype=numpy.float32)
-
-            full_sps = b.copy()
-
-            peaks_times = local_peaktimes - local_peaktimes[:, numpy.newaxis]
-            all_neighbors = numpy.abs(peaks_times) <= temp_2_shift
-            neighbors = {}
-            for i in range(len(all_neighbors)):
-                idx = numpy.where(all_neighbors[i])[0]
-                neighbors[i] = {'idx' : idx, 'tdx' : peaks_times[i][idx] + temp_2_shift }
-
-
-            while True:
-
-                best_amplitude_idx = data[is_valid].argmax()
-                best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
-                    
-                to_add = numpy.array([[best_template_index, peak_index], [best_template_index+n_tm, peak_index]])
-                selection = numpy.vstack((selection, to_add))
-
-                res_sps = numpy.concatenate((res_sps, full_sps[selection[-2:, 0], selection[-2:, 1]]))
-
-                b[best_template_index, peak_index] = -numpy.inf
-
-                nb_selection = len(selection)
-    
-                delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[-1, 1]]
-                idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
-
-                #M.resize(nb_selection, nb_selection)
-                myline = temp_2_shift + delta_t[idx]
-                line_1 = c_overs[selection[-2, 0]][selection[idx, 0], myline]
-                line_2 = c_overs[selection[-1, 0]][selection[idx, 0], myline]
-
-                M[nb_selection-2, idx] = line_1
-                M[nb_selection-1, idx] = line_2
-
-                if nb_selection >= (M.shape[0] - 1):
-                    Z = numpy.zeros((2*M.shape[0], 2*M.shape[1]), dtype=numpy.float32)
-                    Z[:nb_selection, :nb_selection] = M[:nb_selection, :nb_selection]
-                    M = Z
-
-                all_amplitudes = scipy.linalg.solve(M[:nb_selection, :nb_selection], res_sps, assume_a='sym', check_finite=False, lower=True)/norm_templates[selection[:, 0]]
-                #all_amplitudes = scipy.sparse.linalg.spsolve(Z, res_sps)/norm_templates[selection[:, 0]]
-
-                diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
-                diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
-
-                modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-3)[0]
-                
-                amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
-                for i in modified:
-                    
-                    tmp_best = selection[2*i, 0]
-                    tmp_peak = selection[2*i, 1]
-
-                    best_amp = diff_amplitudes[i]*norm_templates[tmp_best]
-                    best_amp2 = diff_amplitudes_2[i]*norm_templates[tmp_best + n_tm]
-
-                    idx = neighbors[tmp_peak]['idx']
-                    tdx = neighbors[tmp_peak]['tdx']
-
-                    tmp1 = c_overs[tmp_best].multiply(-best_amp)
-                    tmp1 += c_overs[tmp_best + n_tm].multiply(-best_amp2)
-
-                    to_add = tmp1.toarray()[:, tdx]
-                    b[:, idx] += to_add
-
-                is_valid = data > 0.5*min_sps
+                is_valid = numpy.ones(data.shape, dtype=numpy.bool)
                 valid_indices = numpy.where(is_valid)
 
-                if len(valid_indices[0]) == 0:
-                    break
+                M = numpy.zeros((10*nb_local_peak_times, 10*nb_local_peak_times), dtype=numpy.float32)
 
-            are_valid = (amplitudes[:n_tm] > min_scalar_products)*(amplitudes[:n_tm] < max_scalar_products)
-            valid_indices = numpy.where(are_valid)
+                selection = numpy.zeros((0, 2), dtype=numpy.int32)
+                res_sps = numpy.zeros(0, dtype=numpy.float32)
 
-            if len(valid_indices[0]) > 0:
-            
-                for i,j in zip(valid_indices[0], valid_indices[1]):
+                full_sps = b.copy()
+
+                peaks_times = local_peaktimes - local_peaktimes[:, numpy.newaxis]
+                all_neighbors = numpy.abs(peaks_times) <= temp_2_shift
+                neighbors = {}
+                for i in range(len(all_neighbors)):
+                    idx = numpy.where(all_neighbors[i])[0]
+                    neighbors[i] = {'idx' : idx, 'tdx' : peaks_times[i][idx] + temp_2_shift }
+
+                while True:
+
+                    best_amplitude_idx = data[is_valid].argmax()
+                    best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                        
+                    to_add = numpy.array([[best_template_index, peak_index], [best_template_index+n_tm, peak_index]])
+                    selection = numpy.vstack((selection, to_add))
+
+                    res_sps = numpy.concatenate((res_sps, full_sps[selection[-2:, 0], selection[-2:, 1]]))
+
+                    b[best_template_index, peak_index] = -numpy.inf
+
+                    nb_selection = len(selection)
+        
+                    delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[-1, 1]]
+                    idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
+
+                    myline = temp_2_shift + delta_t[idx]
+                    line_1 = c_overs[selection[-2, 0]][selection[idx, 0], myline]
+                    line_2 = c_overs[selection[-1, 0]][selection[idx, 0], myline]
+
+                    M[nb_selection-2, idx] = line_1
+                    M[nb_selection-1, idx] = line_2
+
+                    if nb_selection >= (M.shape[0] - 1):
+                        Z = numpy.zeros((2*M.shape[0], 2*M.shape[1]), dtype=numpy.float32)
+                        Z[:nb_selection, :nb_selection] = M[:nb_selection, :nb_selection]
+                        M = Z
+
+                    all_amplitudes = scipy.linalg.solve(M[:nb_selection, :nb_selection], res_sps, assume_a='sym', check_finite=False, lower=True)/norm_templates[selection[:, 0]]
+
+                    diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
+                    diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
+
+                    modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-3)[0]
+                    
+                    amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
+                    for i in modified:
+                        
+                        tmp_best = selection[2*i, 0]
+                        tmp_peak = selection[2*i, 1]
+
+                        best_amp = diff_amplitudes[i]*norm_templates[tmp_best]
+                        best_amp2 = diff_amplitudes_2[i]*norm_templates[tmp_best + n_tm]
+
+                        idx = neighbors[tmp_peak]['idx']
+                        tdx = neighbors[tmp_peak]['tdx']
+
+                        tmp1 = c_overs[tmp_best].multiply(-best_amp)
+                        tmp1 += c_overs[tmp_best + n_tm].multiply(-best_amp2)
+
+                        to_add = tmp1.toarray()[:, tdx]
+                        b[:, idx] += to_add
+
+                    is_valid = data > 0.5*min_sps
+                    valid_indices = numpy.where(is_valid)
+
+                    if len(valid_indices[0]) == 0:
+                        break
+
+                are_valid = (amplitudes[:n_tm] > min_scalar_products)*(amplitudes[:n_tm] < max_scalar_products)
+                valid_indices = numpy.where(are_valid)
+
+                if len(valid_indices[0]) > 0:
+                
+                    for i,j in zip(valid_indices[0], valid_indices[1]):
+                        # Add matching to the result.
+                        t_spike = all_spikes[j]
+
+                        if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
+                            result['spiketimes'] += [t_spike]
+                            result['amplitudes'] += [(amplitudes[i,j], amplitudes[i + n_tm,j])]
+                            result['templates'] += [i]
+                        elif mse_error:
+                            mse_fit['spiketimes'] += [t_spike]
+                            mse_fit['amplitudes'] += [(amplitudes[i,j], amplitudes[i + n_tm,j])]
+                            mse_fit['templates'] += [i]
+
+                        # Save debug data.
+                        if debug:
+                            result_debug['chunk_nbs'] += [gidx]
+                            result_debug['iteration_nbs'] += [iteration_nb]
+                            result_debug['peak_nbs'] += [peak_index]
+                            result_debug['peak_local_time_steps'] += [local_peaktimes[peak_index]]
+                            result_debug['peak_time_steps'] += [all_spikes[peak_index]]
+                            result_debug['peak_scalar_products'] += [peak_scalar_product]
+                            result_debug['peak_solved_flags'] += [b[best_template_index, peak_index]]
+                            result_debug['template_nbs'] += [best_template_index]
+                            result_debug['success_flags'] += [True]
+
+                iteration_nb += 1
+
+            else:
+
+                while True:
+
+                    is_valid = (data > min_sps)*(data < max_sps)
+                    valid_indices = numpy.where(is_valid)
+
+                    if len(valid_indices[0]) == 0:
+                        break
+
+                    best_amplitude_idx = data[is_valid].argmax()
+
+                    best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                    peak_scalar_product = data[is_valid][best_amplitude_idx]
+
+                    best_template2_index = best_template_index + n_tm
+                    if templates_normalization:
+                        best_amp = b[best_template_index, peak_index] / n_scalar
+                        best_amp_n = best_amp / norm_templates[best_template_index]
+                        if two_components:
+                            best_amp2 = b[best_template2_index, peak_index] / n_scalar
+                            best_amp2_n = best_amp2 /  norm_templates[best_template2_index]
+                        else:
+                            best_amp2 = 0
+                            best_amp2_n = 0
+                    else:
+                        best_amp = b[best_template_index, peak_index] / norm_templates_2[best_template_index]
+                        best_amp_n = best_amp
+                        if two_components:     
+                            best_amp2 = b[best_template2_index, peak_index] / norm_templates_2[best_template2_index]
+                            best_amp2_n = best_amp2
+                        else:
+                            best_amp2 = 0
+                            best_amp2_n = 0
+
+                    peak_time_step = local_peaktimes[peak_index]
+
+                    peak_data = (local_peaktimes - peak_time_step).astype(np.int32)
+                    is_neighbor = np.abs(peak_data) <= temp_2_shift
+                    idx_neighbor = peak_data[is_neighbor] + temp_2_shift
+
+                    tmp1 = c_overs[best_template_index].multiply(-best_amp)
+                    if numpy.abs(best_amp2_n) > min_second_component:
+                        tmp1 += c_overs[best_template2_index].multiply(-best_amp2)
+
+                    to_add = tmp1.toarray()[:, idx_neighbor]
+                    b[:, is_neighbor] += to_add
+
+                    b[best_template_index, peak_index] = -numpy.inf
+
                     # Add matching to the result.
-                    t_spike = all_spikes[j]
+                    t_spike = all_spikes[peak_index]
 
                     if (t_spike >= local_restriction[0]) and (t_spike < local_restriction[1]):
                         result['spiketimes'] += [t_spike]
-                        result['amplitudes'] += [(amplitudes[i,j], amplitudes[i + n_tm,j])]
-                        result['templates'] += [i]
+                        result['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                        result['templates'] += [best_template_index]
                     elif mse_error:
                         mse_fit['spiketimes'] += [t_spike]
-                        mse_fit['amplitudes'] += [(amplitudes[i,j], amplitudes[i + n_tm,j])]
-                        mse_fit['templates'] += [i]
+                        mse_fit['amplitudes'] += [(best_amp_n, best_amp2_n)]
+                        mse_fit['templates'] += [best_template_index]
 
                     # Save debug data.
                     if debug:
@@ -583,7 +674,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         result_debug['template_nbs'] += [best_template_index]
                         result_debug['success_flags'] += [True]
 
-            iteration_nb += 1
+
+                    iteration_nb += 1
 
             spikes_to_write = numpy.array(result['spiketimes'], dtype=numpy.uint32)
             amplitudes_to_write = numpy.array(result['amplitudes'], dtype=numpy.float32)
