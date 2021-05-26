@@ -303,10 +303,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 min_sps = min_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
                 max_sps = max_scalar_products * sub_norm_templates_2[:, numpy.newaxis]
 
-    if templates_normalization:
-        min_sps = sub_norm_templates[:, numpy.newaxis]
-    else:
-        min_sps = sub_norm_templates_2[:, numpy.newaxis]
+    if full_omp:
+        if templates_normalization:
+            min_sps = sub_norm_templates[:, numpy.newaxis]
+        else:
+            min_sps = sub_norm_templates_2[:, numpy.newaxis]
 
     for gcount, gidx in enumerate(to_explore):
         # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."
