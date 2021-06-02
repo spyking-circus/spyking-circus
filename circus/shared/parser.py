@@ -94,7 +94,7 @@ class CircusParser(object):
                           ['fitting', 'auto_nb_chances', 'bool', 'False'],
                           ['fitting', 'sparse_thresh', 'float', '0.2'],
                           ['fitting', 'mse_error', 'bool', 'False'],
-                          ['fitting', 'full_omp', 'bool', 'True'],
+                          ['fitting', 'full_omp', 'bool', 'False'],
                           ['data', 'global_tmp', 'bool', 'True'],
                           ['data', 'chunk_size', 'int', '30'],
                           ['data', 'stream_mode', 'string', 'None'],
