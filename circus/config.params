@@ -17,13 +17,14 @@ N_t            = 3          # Width of the templates [in ms]
 spike_thresh   = 6          # Threshold for spike detection
 peaks          = negative   # Can be negative (default), positive or both
 dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
+weird_thresh   =            # If not empty, peaks higher than weird_thresh.MAD will be discared and logged as artefacts
 
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, medians over all channels within shanks are substracted (movement artifacts)
 common_ground  =            # If you want to use channels as ground within shanks {channel_group : ground_channel}
-sat_value      =            # If you want to flag values higher than saturation_value
+sat_value      =            # If you want to flag values higher than saturation_value and turn them into 0
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)

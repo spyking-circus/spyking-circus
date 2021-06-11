@@ -51,6 +51,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     median_channels = numpy.median(numpy.sum(supports, 1))
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
+    weird_thresh = params.get('detection', 'weird_thresh')
+    if weird_thresh != '':
+        ignore_artefacts = True
+        weird_thresh = float(weird_thresh)
+    else:
+        ignore_artefacts = False
+
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
         splits = np.linspace(0, params.data_file.duration, nb_amp_bins)
