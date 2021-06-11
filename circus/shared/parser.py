@@ -137,6 +137,7 @@ class CircusParser(object):
                           ['whitening', 'sort_waveforms', 'bool', 'True'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
+                          ['filtering', 'sat_value', 'string', ''],
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', ''],
                           ['clustering', 'debug_plots', 'string', ''],

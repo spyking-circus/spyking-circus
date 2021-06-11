@@ -11,7 +11,7 @@ from circus.shared import plot
 from circus.shared.utils import *
 from circus.shared.probes import get_nodes_and_edges
 from circus.shared.messages import print_and_log, init_logging
-from circus.shared.files import get_artefact
+from circus.shared.files import get_artefact, collect_saturation
 from circus.shared.mpi import detect_memory
 
 
@@ -72,8 +72,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     artefacts_done = check_if_done(params, 'artefacts_done', logger)
     median_done = check_if_done(params, 'median_done', logger)
     ground_done = check_if_done(params, 'ground_done', logger)
+    file_out_suff = params.get('data', 'file_out_suff')
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median = params.getboolean('filtering', 'remove_median')
+    sat_value = params.get('filtering', 'sat_value')
+    if sat_value != '':
+        flag_saturation = True
+        sat_value = float(sat_value)
+    else:
+        flag_saturation = False
     common_ground = params.common_ground
     remove_ground = len(common_ground) > 0
     nodes, edges = get_nodes_and_edges(params)
@@ -164,6 +171,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             data_file_in.open(mode='r')
             data_file_out.open(mode='r+')
 
+        if flag_saturation:
+            comm.Barrier()
+            saturation_times = open(file_out_suff + '.times-%d.data' % comm.rank, 'wb')
+            saturation_channels = open(file_out_suff + '.channels-%d.data' % comm.rank, 'wb')
+            saturation_values = open(file_out_suff + '.values-%d.data' % comm.rank, 'wb')
+
         for count, gidx in enumerate(to_explore):
 
             is_first = data_file_in.is_first_chunk(gidx, nb_chunks)
@@ -180,7 +193,16 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 padding = (0, 0)
 
             local_chunk, t_offset =  data_file_in.get_data(gidx, chunk_size, padding)
+
             len_chunk = len(local_chunk)
+
+            if flag_saturation:
+                raw_data = local_chunk[numpy.abs(padding[0]):len_chunk-numpy.abs(padding[1])]
+                indices = numpy.where(numpy.abs(raw_data) > sat_value)
+                saturation_times.write(indices[0].tostring())
+                saturation_channels.write(indices[1].tostring())
+                saturation_values.write(raw_data[indices].tostring())
+                raw_data[indices] = 0
 
             if do_filtering:
                 if not process_all_channels:
@@ -223,6 +245,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
 
             data_file_out.set_data(g_offset, local_chunk)
+
+        if flag_saturation:
+            saturation_times.flush()
+            os.fsync(saturation_times.fileno())
+            saturation_times.close()
+
+            saturation_values.flush()
+            os.fsync(saturation_values.fileno())
+            saturation_values.close()
+            
+            saturation_channels.flush()
+            os.fsync(saturation_channels.fileno())
+            saturation_channels.close()
+
+            # We need to gather the results into a single file
+
+            if comm.rank == 0:
+                collect_saturation(comm.size, params, erase=True)
 
         sys.stderr.flush()
         comm.Barrier()

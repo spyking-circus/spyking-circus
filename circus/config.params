@@ -23,6 +23,7 @@ cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, medians over all channels within shanks are substracted (movement artifacts)
 common_ground  =            # If you want to use channels as ground within shanks {channel_group : ground_channel}
+sat_value      =            # If you want to flag values higher than saturation_value
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
