@@ -547,8 +547,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             extrema = numpy.argmax(numpy.abs(scaled_template))
 
                         good_elec, _ = numpy.unravel_index(extrema, (n_e, n_t))
-                        t_spike = local_peaktimes[peak_index]
-                        crossing_threshold = numpy.abs(local_chunk[t_spike, good_elec]) > thresholds[good_elec]
+                        local_t_spike = local_peaktimes[peak_index]
+                        crossing_threshold = numpy.abs(local_chunk[local_t_spike, good_elec]) > thresholds[good_elec]
 
                     if crossing_threshold:
                         result['spiketimes'] += [t_spike]
