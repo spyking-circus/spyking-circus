@@ -439,7 +439,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             sub_mat = local_chunk[local_peaktimes[:, None] + temp_window]
             sub_mat = sub_mat.transpose(2, 1, 0).reshape(size_window, nb_local_peak_times)
 
-            del local_chunk
+            #del local_chunk
 
             b = templates.dot(sub_mat)
     
@@ -538,6 +538,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             scaled_template = best_amp_n * templates[best_template_index].toarray().reshape(n_e, n_t)
                         else:
                             scaled_template = best_amp_n * templates[best_template_index].reshape(n_e, n_t)
+
                         if sign_peaks == 'negative':
                             extrema = numpy.argmin(scaled_template)
                         elif sign_peaks == 'positive':
@@ -545,8 +546,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         elif sign_peaks == 'both':
                             extrema = numpy.argmax(numpy.abs(scaled_template))
 
-                        good_elec, good_time = numpy.unravel_index(extrema, (n_e, n_t))
-                        crossing_threshold = numpy.abs(scaled_template[good_elec, good_time]) > thresholds[good_elec]
+                        good_elec, _ = numpy.unravel_index(extrema, (n_e, n_t))
+                        t_spike = local_peaktimes[peak_index]
+                        crossing_threshold = numpy.abs(local_chunk[t_spike, good_elec]) > thresholds[good_elec]
 
                     if crossing_threshold:
                         result['spiketimes'] += [t_spike]
