@@ -108,11 +108,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if ignore_artefacts:
         comm.Barrier()
-        arte_spiketimes_file = open(file_out_suff + '.times-%d.arte' % comm.rank, 'wb')
+        arte_spiketimes_file = open(file_out_suff + '.times-%d.sata' % comm.rank, 'wb')
         comm.Barrier()
-        arte_electrodes_file = open(file_out_suff + '.elec-%d.arte' % comm.rank, 'wb')
+        arte_electrodes_file = open(file_out_suff + '.elec-%d.sata' % comm.rank, 'wb')
         comm.Barrier()
-        arte_amplitudes_file = open(file_out_suff + '.amp-%d.arte' % comm.rank, 'wb')
+        arte_amplitudes_file = open(file_out_suff + '.amp-%d.sata' % comm.rank, 'wb')
         comm.Barrier()
 
     if use_gpu and do_spatial_whitening:
@@ -160,9 +160,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_elecs = [numpy.zeros(0, dtype=numpy.uint32)]
         local_amps = [numpy.zeros(0, dtype=numpy.float32)]
 
-        artefacts_peaktimes = [numpy.zeros(0, dtype=numpy.uint32)]
-        artefacts_elecs = [numpy.zeros(0, dtype=numpy.uint32)]
-        artefacts_amps = [numpy.zeros(0, dtype=numpy.float32)]        
+        if ignore_artefacts:
+            artefacts_peaktimes = [numpy.zeros(0, dtype=numpy.uint32)]
+            artefacts_elecs = [numpy.zeros(0, dtype=numpy.uint32)]
+            artefacts_amps = [numpy.zeros(0, dtype=numpy.float32)]    
 
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
@@ -171,6 +172,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = scipy.signal.find_peaks(
                         filter_chunk[:, i], height=matched_tresholds_pos[i], width=spike_width, distance=dist_peaks, wlen=N_t
                     )[0]
+
+                    if ignore_artefacts:
+                        artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
+                        to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                        peaktimes = peaktimes[to_keep]
+                        artefacts_peaktimes.append(artetimes)
+                        artefacts_elecs.append(i*numpy.ones(len(artetimes), dtype='uint32'))
+                        artefacts_amps.append(local_chunk[artetimes, i])
+
                     local_peaktimes.append(peaktimes)
                     local_elecs.append(i*numpy.ones(len(peaktimes), dtype='uint32'))
                     local_amps.append(filter_chunk[peaktimes, i])
@@ -180,6 +190,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = scipy.signal.find_peaks(
                         filter_chunk[:, i], height=matched_tresholds_neg[i], width=spike_width, distance=dist_peaks, wlen=N_t
                     )[0]
+
+                    if ignore_artefacts:
+                        artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
+                        to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                        peaktimes = peaktimes[to_keep]
+                        artefacts_peaktimes.append(artetimes)
+                        artefacts_elecs.append(i*numpy.ones(len(artetimes), dtype='uint32'))
+                        artefacts_amps.append(local_chunk[artetimes, i])
+
                     local_peaktimes.append(peaktimes)
                     local_elecs.append(i*numpy.ones(len(peaktimes), dtype='uint32'))
                     local_amps.append(filter_chunk[peaktimes, i])
@@ -230,6 +249,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_amps = local_amps[~is_included]
 
                 if ignore_artefacts:
+                    is_included = numpy.in1d(artefacts_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                     artefacts_peaktimes = artefacts_peaktimes[~is_included]
                     artefacts_elecs = artefacts_elecs[~is_included]
                     artefacts_amps = artefacts_amps[~is_included]                    

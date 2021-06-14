@@ -237,6 +237,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     templates_file = open(file_out_suff + '.templates-%d.data' % comm.rank, 'wb')
     comm.Barrier()
 
+    if ignore_artefacts:
+        comm.Barrier()
+        arte_spiketimes_file = open(file_out_suff + '.times-%d.sata' % comm.rank, 'wb')
+        comm.Barrier()
+        arte_electrodes_file = open(file_out_suff + '.elec-%d.sata' % comm.rank, 'wb')
+        comm.Barrier()
+        arte_amplitudes_file = open(file_out_suff + '.amp-%d.sata' % comm.rank, 'wb')
+        comm.Barrier()
 
     if mse_error:
         mse_file = open(file_out_suff + '.mses-%d.data' % comm.rank, 'wb')
@@ -368,11 +376,25 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         local_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
 
+        if ignore_artefacts:
+            artefacts_peaktimes = [numpy.zeros(0, dtype=numpy.uint32)]
+            artefacts_elecs = [numpy.zeros(0, dtype=numpy.uint32)]
+            artefacts_amps = [numpy.zeros(0, dtype=numpy.float32)]    
+
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
                 for i in range(n_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_thresholds_pos[i])[0]
+
+                    if ignore_artefacts:
+                        artetimes = scipy.signal.find_peaks(numpy.abs(filter_chunk[:, i]), height=weird_thresh[i])[0]
+                        to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                        peaktimes = peaktimes[to_keep]
+                        artefacts_peaktimes.append(artetimes)
+                        artefacts_elecs.append(i*numpy.ones(len(artetimes), dtype='uint32'))
+                        artefacts_amps.append(local_chunk[artetimes, i])
+
                     local_peaktimes.append(peaktimes)
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
@@ -380,10 +402,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_neg, axis=0, mode='constant')
                 for i in range(n_e):
                     peaktimes = scipy.signal.find_peaks(filter_chunk[:, i], height=matched_thresholds_neg[i])[0]
+
+                    if ignore_artefacts:
+                        artetimes = scipy.signal.find_peaks(numpy.abs(filter_chunk[:, i]), height=weird_thresh[i])[0]
+                        to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                        peaktimes = peaktimes[to_keep]
+                        artefacts_peaktimes.append(artetimes)
+                        artefacts_elecs.append(i*numpy.ones(len(artetimes), dtype='uint32'))
+                        artefacts_amps.append(local_chunk[artetimes, i])
+
                     local_peaktimes.append(peaktimes)
                     if collect_all:
                         all_found_spikes[i] += peaktimes.tolist()
             local_peaktimes = numpy.concatenate(local_peaktimes)
+
+            if ignore_artefacts:
+                artefacts_peaktimes = numpy.concatenate(artefacts_peaktimes)
+                artefacts_elecs = numpy.concatenate(artefacts_elecs)
+                artefacts_amps = numpy.concatenate(artefacts_amps)
         else:
             for i in range(n_e):
                 if sign_peaks == 'negative':
@@ -399,11 +435,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
                     to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
                     peaktimes = peaktimes[to_keep]
+                    artefacts_peaktimes.append(artetimes)
+                    artefacts_elecs.append(i*numpy.ones(len(artetimes), dtype='uint32'))
+                    artefacts_amps.append(local_chunk[artetimes, i])
 
                 local_peaktimes.append(peaktimes)
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
             local_peaktimes = numpy.concatenate(local_peaktimes)
+
+            if ignore_artefacts:
+                artefacts_peaktimes = numpy.concatenate(artefacts_peaktimes)
+                artefacts_elecs = numpy.concatenate(artefacts_elecs)
+                artefacts_amps = numpy.concatenate(artefacts_amps)
 
         local_peaktimes = numpy.unique(local_peaktimes)
         g_offset = t_offset + padding[0]
@@ -413,6 +457,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if dead_indices[0] != dead_indices[1]:
                 is_included = numpy.in1d(local_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
                 local_peaktimes = local_peaktimes[~is_included]
+
+                if ignore_artefacts:
+                    is_included = numpy.in1d(artefacts_peaktimes + g_offset, all_dead_times[dead_indices[0]:dead_indices[1]])
+                    artefacts_peaktimes = artefacts_peaktimes[~is_included]
+                    artefacts_elecs = artefacts_elecs[~is_included]
+                    artefacts_amps = artefacts_amps[~is_included]  
+
                 local_peaktimes = numpy.sort(local_peaktimes)
         else:
             dead_indices = None  # default assignment (for PyCharm code inspection)
@@ -421,6 +472,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_borders = (template_shift, len_chunk - template_shift)
         idx = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
         local_peaktimes = numpy.compress(idx, local_peaktimes)
+
+        if ignore_artefacts:
+            idx = (artefacts_peaktimes >= local_borders[0]) & (artefacts_peaktimes < local_borders[1])
+            artefacts_peaktimes = numpy.compress(idx, artefacts_peaktimes)
+            artefacts_elecs = numpy.compress(idx, artefacts_elecs)
+            artefacts_amps = numpy.compress(idx, artefacts_amps)
 
         if collect_all:
             for i in range(n_e):
@@ -571,6 +628,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             amplitudes_file.write(amplitudes_to_write.tostring())
             templates_file.write(templates_to_write.tostring())
 
+            if ignore_artefacts:
+                arte_spiketimes_file.write(artefacts_peaktimes.astype(numpy.uint32).tostring())
+                arte_electrodes_file.write(artefacts_elecs.tostring())
+                arte_amplitudes_file.write(artefacts_amps.tostring())
+
             if mse_error:
                 curve = numpy.zeros((len_chunk, n_e), dtype=numpy.float32)
                 for spike, temp_id, amplitude in zip(result['spiketimes'], result['templates'], result['amplitudes']):
@@ -689,6 +751,19 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         os.fsync(mse_file.fileno())
         mse_file.close()
 
+    if ignore_artefacts:
+        arte_spiketimes_file.flush()
+        os.fsync(arte_spiketimes_file.fileno())
+        arte_spiketimes_file.close()
+
+        arte_electrodes_file.flush()
+        os.fsync(arte_electrodes_file.fileno())
+        arte_electrodes_file.close()
+
+        arte_amplitudes_file.flush()
+        os.fsync(arte_amplitudes_file.fileno())
+        arte_amplitudes_file.close()
+
     if debug:
         # Close debug files.
         for field_file in [
@@ -716,5 +791,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         io.collect_data(comm.size, params, erase=True)
+
+        if ignore_artefacts:
+            io.collect_artefacts(comm.size, params, erase=True)
 
     data_file.close()

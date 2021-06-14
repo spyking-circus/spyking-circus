@@ -494,6 +494,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
 
+                            if ignore_artefacts:
+                                artetimes = scipy.signal.find_peaks(numpy.abs(filter_chunk[:, i]), height=weird_thresh[i], width=spike_width, distance=dist_peaks, wlen=n_t)[0]
+                                to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                                peaktimes = peaktimes[to_keep]
+
                             idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
                             found_peaktimes.append(peaktimes[idx])
 
@@ -517,6 +522,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                 width=spike_width, distance=dist_peaks, wlen=n_t
                             )[0]
                             peaktimes = peaktimes.astype(numpy.uint32)
+
+                            if ignore_artefacts:
+                                artetimes = scipy.signal.find_peaks(numy.abs(filter_chunk[:, i]), height=weird_thresh[i], width=spike_width, distance=dist_peaks, wlen=n_t)[0]
+                                to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                                peaktimes = peaktimes[to_keep]
 
                             idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
                             peaktimes = peaktimes[idx]

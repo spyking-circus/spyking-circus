@@ -2079,9 +2079,9 @@ def collect_artefacts(nb_threads, params, erase=False):
 
     # For each thread/process collect data.
     for count, node in enumerate(to_explore):
-        spiketimes_file = file_out_suff + '.times-%d.arte' % node
-        templates_file = file_out_suff + '.elec-%d.arte' % node
-        amplitudes_file = file_out_suff + '.amp-%d.arte' % node
+        spiketimes_file = file_out_suff + '.times-%d.sata' % node
+        templates_file = file_out_suff + '.elec-%d.sata' % node
+        amplitudes_file = file_out_suff + '.amp-%d.sata' % node
 
         if os.path.exists(templates_file):
 
@@ -2131,7 +2131,7 @@ def collect_artefacts(nb_threads, params, erase=False):
     print_and_log(to_write, 'info', logger)
 
     if erase:
-        purge(file_out_suff, '.arte')
+        purge(file_out_suff, '.sata')
 
 
 def get_results(params, extension=''):
