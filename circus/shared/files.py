@@ -807,6 +807,18 @@ def load_data(params, data, extension=''):
             if comm.rank == 0:
                 print_and_log(["The whitening step should be launched first!"], 'error', logger)
             sys.exit(0)
+    elif data == 'weird-thresholds':
+        filename = file_out_suff + '.basis.hdf5'
+        weird_thresh = params.getfloat('detection', 'weird_thresh')
+        if os.path.exists(filename):
+            myfile = h5py.File(filename, 'r', libver='earliest')
+            thresholds = myfile.get('thresholds')[:]
+            myfile.close()
+            return weird_thresh * thresholds
+        else:
+            if comm.rank == 0:
+                print_and_log(["The whitening step should be launched first!"], 'error', logger)
+            sys.exit(0)
     elif data == 'mads':
         filename = file_out_suff + '.basis.hdf5'
         if os.path.exists(filename):

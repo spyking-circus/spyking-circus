@@ -54,7 +54,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     weird_thresh = params.get('detection', 'weird_thresh')
     if weird_thresh != '':
         ignore_artefacts = True
-        weird_thresh = float(weird_thresh)
+        weird_thresh = io.load_data(params, 'weird-thresholds')
     else:
         ignore_artefacts = False
 
@@ -368,6 +368,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         local_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
 
+        if ignore_artefacts:
+            artefact_times = [numpy.empty(0, dtype=numpy.uint32)]
+
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
@@ -394,12 +397,24 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=thresholds[i])[0]
                 else:
                     raise ValueError("Unexpected value %s" % sign_peaks)
+
+                if ignore_artefacts:
+                    artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
+                    artefact_times.append(artetimes)
+
                 local_peaktimes.append(peaktimes)
                 if collect_all:
                     all_found_spikes[i] += peaktimes.tolist()
             local_peaktimes = numpy.concatenate(local_peaktimes)
 
         local_peaktimes = numpy.unique(local_peaktimes)
+
+        if ignore_artefacts:
+            artetimes = numpy.concatenate(artefact_times)
+            if len(artetimes) > 0:
+                artetimes = numpy.unique(artetimes)
+                to_keep = numpy.logical_not(numpy.in1d(local_peaktimes, artetimes))
+                local_peaktimes = local_peaktimes[to_keep]
 
         g_offset = t_offset + padding[0]
 
