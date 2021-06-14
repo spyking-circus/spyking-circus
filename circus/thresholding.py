@@ -106,6 +106,15 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     amplitudes_file = open(file_out_suff + '.amp-%d.data' % comm.rank, 'wb')
     comm.Barrier()
 
+    if ignore_artefacts:
+        comm.Barrier()
+        arte_spiketimes_file = open(file_out_suff + '.times-%d.arte' % comm.rank, 'wb')
+        comm.Barrier()
+        arte_electrodes_file = open(file_out_suff + '.elec-%d.arte' % comm.rank, 'wb')
+        comm.Barrier()
+        arte_amplitudes_file = open(file_out_suff + '.amp-%d.arte' % comm.rank, 'wb')
+        comm.Barrier()
+
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
@@ -151,6 +160,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_elecs = [numpy.zeros(0, dtype=numpy.uint32)]
         local_amps = [numpy.zeros(0, dtype=numpy.float32)]
 
+        artefacts_peaktimes = [numpy.zeros(0, dtype=numpy.uint32)]
+        artefacts_elecs = [numpy.zeros(0, dtype=numpy.uint32)]
+        artefacts_amps = [numpy.zeros(0, dtype=numpy.float32)]        
+
         if matched_filter:
             if sign_peaks in ['positive', 'both']:
                 filter_chunk = scipy.ndimage.filters.convolve1d(local_chunk, waveform_pos, axis=0, mode='constant')
@@ -189,6 +202,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
                     to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
                     peaktimes = peaktimes[to_keep]
+                    artefacts_peaktimes.append(artetimes)
+                    artefacts_elecs.append(i*numpy.ones(len(artetimes), dtype='uint32'))
+                    artefacts_amps.append(local_chunk[artetimes, i])
 
                 local_peaktimes.append(peaktimes)
                 local_elecs.append(i*numpy.ones(len(peaktimes), dtype='uint32'))
@@ -197,6 +213,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.concatenate(local_peaktimes)
         local_elecs = numpy.concatenate(local_elecs)
         local_amps = numpy.concatenate(local_amps)
+
+        if ignore_artefacts:
+            artefacts_peaktimes = numpy.concatenate(artefacts_peaktimes)
+            artefacts_elecs = numpy.concatenate(artefacts_elecs)
+            artefacts_amps = numpy.concatenate(artefacts_amps)
 
         g_offset = t_offset + padding[0]
 
@@ -208,16 +229,33 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 local_elecs = local_elecs[~is_included]
                 local_amps = local_amps[~is_included]
 
+                if ignore_artefacts:
+                    artefacts_peaktimes = artefacts_peaktimes[~is_included]
+                    artefacts_elecs = artefacts_elecs[~is_included]
+                    artefacts_amps = artefacts_amps[~is_included]                    
+
         # print "Removing the useless borders..."
         local_borders = (dist_peaks, len_chunk - dist_peaks)
         idx = (local_peaktimes >= local_borders[0]) & (local_peaktimes < local_borders[1])
+
         local_peaktimes = numpy.compress(idx, local_peaktimes) + g_offset
         local_elecs = numpy.compress(idx, local_elecs)
         local_amps = numpy.compress(idx, local_amps)
 
+        if ignore_artefacts:
+            idx = (artefacts_peaktimes >= local_borders[0]) & (artefacts_peaktimes < local_borders[1])
+            artefacts_peaktimes = numpy.compress(idx, artefacts_peaktimes) + g_offset
+            artefacts_elecs = numpy.compress(idx, artefacts_elecs)
+            artefacts_amps = numpy.compress(idx, artefacts_amps)
+        
         spiketimes_file.write(local_peaktimes.astype(numpy.uint32).tostring())
         electrodes_file.write(local_elecs.tostring())
         amplitudes_file.write(local_amps.tostring())
+
+        if ignore_artefacts:
+            arte_spiketimes_file.write(artefacts_peaktimes.astype(numpy.uint32).tostring())
+            arte_electrodes_file.write(artefacts_elecs.tostring())
+            arte_amplitudes_file.write(artefacts_amps.tostring())
 
     sys.stderr.flush()
 
@@ -233,6 +271,20 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     os.fsync(amplitudes_file.fileno())
     amplitudes_file.close()
 
+    if ignore_artefacts:
+        arte_spiketimes_file.flush()
+        os.fsync(arte_spiketimes_file.fileno())
+        arte_spiketimes_file.close()
+
+        arte_electrodes_file.flush()
+        os.fsync(arte_electrodes_file.fileno())
+        arte_electrodes_file.close()
+
+        arte_amplitudes_file.flush()
+        os.fsync(arte_amplitudes_file.fileno())
+        arte_amplitudes_file.close()
+
+
     comm.Barrier()
     
     if SHARED_MEMORY and ignore_dead_times:
@@ -240,5 +292,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     if comm.rank == 0:
         io.collect_mua(comm.size, params, erase=True)
+
+        if ignore_artefacts:
+            io.collect_artefacts(comm.size, params, erase=True)
 
     data_file.close()
