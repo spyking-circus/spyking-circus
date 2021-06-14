@@ -109,6 +109,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     low_channels_thr = params.getint('detection', 'low_channels_thr')
     fixed_amplitudes = params.getboolean('clustering', 'fixed_amplitudes')
 
+    weird_thresh = params.get('detection', 'weird_thresh')
+    if weird_thresh != '':
+        ignore_artefacts = True
+        weird_thresh = io.load_data(params, 'weird-thresholds')
+    else:
+        ignore_artefacts = False
+
     if not fixed_amplitudes:
         nb_amp_bins = params.getint('clustering', 'nb_amp_bins')
         splits = np.linspace(0, params.data_file.duration, nb_amp_bins)
@@ -546,6 +553,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         else:
                             peaktimes = numpy.empty(0, dtype=numpy.uint32)
                         peaktimes = peaktimes.astype(numpy.uint32)
+
+                        if ignore_artefacts:
+                            artetimes = scipy.signal.find_peaks(numpy.abs(x), height=weird_thresh[i], width=spike_width, distance=dist_peaks, wlen=n_t)[0]
+                            to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                            peaktimes = peaktimes[to_keep]
 
                         idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
                         peaktimes = peaktimes[idx]
