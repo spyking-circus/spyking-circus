@@ -1835,7 +1835,7 @@ def collect_saturation(nb_threads, params, erase=False):
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
     data_length = data_stats(params, show=False)
     duration = int(data_length)
-    print_and_log(["Gathering MUA from %d nodes..." % nb_threads], 'default', logger)
+    print_and_log(["Reading saturation values from %d nodes..." % nb_threads], 'default', logger)
 
     # Initialize data collection.
     result = {
@@ -1887,7 +1887,7 @@ def collect_saturation(nb_threads, params, erase=False):
         result['amplitudes'][key] = result['amplitudes'][key][idx]
 
     # Save results into `<dataset>/<dataset>.result.hdf5`.
-    mydata = h5py.File(file_out_suff + '.mua.hdf5', 'w', libver='earliest')
+    mydata = h5py.File(file_out_suff + '.saturation.hdf5', 'w', libver='earliest')
     keys = ['timesteps', 'amplitudes', 'info']
     for key in keys:
         mydata.create_group(key)
