@@ -1,4 +1,11 @@
 =============
+Release 1.0.9
+=============
+
+* add the option to flag saturation values (with the sat_value parameter)
+
+
+=============
 Release 1.0.8
 =============
 

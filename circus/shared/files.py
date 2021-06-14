@@ -1904,7 +1904,7 @@ def collect_saturation(nb_threads, params, erase=False):
     for item in result['timesteps'].keys():
         count += len(result['timesteps'][item])
 
-    to_write = ["Number of saturation times : %d" % count]
+    to_write = ["Total saturation over all channels: %gs" %(count / data_file.sampling_rate)]
 
     print_and_log(to_write, 'info', logger)
 
