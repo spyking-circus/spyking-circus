@@ -474,7 +474,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         local_peaktimes = numpy.compress(idx, local_peaktimes)
 
         if ignore_artefacts:
-            idx = (artefacts_peaktimes >= local_borders[0]) & (artefacts_peaktimes < local_borders[1])
+            artefacts_peaktimes = artefacts_peaktimes + g_offset
+            idx = (artefacts_peaktimes >= t_offset) & (artefacts_peaktimes < t_offset + my_chunk_size)
             artefacts_peaktimes = numpy.compress(idx, artefacts_peaktimes)
             artefacts_elecs = numpy.compress(idx, artefacts_elecs)
             artefacts_amps = numpy.compress(idx, artefacts_amps)
