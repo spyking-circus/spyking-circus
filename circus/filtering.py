@@ -246,6 +246,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             data_file_out.set_data(g_offset, local_chunk)
 
+        sys.stderr.flush()
+
+        comm.Barrier()
+
         if flag_saturation:
             saturation_times.flush()
             os.fsync(saturation_times.fileno())
