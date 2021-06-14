@@ -3,7 +3,7 @@ Release 1.0.9
 =============
 
 * add the option to flag saturation values (with the sat_value parameter)
-
+* fix a bug: non analyzed channels were filtered (unexpected behavior)
 
 =============
 Release 1.0.8
