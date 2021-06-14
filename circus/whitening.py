@@ -336,6 +336,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         max_elts_elec *= 2
     nb_elts = int(params.getfloat('whitening', 'nb_elts') * N_e * max_elts_elec)
 
+    weird_thresh = params.get('detection', 'weird_thresh')
+    if weird_thresh != '':
+        ignore_artefacts = True
+        weird_thresh = io.load_data(params, 'weird-thresholds')
+    else:
+        ignore_artefacts = False
+
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     if ignore_dead_times:
         if SHARED_MEMORY:
@@ -439,6 +446,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             # Extracting the peaks.
             all_peaktimes = [numpy.empty(0, dtype=numpy.uint32)]
+
             found_peaktimes = []
             found_peak_amplitudes = []
             for i in range(N_e):
@@ -451,6 +459,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=height, distance=dist_peaks)[0]
                 else:
                     peaktimes = numpy.empty(0, dtype=numpy.uint32)
+
+                if ignore_artefacts:
+                    artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
+                    to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                    peaktimes = peaktimes[to_keep]
 
                 idx = (peaktimes >= local_borders[0]) & (peaktimes < local_borders[1])
                 peaktimes = peaktimes[idx]
@@ -470,9 +483,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 found_peak_amplitudes.append(peak_amplitudes)
 
             all_peaktimes = numpy.concatenate(found_peaktimes)  # i.e. concatenate once for efficiency
-            local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
-
             all_peak_amplitudes = numpy.concatenate(found_peak_amplitudes)
+            local_peaktimes, local_indices = numpy.unique(all_peaktimes, return_inverse=True)
 
             if len(local_peaktimes) > 0:
 

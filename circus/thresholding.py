@@ -40,6 +40,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ignore_dead_times = params.getboolean('triggers', 'ignore_times')
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
+
+    weird_thresh = params.get('detection', 'weird_thresh')
+    if weird_thresh != '':
+        ignore_artefacts = True
+        weird_thresh = io.load_data(params, 'weird-thresholds')
+    else:
+        ignore_artefacts = False
+
     data_file.open()
     #################################################################
 
@@ -176,6 +184,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     peaktimes = scipy.signal.find_peaks(
                         numpy.abs(local_chunk[:, i]), height=thresholds[i], width=spike_width, distance=dist_peaks, wlen=N_t
                     )[0]
+
+                if ignore_artefacts:
+                    artetimes = scipy.signal.find_peaks(numpy.abs(local_chunk[:, i]), height=weird_thresh[i])[0]
+                    to_keep = numpy.logical_not(numpy.in1d(peaktimes, artetimes))
+                    peaktimes = peaktimes[to_keep]
+
                 local_peaktimes.append(peaktimes)
                 local_elecs.append(i*numpy.ones(len(peaktimes), dtype='uint32'))
                 local_amps.append(local_chunk[peaktimes, i])
