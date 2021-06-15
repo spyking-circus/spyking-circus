@@ -84,6 +84,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     common_ground = params.common_ground
     remove_ground = len(common_ground) > 0
     nodes, edges = get_nodes_and_edges(params)
+    N_total = params.nb_channels
+    inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
+    inv_nodes[nodes] = numpy.arange(len(nodes))
     #################################################################
 
     def filter_file(data_file_in, data_file_out, do_filtering, do_remove_median, do_remove_ground):
@@ -199,8 +202,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if flag_saturation:
                 raw_data = local_chunk[numpy.abs(padding[0]):len_chunk-numpy.abs(padding[1])]
                 indices = numpy.where(numpy.abs(raw_data) >= sat_value * data_file_in.gain)
-                saturation_times.write(indices[0].tostring())
-                saturation_channels.write(indices[1].tostring())
+
+                if not process_all_channels:
+                    to_keep = numpy.in1d(indices[1], nodes)
+                    channels = inv_nodes[indices[1][to_keep]]
+                    times = indices[0][to_keep]
+                else:
+                    channels = indices[1]
+                    times = indices[0]
+
+                saturation_times.write(times.tostring())
+                saturation_channels.write(channels.tostring())
                 saturation_values.write(raw_data[indices].tostring())
                 raw_data[indices] = 0
 
