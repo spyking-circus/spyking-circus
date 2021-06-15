@@ -198,7 +198,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             if flag_saturation:
                 raw_data = local_chunk[numpy.abs(padding[0]):len_chunk-numpy.abs(padding[1])]
-                indices = numpy.where(numpy.abs(raw_data) >= sat_value)
+                indices = numpy.where(numpy.abs(raw_data) >= sat_value * data_file_in.gain)
                 saturation_times.write(indices[0].tostring())
                 saturation_channels.write(indices[1].tostring())
                 saturation_values.write(raw_data[indices].tostring())
