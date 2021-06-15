@@ -213,7 +213,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 saturation_times.write((times + t_offset).astype(numpy.uint32).tostring())
                 saturation_channels.write(channels.astype(numpy.uint32).tostring())
-                saturation_values.write(raw_data[indices].tostring())
+                saturation_values.write(raw_data[times, channels].tostring())
                 raw_data[times, channels] = 0
 
             if do_filtering:
