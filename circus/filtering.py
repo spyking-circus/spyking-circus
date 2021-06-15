@@ -211,8 +211,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     channels = indices[1]
                     times = indices[0]
 
-                saturation_times.write((times + t_offset).tostring())
-                saturation_channels.write(channels.tostring())
+                saturation_times.write((times + t_offset).astype(numpy.uint32).tostring())
+                saturation_channels.write(channels.astype(numpy.uint32).tostring())
                 saturation_values.write(raw_data[indices].tostring())
                 raw_data[indices] = 0
 
