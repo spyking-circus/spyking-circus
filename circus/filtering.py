@@ -81,6 +81,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         sat_value = float(sat_value)
     else:
         flag_saturation = False
+
     common_ground = params.common_ground
     remove_ground = len(common_ground) > 0
     nodes, edges = get_nodes_and_edges(params)
@@ -187,7 +188,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             else:
                 max_value = numpy.iinfo(data_file_in.data_dtype).max - data_file_in.dtype_offset
 
-            sat_value *= max_value
+            saturation = sat_value * max_value
 
         for count, gidx in enumerate(to_explore):
 
@@ -209,7 +210,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             len_chunk = len(local_chunk)
 
             if flag_saturation:
-                indices = numpy.where(numpy.abs(local_chunk) >= sat_value * data_file_in.gain)
+                indices = numpy.where(numpy.abs(local_chunk) >= saturation * data_file_in.gain)
 
                 if not process_all_channels:
                     to_keep = numpy.in1d(indices[1], nodes)
@@ -225,8 +226,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
                 saturation_times.write((sub_times + t_offset).astype(numpy.uint32).tostring())
                 saturation_channels.write(sub_channels.astype(numpy.uint32).tostring())
-                saturation_values.write(raw_data[sub_times, sub_channels].tostring())
-                raw_data[times, channels] = 0
+                saturation_values.write(local_chunk[sub_times, sub_channels].tostring())
+                local_chunk[times, channels] = 0
 
             if do_filtering:
                 if not process_all_channels:
