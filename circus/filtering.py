@@ -227,7 +227,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 saturation_times.write((sub_times + t_offset).astype(numpy.uint32).tostring())
                 saturation_channels.write(sub_channels.astype(numpy.uint32).tostring())
                 saturation_values.write(local_chunk[sub_times, sub_channels].tostring())
-                local_chunk[times, channels] = 0
 
             if do_filtering:
                 if not process_all_channels:
@@ -236,6 +235,9 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     local_chunk = signal.filtfilt(b, a, local_chunk, axis=0)
                     local_chunk -= numpy.median(local_chunk, 0)
+
+            if flag_saturation:
+                local_chunk[times, channels] = 0
 
             local_chunk = local_chunk[numpy.abs(padding[0]):len_chunk-numpy.abs(padding[1])]
 
