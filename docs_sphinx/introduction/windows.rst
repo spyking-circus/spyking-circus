@@ -33,7 +33,7 @@ Here are some detailed instructions:
         (circus) >> spyking-circus pathtodata/data.dat -c 7
 
 
-If you want to install phy_ 2.0 as a visulization GUI, you can install it in the same environment (:doc:`see here for detailed instructions <../GUI/launching>` 
+If you want to install phy_ 2.0 as a visulization GUI, you can install it in the same environment (:doc:`see here for detailed instructions <../GUI/launching>`)
 
 .. _Anaconda: https://www.anaconda.com/distribution/
 .. _MPIv10: https://www.microsoft.com/en-us/download/details.aspx?id=57467
