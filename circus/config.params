@@ -14,15 +14,17 @@ output_dir     =            # By default, generated data are in the same folder 
 [detection]
 radius         = auto       # Radius [in um] (if auto, read from the prb file)
 N_t            = 3          # Width of the templates [in ms]
-spike_thresh   = 6          # Threshold for spike detection
+spike_thresh   = 6          # Threshold [in MAD] for spike detection
 peaks          = negative   # Can be negative (default), positive or both
 dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
+weird_thresh   =            # If not empty, threshold [in MAD] for artefact detection
 
 [filtering]
 cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for the band pass butterworth filter [Hz]
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, medians over all channels within shanks are substracted (movement artifacts)
 common_ground  =            # If you want to use channels as ground within shanks {channel_group : ground_channel}
+sat_value      =            # Values higher than sat_value are set to 0 during filtering (in % of max dtype) [0,1]
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
@@ -37,14 +39,14 @@ make_plots     =            # Generate sanity plots of the averaged artefacts [N
 [whitening]
 spatial        = True       # Perform spatial whitening
 max_elts       = 1000       # Max number of events per electrode (should be compatible with nb_elts)
-nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
+nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0,1]
 output_dim     = 5          # Can be in percent of variance explain, or num of dimensions for PCA on waveforms
 
 [clustering]
 extraction     = median-raw # Can be either median-raw (default) or mean-raw
 sub_dim        = 10         # Number of dimensions to keep for local PCA per electrode
 max_elts       = 10000      # Max number of events per electrode (should be compatible with nb_elts)
-nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0-1]
+nb_elts        = 0.8        # Fraction of max_elts that should be obtained per electrode [0,1]
 nb_repeats     = 3          # Number of passes used for the clustering
 smart_search   = True       # Activate the smart search mode
 merging_method = nd-bhatta  # Method to perform local merges (distance, dip, folding, nd-folding, bhatta, nd-bhatta)
@@ -70,7 +72,7 @@ default_lag    = 5          # Default length of the period to compute dip in the
 auto_mode      = 0.75       # Between 0 (aggressive) and 1 (no merging). If empty, GUI is launched
 remove_noise   = True       # If True, meta merging will remove obvious noise templates (weak amplitudes)
 noise_limit    = 0.75       # Amplitude at which templates are classified as noise
-sparsity_limit = 0          # Sparsity level (in percentage) for selecting templates as putative noise (in [0, 1])
+sparsity_limit = 0          # Sparsity level (in percentage) for selecting templates as putative noise (in [0,1])
 time_rpv       = 5          # Time [in ms] to consider for Refraction Period Violations (RPV) (0 to disable)
 rpv_threshold  = 0.02       # Percentage of RPV allowed while merging
 merge_drifts   = True       # Try to automatically merge drifts, i.e. non overlapping spiking neurons

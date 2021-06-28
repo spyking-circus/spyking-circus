@@ -38,6 +38,7 @@ The detection section is::
     spike_thresh   = 6          # Threshold for spike detection
     peaks          = negative   # Can be negative (default), positive or both
     dead_channels  =            # If not empty or specified in the probe, a dictionary {channel_group : [list_of_valid_ids]}
+    weird_thresh   =            # If not empty, threshold [in MAD] for artefact detection
 
 Parameters that are most likely to be changed:
     * ``N_t`` The temporal width of the templates. For *in vitro* data, 5ms seems a good value. For *in vivo* data, you should rather use 3 or even 2ms
@@ -45,6 +46,7 @@ Parameters that are most likely to be changed:
     * ``spike_thresh`` The threshold for spike detection. 6-7 are good values
     * ``peaks`` By default, the code detects only negative peaks, but you can search for positive peaks, or both
     * ``dead_channels`` You can exclude dead channels either directly in the probe file, with the ``channels`` list, or with this ``dead_channels`` parameter. To do so, you must enter a dictionary of the following form {channel_group : [list_of_valid_ids]}
+    * ``ẁeird_thresh`` If you want to explicit tell the code to ignore all peaks that will be abnormally large. All peaks (in abs value) higher than ``weird_thresh``. MAD will be discarded
     
 Filtering
 ---------
@@ -55,6 +57,7 @@ The filtering section is::
     filter         = True      # If True, then a low-pass filtering is performed
     remove_median  = False     # If True, median over all channels is substracted to each channels (movement artefacts)
     common_ground  =           # If you want to use a particular channel as a reference ground: should be a valid channel number
+    sat_value      =           # Values higher than sat_value are set to 0 during filtering (in % of max dtype) [0,1]
 
 .. warning::
 
@@ -64,7 +67,8 @@ Parameters that are most likely to be changed:
     * ``cut_off`` The default value of 500Hz has been used in various recordings, but you can change it if needed. You can also specify the upper bound of the Butterworth filter
     * ``filter`` If your data are already filtered by a third program, turn that flag to False
     * ``remove_median`` If you have some movement artefacts in your *in vivo* recording, and want to substract the median activity over all analysed channels from each channel individually
-    * ``common_ground`` If you want to use a particular channel as a reference, and subtract its activity from all others. Note that the activity on this particular channel will thus be nul
+    * ``common_ground`` If you want to use a particular channel as a reference, and subtract its activity from all others. Note that the activity on this particular channel will thus be null
+    * ``sat_value`` If your recording has some saturation problems, this might lead to artefacts while filtering. This option prevents the problem, by tagging all the values, in the raw recording (before filtering) that will be higher than ``sat_value`` times the maximal values allowed in the raw data given the data type. These values will be set to 0 and logged to disk in a file.
 
 Triggers
 --------
