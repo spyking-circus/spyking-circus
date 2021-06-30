@@ -889,7 +889,6 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
             #distances = numpy.maximum(distances, distances.T)
 
-        print(distances)
         comm.Barrier()
 
         if comm.rank == 0:
