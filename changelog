@@ -5,6 +5,7 @@ Release 1.0.9
 * add the option to flag saturation values (with the sat_value parameter)
 * fix a bug: non analyzed channels were filtered (unexpected behavior)
 * add the option to flag artefacts times (as values higher than weird_thresh MAD)
+* fix a nasty bug leading to missed units when too many global merges
 
 
 =============

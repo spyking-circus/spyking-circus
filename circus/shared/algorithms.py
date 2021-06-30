@@ -633,7 +633,10 @@ def slice_clusters(
 
         # Determine the indices to keep.
         all_templates = set(numpy.arange(n_tm // 2))
-        to_keep = numpy.array(list(all_templates.difference(to_delete)))
+        if 'kept' in result:
+            to_keep = result['kept']
+        else:
+            to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
         all_elements = [[] for _ in range(n_e)]
         for target in numpy.unique(to_delete):
@@ -730,6 +733,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         do_merge = True
         to_merge_ = numpy.zeros((0, 2), dtype=numpy.int32)
         g_idx = range(len(distances_))
+        result_['kept'] = numpy.arange(len(distances))
         while do_merge:
             dmax = distances_.max()
             idx_ = numpy.where(distances_ == dmax)
@@ -787,6 +791,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
                 result_['peaks_' + str(elec_keep)] = numpy.concatenate((result_['peaks_' + str(elec_keep)], copy['peaks']))
 
                 result_['electrodes'] = numpy.delete(result_['electrodes'], to_remove)
+                result_['kept'] = numpy.delete(result_['kept'], to_remove)
                 if 'local_clusters' in result_:
                     result_['local_clusters'] = numpy.delete(result_['local_clusters'], to_remove)
                 distances_ = numpy.delete(distances_, to_remove, axis=0)
@@ -884,6 +889,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
 
             #distances = numpy.maximum(distances, distances.T)
 
+        print(distances)
         comm.Barrier()
 
         if comm.rank == 0:
