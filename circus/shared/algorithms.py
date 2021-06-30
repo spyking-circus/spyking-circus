@@ -392,7 +392,7 @@ def merging(groups, merging_method, merging_param, data, centers):
     return groups, merged, merge_history, centers
 
 
-def slice_templates(params, to_remove=None, to_merge=None, extension='', input_extension=''):
+def slice_templates(params, to_remove=None, to_merge=None, to_keep=None, extension='', input_extension=''):
     """Slice templates in HDF5 file.
 
     Arguments:
@@ -468,7 +468,10 @@ def slice_templates(params, to_remove=None, to_merge=None, extension='', input_e
 
         # Determine the indices to keep.
         all_templates = set(numpy.arange(n_tm // 2))
-        to_keep = numpy.array(list(all_templates.difference(to_delete)))
+        if to_keep is not None:
+            to_keep = numpy.array(to_keep)
+        else:
+            to_keep = numpy.array(list(all_templates.difference(to_delete)))
 
         positions = numpy.arange(len(to_keep))
 
@@ -898,8 +901,8 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
         to_merge = numpy.array(to_merge)
         to_merge = comm.bcast(to_merge, root=0)
 
-        if len(to_merge) > 0:
-            slice_templates(params, to_merge=to_merge)
+        if len(to_merge) > 0 and comm.rank == 0:
+            slice_templates(params, to_merge=to_merge, to_keep=result['kept'])
             slice_clusters(params, result)
 
         comm.Barrier()
@@ -1772,7 +1775,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
 
 
     to_remove = numpy.array(to_remove, dtype=numpy.int32)
-    to_remove = gather_array(to_remove, comm, 0, 1, 'int32')
+    to_remove = numpy.sort(gather_array(to_remove, comm, 0, 1, 'int32'))
 
     if comm.rank == 0:
         if len(to_remove) > 0:
