@@ -93,6 +93,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
     all_electrodes = numpy.random.permutation(N_e)
 
+    numpy.random.seed(comm.rank)
+
     for gidx in [all_chunks[comm.rank]]:
 
         # print "Node", comm.rank, "is analyzing chunk", gidx,  "/", nb_chunks, " ..."
@@ -389,8 +391,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         extremum_neg = numpy.zeros(nb_elts, dtype=numpy.float32)
         elts_neg = numpy.zeros((N_t, nb_elts), dtype=numpy.float32)
 
-    chunks_to_load = all_chunks[comm.rank::comm.size]
-
     thresholds = io.load_data(params, 'thresholds')
     mads = io.load_data(params, 'mads')
     stds = io.load_data(params, 'stds')
@@ -413,8 +413,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     else:
         reject_noise = False
 
-    to_explore = numpy.arange(comm.rank, nb_chunks, step=comm.size)
-    numpy.random.shuffle(to_explore)
+    to_explore = all_chunks[comm.rank::comm.size]
 
     upper_bounds = max_elts_elec
 
@@ -422,8 +421,6 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         to_explore = get_tqdm_progressbar(params, to_explore)
 
     for gcount, gidx in enumerate(to_explore):
-
-        gidx = all_chunks[gidx]
 
         if (elt_count_pos + elt_count_neg) < nb_elts:
             # print "Node", comm.rank, "is analyzing chunk", gidx, "/", nb_chunks, " ..."

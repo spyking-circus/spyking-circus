@@ -1013,7 +1013,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         interpolated_times = numpy.concatenate(([0], interpolated_times, [params.data_file.duration]))
         nb_amp_times = len(splits) + 1
 
-    numpy.random.seed(42)
+    numpy.random.seed(comm.rank)
     # thr_similarity = 0.25
 
     SHARED_MEMORY = get_shared_memory_flag(params)

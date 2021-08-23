@@ -76,7 +76,7 @@ def detect_memory(params, whitening=False, filtering=False, fitting=False):
     mem = virtual_memory()
 
     if sub_comm.rank == 0:
-        res[0] = safety_threshold * numpy.int64(mem.available//sub_comm.size)
+        res[0] = safety_threshold * numpy.int64(mem.total//sub_comm.size)
 
     sub_comm.Barrier()
     sub_comm.Free()

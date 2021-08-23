@@ -305,6 +305,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     numpy.random.seed(42)
     all_chunks = numpy.random.permutation(numpy.arange(nb_chunks, dtype=numpy.int64))
 
+    numpy.random.seed(comm.rank)
     while gpass < (nb_repeats + 1):
 
         comm.Barrier()
@@ -867,6 +868,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     nb_noise += 1
                                     if gpass <= 1:
                                         result['noise_times_' + str(elec)].append([peak + local_offset])
+
+        del local_chunk
 
         for elec in range(n_e):
             if gpass == 1:
