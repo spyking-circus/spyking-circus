@@ -24,7 +24,7 @@ cut_off        = 300, auto  # Min and Max (auto=nyquist) cut off frequencies for
 filter         = True       # If True, then a low-pass filtering is performed
 remove_median  = False      # If True, medians over all channels within shanks are substracted (movement artifacts)
 common_ground  =            # If you want to use channels as ground within shanks {channel_group : ground_channel}
-sat_value      =            # Values higher than sat_value are set to 0 during filtering (in % of max dtype) [0,1]
+sat_value      =            # Values higher than sat_value are set to 0 during filtering (in percent of max dtype) [0,1]
 
 [triggers]
 trig_file      =            # External stimuli to be considered as putative artefacts [in trig units] (see documentation)
