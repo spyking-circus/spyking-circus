@@ -1580,7 +1580,7 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
     decimation = params.getboolean('clustering', 'decimation')
 
     overlap = get_overlaps(
-        params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=True,
+        params, extension='-mixtures', erase=True, normalize=True, maxoverlap=False, verbose=False, half=False,
         use_gpu=use_gpu, nb_cpu=nb_cpu, nb_gpu=nb_gpu, decimation=decimation
     )
     overlap.close()
@@ -1656,11 +1656,14 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
     nb_local_peaktimes = len(local_peaktimes)
 
     if templates_normalization:
-        min_sps = (limits[:, 0] * sub_norm_templates)[:, numpy.newaxis]
-        max_sps = (limits[:, 1] * sub_norm_templates)[:, numpy.newaxis]
+        min_sps = sub_norm_templates[:, numpy.newaxis]
+        max_sps = sub_norm_templates[:, numpy.newaxis]
     else:
-        min_sps = (limits[:, 0] * sub_norm_templates_2)[:, numpy.newaxis]
-        max_sps = (limits[:, 1] * sub_norm_templates_2)[:, numpy.newaxis]
+        min_sps = sub_norm_templates_2[:, numpy.newaxis]
+        max_sps = sub_norm_templates_2[:, numpy.newaxis]
+
+    min_scalar_products = limits[:, 0][:, numpy.newaxis]
+    max_scalar_products = limits[:, 1][:, numpy.newaxis]
 
     for k in to_explore:
 
@@ -1673,59 +1676,105 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
         sub_mat = local_chunk[local_peaktimes[:, None] + temp_window]
         sub_mat = sub_mat.transpose(2, 1, 0).reshape(size_window, nb_local_peaktimes)
 
-        b = templates[:nb_temp].dot(sub_mat)
+        b = templates.dot(sub_mat)
         b[k, :] = -numpy.inf
 
+        data = b[:nb_temp]
+
+        full_sps = b.copy()
         amplitudes = numpy.zeros(b.shape, dtype=numpy.float32)
+
+        M = scipy.sparse.csr_matrix((0, 0), dtype=numpy.float32)
+        selection = numpy.zeros((0, 2), dtype=numpy.int32)
+        res_sps = numpy.zeros(0, dtype=numpy.float32)
 
         mixtures = []
 
+        is_valid = numpy.ones(data.shape, dtype=numpy.bool)
+        valid_indices = numpy.where(is_valid)
+
+        peaks_times = local_peaktimes - local_peaktimes[:, numpy.newaxis]
+        all_neighbors = numpy.abs(peaks_times) <= temp_2_shift
+        neighbors = {}
+        for i in range(len(all_neighbors)):
+            idx = numpy.where(all_neighbors[i])[0]
+            neighbors[i] = {'idx' : idx, 'tdx' : peaks_times[i][idx] + temp_2_shift }
+
         while True:
 
-            is_valid = (b > min_sps)*(b < max_sps)
+            best_amplitude_idx = data[is_valid].argmax()
+            best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                
+            to_add = numpy.array([[best_template_index, peak_index], [best_template_index+nb_temp, peak_index]])
+            selection = numpy.vstack((selection, to_add))
+
+            res_sps = numpy.concatenate((res_sps, full_sps[selection[-2:, 0], selection[-2:, 1]]))
+
+            b[best_template_index, peak_index] = -numpy.inf
+
+            nb_selection = len(selection)
+
+            delta_t = local_peaktimes[selection[:, 1]] - local_peaktimes[selection[-1, 1]]
+            idx = numpy.where(numpy.abs(delta_t) <= temp_2_shift)[0]
+
+            M.resize(nb_selection, nb_selection)
+            myline = temp_2_shift + delta_t[idx]
+            line = c_overs[selection[-2, 0]][selection[idx, 0], myline]
+
+            M[-2, idx] = line
+            M[idx, -2] = line
+
+            line = c_overs[selection[-1, 0]][selection[idx, 0], myline]
+
+            M[-1, idx] = line
+            M[idx, -1] = line
+
+            all_amplitudes = scipy.sparse.linalg.spsolve(M, res_sps)/norm_templates[selection[:, 0]]
+
+            diff_amplitudes   = (all_amplitudes[::2] - amplitudes[selection[::2,0], selection[::2, 1]])
+            diff_amplitudes_2 = (all_amplitudes[1::2] - amplitudes[selection[1::2,0], selection[1::2, 1]])
+
+            modified = numpy.where(numpy.abs(diff_amplitudes) > 1e-3)[0]
+            
+            amplitudes[selection[:,0], selection[:,1]] = all_amplitudes
+            for i in modified:
+                
+                tmp_best = selection[2*i, 0]
+                tmp_peak = selection[2*i, 1]
+
+                best_amp = diff_amplitudes[i]*norm_templates[tmp_best]
+                best_amp2 = diff_amplitudes_2[i]*norm_templates[tmp_best + nb_temp]
+
+                idx = neighbors[tmp_peak]['idx']
+                tdx = neighbors[tmp_peak]['tdx']
+
+                tmp1 = c_overs[tmp_best].multiply(-best_amp)
+                tmp1 += c_overs[tmp_best + nb_temp].multiply(-best_amp2)
+
+                to_add = tmp1.toarray()[:, tdx]
+                b[:, idx] += to_add
+
+            is_valid = data > 0.25*min_sps
             valid_indices = numpy.where(is_valid)
 
             if len(valid_indices[0]) == 0:
                 break
 
-            best_amplitude_idx = b[is_valid].argmax()
-            best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
-
-            gbest = best_template_index
-
-            if templates_normalization:
-                best_amp = b[best_template_index, peak_index] / n_scalar
-                best_amp_n = best_amp / norm_templates[gbest]
-            else:
-                best_amp = b[best_template_index, peak_index] / norm_templates_2[gbest]
-                best_amp_n = best_amp
-
-            peak_time_step = local_peaktimes[peak_index]
-
-            peak_data = (local_peaktimes - peak_time_step).astype(numpy.int32)
-            is_neighbor = numpy.abs(peak_data) <= temp_2_shift
-            idx_neighbor = peak_data[is_neighbor] + temp_2_shift
-
-            tmp1 = c_overs[best_template_index].multiply(-best_amp)
-            to_add = tmp1.toarray()[:, idx_neighbor]
-            b[:, is_neighbor] += to_add
-
-            amplitudes[best_template_index, peak_index] = best_amp_n
-            b[best_template_index, peak_index] = -numpy.inf
-
-        are_valid = (amplitudes > limits[:, 0][:, numpy.newaxis])*(amplitudes < limits[:, 1][:, numpy.newaxis])
+        are_valid = (amplitudes[:nb_temp] > min_scalar_products)*(amplitudes[:nb_temp] < max_scalar_products)
         best_matches = numpy.where(are_valid)
         if len(best_matches[0]) > 1:
             best_amplitudes = amplitudes[best_matches]
             best_lags = local_peaktimes[best_matches[1]]
             reconstruction = numpy.zeros((n_t + 2*template_shift, n_e), dtype=numpy.float32)
             for i, j in zip(best_matches[0], best_matches[1]):
-                t_start = local_peaktimes[j] - template_shift
-                t_stop = local_peaktimes[j] + template_shift + 1
+                t_start = local_peaktimes[j] - template_shift - 1
+                t_stop = local_peaktimes[j] + template_shift
                 if is_sparse:
                     reconstruction[t_start:t_stop, :] += amplitudes[i, j]*templates[i].toarray().reshape(n_e, n_t).T
+                    reconstruction[t_start:t_stop, :] += amplitudes[i+nb_temp, j]*templates[i+nb_temp].toarray().reshape(n_e, n_t).T
                 else:
                     reconstruction[t_start:t_stop, :] += amplitudes[i, j]*templates[i].reshape(n_e, n_t).T
+                    reconstruction[t_start:t_stop, :] += amplitudes[i+nb_temp, j]*templates[i+nb_temp].reshape(n_e, n_t).T
 
             reconstruction = reconstruction[template_shift:-template_shift].T.flatten()
             reconstruction /= (numpy.linalg.norm(reconstruction)/numpy.sqrt(n_scalar))
@@ -1734,8 +1783,6 @@ def delete_mixtures(params, nb_cpu, nb_gpu, use_gpu, debug_plots):
                 cc = numpy.corrcoef(reconstruction, templates[k].toarray().flatten())[0, 1]
             else:
                 cc = numpy.corrcoef(reconstruction, templates[k])[0, 1]
-
-            #print(k, "is sum of", best_matches[0], 'with amplitudes', best_amplitudes, "and optimal lags", best_lags, "and cc", cc)
 
             if cc > cc_merge:
                 to_remove += [k]

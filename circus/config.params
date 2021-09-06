@@ -63,6 +63,7 @@ amp_auto       = True       # True if amplitudes are adjusted automatically for 
 collect_all    = False      # If True, one garbage template per electrode is created, to store unfitted spikes
 ratio_thresh   = 0.9        # Ratio of the spike_threshold used while fitting [0-1]. The lower the slower
 mse_error      = False      # If True, RMS is collected over time, to assess quality of reconstruction
+full_omp       = False      # If True, fit will be slower but more accurate for temporal overlaps
 
 [merging]
 erase_all      = True       # If False, a prompt will ask you to remerge if merged has already been done
