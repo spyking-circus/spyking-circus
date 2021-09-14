@@ -60,7 +60,7 @@ def read_probe(parser, radius_in_probe=True):
                 print_and_log(["%s is missing in the probe file" % key], 'error', logger)
             sys.exit(0)
 
-    for key, value in probe['channel_groups'].items():
+    for key, value in list(probe['channel_groups'].items()):
         if numpy.any(numpy.array(value['channels']) < 0):
             if comm.rank == 0:
                 print_and_log(["Negative channels in channel group %d are not allowed" %key], 'error', logger)
@@ -120,12 +120,12 @@ def get_nodes_and_edges(parser, validating=False, shank_with=None):
         return edges
 
     if shank_with is None:
-        for key in parser.probe['channel_groups'].keys():
+        for key in list(parser.probe['channel_groups'].keys()):
             for i in parser.probe['channel_groups'][key]['channels']:
                 edges[i] = get_edges(i, parser.probe['channel_groups'][key])
                 nodes += [i]
     else:
-        for key in parser.probe['channel_groups'].keys():
+        for key in list(parser.probe['channel_groups'].keys()):
             if shank_with in parser.probe['channel_groups'][key]['channels']:
                 for i in parser.probe['channel_groups'][key]['channels']:
                     edges[i] = get_edges(i, parser.probe['channel_groups'][key])
@@ -167,12 +167,12 @@ def get_nodes_and_positions(parser, shank_with=None):
         return [pos_x, pos_y, pos_z]
 
     if shank_with is None:
-        for key in parser.probe['channel_groups'].keys():
+        for key in list(parser.probe['channel_groups'].keys()):
             for i in parser.probe['channel_groups'][key]['channels']:
                 positions += [get_position(i, parser.probe['channel_groups'][key])]
                 nodes += [i]
     else:
-        for key in parser.probe['channel_groups'].keys():
+        for key in list(parser.probe['channel_groups'].keys()):
             if shank_with in parser.probe['channel_groups'][key]['channels']:
                 for i in parser.probe['channel_groups'][key]['channels']:
                     positions += [get_position(i, parser.probe['channel_groups'][key])]
@@ -183,7 +183,7 @@ def get_nodes_and_positions(parser, shank_with=None):
 
 def get_central_electrode(parser, node_i, node_j):
 
-    for key in parser.probe['channel_groups'].keys():
+    for key in list(parser.probe['channel_groups'].keys()):
         if node_i in parser.probe['channel_groups'][key]['channels']:
             shank = key
             break
@@ -228,9 +228,9 @@ def get_central_electrode(parser, node_i, node_j):
 def get_averaged_n_edges(parser):
     nodes, edges = get_nodes_and_edges(parser)
     n = 0
-    for key, value in edges.items():
+    for key, value in list(edges.items()):
         n += len(value)
-    return n / float(len(edges.values()))
+    return n / float(len(list(edges.values())))
 
 
 def parse_dead_channels(channels):

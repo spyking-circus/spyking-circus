@@ -19,7 +19,7 @@ def plot_probe(ax, params, channel_ids=None):
     nodes, edges = get_nodes_and_edges(params)
 
     positions = []
-    for i in probe['channel_groups'][1]['geometry'].keys():
+    for i in list(probe['channel_groups'][1]['geometry'].keys()):
         positions.append(probe['channel_groups'][1]['geometry'][i])
     positions = np.array(positions)
     dx = np.median(np.diff(np.unique(positions[:, 0])))  # horizontal inter-electrode distance
@@ -93,7 +93,7 @@ def plot_snippets(ax, snippets, params, color='black', vmin=None, vmax=None, lim
     nodes, edges = get_nodes_and_edges(params)
 
     positions = []
-    for i in probe['channel_groups'][1]['geometry'].keys():
+    for i in list(probe['channel_groups'][1]['geometry'].keys()):
         positions.append(probe['channel_groups'][1]['geometry'][i])
     positions = np.array(positions)
     vmin = min(np.min(snippets), 0.0) if vmin is None else vmin
@@ -124,7 +124,7 @@ def plot_snippet(ax, snippet, params, color='black', vmin=None, vmax=None, label
     nodes, edges = get_nodes_and_edges(params)
 
     positions = []
-    for i in probe['channel_groups'][1]['geometry'].keys():
+    for i in list(probe['channel_groups'][1]['geometry'].keys()):
         positions.append(probe['channel_groups'][1]['geometry'][i])
     positions = np.array(positions)
     vmin = np.abs(np.min(snippet)) if vmin is None else vmin
@@ -189,7 +189,7 @@ def plot_template(ax, template, params, color='black', vmin=None, vmax=None, lab
     nodes, edges = get_nodes_and_edges(params)
 
     positions = []
-    for i in probe['channel_groups'][1]['geometry'].keys():
+    for i in list(probe['channel_groups'][1]['geometry'].keys()):
         positions.append(probe['channel_groups'][1]['geometry'][i])
     positions = np.array(positions)
     vmin = np.abs(np.min(template)) if vmin is None else vmin
@@ -224,10 +224,10 @@ def load_clusters_data(params, extension='', keys=None):
         raise FileNotFoundError(path)
     with h5py.File(path, mode='r', libver='earliest') as file:
         if keys is None:
-            keys = file.keys()
+            keys = list(file.keys())
         else:
             for key in keys:
-                assert key in file, (key, file.keys())
+                assert key in file, (key, list(file.keys()))
         data = dict()
         p = re.compile('_\d*$')  # noqa
         for key in keys:
@@ -253,10 +253,10 @@ def load_templates_data(params, extension='', keys=None):
         raise FileNotFoundError(path)
     with h5py.File(path, mode='r', libver='earliest') as file:
         if keys is None:
-            keys = file.keys()
+            keys = list(file.keys())
         else:
             for key in keys:
-                assert key in file, (key, file.keys())
+                assert key in file, (key, list(file.keys()))
         data = dict()
         for key in keys:
             data[key] = file[key][:]

@@ -30,7 +30,7 @@ if not os.path.isfile(clusters_path):
 with h5py.File(clusters_path, mode='r', libver='earliest') as clusters_file:
     clusters_data = dict()
     p = re.compile('_\d*$')  # noqa
-    for key in clusters_file.keys():
+    for key in list(clusters_file.keys()):
         m = p.search(key)
         if m is None:
             clusters_data[key] = clusters_file[key][:]

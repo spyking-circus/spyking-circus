@@ -25,14 +25,14 @@ _ = params.get_data_file()
 # Load spike times.
 results = load_data(params, 'results', extension=args.extension)
 spike_times = dict()
-for key in results['spiketimes'].keys():
+for key in list(results['spiketimes'].keys()):
     if key[:5] == 'temp_':
         template_key = key
         template_id = int(key[5:])
         spike_times[template_id] = np.sort(results['spiketimes'][template_key])  # sample
 
 # Compute number of spikes.
-template_ids = np.array(spike_times.keys())
+template_ids = np.array(list(spike_times.keys()))
 nb_spikes = np.array([
     spike_times[template_id].size
     for template_id in template_ids

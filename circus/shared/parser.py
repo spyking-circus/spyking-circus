@@ -322,7 +322,7 @@ class CircusParser(object):
             sys.exit(0)
 
         if self.params_only:
-          if 'file_name' in self.parser['data'].keys():
+          if 'file_name' in list(self.parser['data'].keys()):
               self.file_name = self.parser['data']['file_name']
           else:
               if stream_mode != 'mapping-file':
@@ -344,9 +344,9 @@ class CircusParser(object):
             except Exception:
                 self.parser.set(section, name, value)
 
-        for key, value in kwargs.items():
+        for key, value in list(kwargs.items()):
             for section in self.__all_sections__:
-                if self.parser._sections[section].has_key(key):
+                if key in self.parser._sections[section]:
                     self.parser._sections[section][key] = value
 
         if self.do_folders and self.parser.get('data', 'output_dir') == '':
@@ -392,8 +392,8 @@ class CircusParser(object):
             dead_channels = parse_dead_channels(dead_channels)
             if comm.rank == 0:
                 print_and_log(["Removing dead channels %s" % str(dead_channels)], 'debug', logger)
-            for key in dead_channels.keys():
-                if key in self.probe["channel_groups"].keys():
+            for key in list(dead_channels.keys()):
+                if key in list(self.probe["channel_groups"].keys()):
                     for channel in dead_channels[key]:
                         n_before = len(self.probe["channel_groups"][key]['channels'])
                         self.probe["channel_groups"][key]['channels'] = list(set(self.probe["channel_groups"][key]['channels']).difference(dead_channels[key]))
@@ -408,8 +408,8 @@ class CircusParser(object):
             self.common_ground = parse_common_grounds(common_ground)
             if comm.rank == 0:
                 print_and_log(["Subtracting common grounds %s" % str(common_ground)], 'debug', logger)
-            for key in self.common_ground.keys():
-                if key in self.probe["channel_groups"].keys():
+            for key in list(self.common_ground.keys()):
+                if key in list(self.probe["channel_groups"].keys()):
                     g = self.common_ground[key]
                     if not g in self.probe["channel_groups"][key]['channels']:
                       if comm.rank == 0:
@@ -423,7 +423,7 @@ class CircusParser(object):
             self.common_ground = {}
 
         N_e = 0
-        for key in self.probe['channel_groups'].keys():
+        for key in list(self.probe['channel_groups'].keys()):
             N_e += len(self.probe['channel_groups'][key]['channels'])
 
         self.set('data', 'N_e', str(N_e))
@@ -448,7 +448,7 @@ class CircusParser(object):
             self.file_format = self.parser.get('data', 'file_format')
         except Exception:
             if comm.rank == 0:
-                for f in __supported_data_files__.keys():
+                for f in list(__supported_data_files__.keys()):
                     to_write += ['-- %s -- %s' % (f, __supported_data_files__[f].extension)]
 
                 to_write += [
@@ -460,10 +460,10 @@ class CircusParser(object):
                 print_and_log(to_write, 'error', logger)
             sys.exit(0)
 
-        test = self.file_format.lower() in __supported_data_files__.keys()
+        test = self.file_format.lower() in list(__supported_data_files__.keys())
         if not test:
             if comm.rank == 0:
-                for f in __supported_data_files__.keys():
+                for f in list(__supported_data_files__.keys()):
                     to_write += ['-- %s -- %s' % (f, __supported_data_files__[f].extension)]
 
                 to_write += [
@@ -683,7 +683,7 @@ class CircusParser(object):
           self.parser.set('clustering', 'merging_method', 'distance')
 
         dispersion = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
-        dispersion = map(float, dispersion)
+        dispersion = list(map(float, dispersion))
         test = (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
             if comm.rank == 0:
@@ -837,7 +837,7 @@ class CircusParser(object):
         try:
             myval = str(value)
         except Exception as ex:
-            print('"%s" cannot be converted to str: %s' % (value, ex))
+            print(('"%s" cannot be converted to str: %s' % (value, ex)))
 
         self.parser.set(section, data, myval)
 
@@ -986,7 +986,7 @@ class CircusParser(object):
         if params is None:
             params = {}
 
-        for key, value in self.parser._sections['data'].items():
+        for key, value in list(self.parser._sections['data'].items()):
             if key not in params:
                 params[key] = value
 

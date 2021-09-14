@@ -32,7 +32,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     hdf5_compress = params.getboolean('data', 'hdf5_compress')
     blosc_compress = params.getboolean('data', 'blosc_compress')
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
-    amp_limits = map(float, tmp_limits)
+    amp_limits = list(map(float, tmp_limits))
     elt_count = 0
     inv_nodes = numpy.zeros(N_total, dtype=numpy.int32)
     inv_nodes[nodes] = numpy.arange(len(nodes))
@@ -209,7 +209,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     temp_y = numpy.zeros(0, dtype=numpy.int32)
     temp_data = numpy.zeros(0, dtype=numpy.float32)
 
-    to_explore = range(comm.rank, N_clusters, comm.size)
+    to_explore = list(range(comm.rank, N_clusters, comm.size))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)

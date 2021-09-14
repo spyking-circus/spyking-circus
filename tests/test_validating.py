@@ -1,4 +1,4 @@
-import numpy, h5py, pylab, cPickle
+import numpy, h5py, pylab, pickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -33,7 +33,7 @@ class TestValidating(unittest.TestCase):
         result_name     = os.path.join(file_name, 'injected')
         spikes          = {}
         result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
-        for key in result.get('spiketimes').keys():
+        for key in list(result.get('spiketimes').keys()):
             spikes[key] = result.get('spiketimes/%s' %key)[:]
 
         juxta_file = file_out + '.juxta.dat'

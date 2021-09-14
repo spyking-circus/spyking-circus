@@ -1,4 +1,4 @@
-import numpy, h5py, pylab, cPickle
+import numpy, h5py, pylab, pickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -11,7 +11,7 @@ def get_performance(file_name, name):
     result_name     = os.path.join(file_name, 'injected')
 
     pic_name        = file_name + '.pic'
-    data            = cPickle.load(open(pic_name))
+    data            = pickle.load(open(pic_name))
     n_cells         = data['cells']
     nb_insert       = len(n_cells)
     amplitude       = data['amplitudes']
@@ -36,17 +36,17 @@ def get_performance(file_name, name):
     result          = h5py.File(file_out + '.result.hdf5')
     fitted_spikes   = {}
     fitted_amps     = {}
-    for key in result.get('spiketimes').keys():
+    for key in list(result.get('spiketimes').keys()):
         fitted_spikes[key] = result.get('spiketimes/%s' %key)[:]
-    for key in result.get('amplitudes').keys():
+    for key in list(result.get('amplitudes').keys()):
         fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
 
     spikes          = {}
     real_amps       = {}
     result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
-    for key in result.get('spiketimes').keys():
+    for key in list(result.get('spiketimes').keys()):
         spikes[key] = result.get('spiketimes/%s' %key)[:]
-    for key in result.get('real_amps').keys():
+    for key in list(result.get('real_amps').keys()):
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
     
     n_tm            = inj_templates.shape[1]//2
@@ -54,11 +54,11 @@ def get_performance(file_name, name):
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros((len(n_cells), 2))
 
-    for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
+    for gcount, temp_id in enumerate(range(n_tm - len(n_cells), n_tm)):
         source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = []
-        for i in xrange(templates.shape[1]//2):
+        for i in range(templates.shape[1]//2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
             if d > sim_templates:

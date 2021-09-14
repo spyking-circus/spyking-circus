@@ -50,7 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         positions = []
         nodes = []
         shanks = []
-        for key in probe['channel_groups'].keys():
+        for key in list(probe['channel_groups'].keys()):
             p.update(probe['channel_groups'][key]['geometry'])
             nodes += probe['channel_groups'][key]['channels']
             positions += [p[channel] for channel in probe['channel_groups'][key]['channels']]
@@ -66,7 +66,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         else:
             nodes, edges = get_nodes_and_edges(params)
             max_loc_channel = 0
-            for key in edges.keys():
+            for key in list(edges.keys()):
                 if len(edges[key]) > max_loc_channel:
                     max_loc_channel = len(edges[key])
         return max_loc_channel
@@ -88,7 +88,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             if has_purity:
                 purity = io.load_data(params, 'purity', extension)
 
-        for key in result['spiketimes'].keys():
+        for key in list(result['spiketimes'].keys()):
             temp_id = int(key.split('_')[-1])
             myspikes = result['spiketimes'].pop(key).astype(numpy.uint64)
             spikes.append(myspikes)
@@ -121,7 +121,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if export_all:
             print_and_log(["Last %d templates are unfitted spikes on all electrodes" % N_e], 'info', logger)
             garbage = io.load_data(params, 'garbage', extension)
-            for key in garbage['gspikes'].keys():
+            for key in list(garbage['gspikes'].keys()):
                 elec_id = int(key.split('_')[-1])
                 data = garbage['gspikes'].pop(key).astype(numpy.uint64)
                 spikes.append(data)
@@ -288,7 +288,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         if mode == 1:
             pc_ids = open_memmap(pc_file_ids, mode='r+')
 
-        to_explore = range(comm.rank, nb_templates, comm.size)
+        to_explore = list(range(comm.rank, nb_templates, comm.size))
 
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(params, to_explore)
@@ -398,8 +398,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
             if export_pcs == 'prompt':
                 key = ''
                 while key not in ['a', 's', 'n']:
-                    print(Fore.WHITE + "Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o")
-                    key = raw_input('')
+                    print((Fore.WHITE + "Do you want SpyKING CIRCUS to export PCs? (a)ll / (s)ome / (n)o"))
+                    key = input('')
             else:
                 key = export_pcs
 
@@ -444,14 +444,14 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
         gui_params['n_channels_dat'] = params.nb_channels
         gui_params['n_features_per_channel'] = 5
         gui_params['dtype'] = data_file.data_dtype
-        if 'data_offset' in data_file.params.keys():
+        if 'data_offset' in list(data_file.params.keys()):
             gui_params['offset'] = data_file.data_offset
         gui_params['sample_rate'] = params.rate
         gui_params['dir_path'] = output_path
         gui_params['hp_filtered'] = True
 
         f = open(os.path.join(output_path, 'params.py'), 'w')
-        for key, value in gui_params.items():
+        for key, value in list(gui_params.items()):
             if key in ['dir_path', 'dtype']:
                 f.write('%s = r"%s"\n' % (key, value))
             else:

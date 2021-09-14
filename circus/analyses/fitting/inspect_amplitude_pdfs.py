@@ -34,7 +34,7 @@ for key in results['amplitudes']:
     amplitudes[template_id] = results['amplitudes'][key][:, 0]
 
 # Compute amplitude distributions.
-template_ids = np.sort(amplitudes.keys())
+template_ids = np.sort(list(amplitudes.keys()))
 a_min = 0.0
 # a_min = 1.0
 # for template_id in template_ids:

@@ -1,4 +1,4 @@
-import numpy, h5py, pylab, cPickle
+import numpy, h5py, pylab, pickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -12,7 +12,7 @@ def get_performance(file_name, name):
     result_name     = os.path.join(file_name, 'injected')
 
     pic_name        = file_name + '.pic'
-    data            = cPickle.load(open(pic_name))
+    data            = pickle.load(open(pic_name))
     n_cells         = data['cells'] 
     nb_insert       = len(n_cells)
     amplitude       = data['amplitudes']
@@ -23,9 +23,9 @@ def get_performance(file_name, name):
     result          = h5py.File(file_out + '.result.hdf5')
     fitted_spikes   = {}
     fitted_amps     = {}
-    for key in result.get('spiketimes').keys():
+    for key in list(result.get('spiketimes').keys()):
         fitted_spikes[key] = result.get('spiketimes/%s' %key)[:]
-    for key in result.get('amplitudes').keys():
+    for key in list(result.get('amplitudes').keys()):
         fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
 
     templates       = h5py.File(file_out + '.templates.hdf5').get('temp_shape')[:]
@@ -33,9 +33,9 @@ def get_performance(file_name, name):
     spikes          = {}
     real_amps       = {}
     result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
-    for key in result.get('spiketimes').keys():
+    for key in list(result.get('spiketimes').keys()):
         spikes[key] = result.get('spiketimes/%s' %key)[:]
-    for key in result.get('real_amps').keys():
+    for key in list(result.get('real_amps').keys()):
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
 
     n_tm            = templates[2]//2
@@ -49,15 +49,15 @@ def get_performance(file_name, name):
 
     if truncate:
         max_spike = 0
-        for temp_id in xrange(n_tm - len(n_cells), n_tm):
+        for temp_id in range(n_tm - len(n_cells), n_tm):
             key = 'temp_' + str(temp_id)
             if len(fitted_spikes[key] > 0):
                 max_spike = max(max_spike, fitted_spikes[key].max())
-        for temp_id in xrange(n_tm - len(n_cells), n_tm):
+        for temp_id in range(n_tm - len(n_cells), n_tm):
             key = 'temp_' + str(temp_id)
             spikes[key] = spikes[key][spikes[key] < max_spike]
 
-    for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
+    for gcount, temp_id in enumerate(range(n_tm - len(n_cells), n_tm)):
         key = 'temp_' + str(temp_id)
         count = 0
         p_deltas[key] = []

@@ -250,16 +250,16 @@ class NeuraLynxFile(DataFile):
         # Try to read the original file path
         try:
             assert hdr_lines[1].split()[1:3] == ['File', 'Name']
-            header[u'FileName'] = ' '.join(hdr_lines[1].split()[3:])
+            header['FileName'] = ' '.join(hdr_lines[1].split()[3:])
             # hdr['save_path'] = hdr['FileName']
         except:
             print_and_log(['Unable to parse original file path from Neuralynx header: ' + hdr_lines[1]], 'debug', logger)
 
         # Process lines with file opening and closing times
-        header[u'TimeOpened'] = hdr_lines[2][3:]
-        header[u'TimeOpened_dt'] = self.parse_neuralynx_time_string(hdr_lines[2])
-        header[u'TimeClosed'] = hdr_lines[3][3:]
-        header[u'TimeClosed_dt'] = self.parse_neuralynx_time_string(hdr_lines[3])
+        header['TimeOpened'] = hdr_lines[2][3:]
+        header['TimeOpened_dt'] = self.parse_neuralynx_time_string(hdr_lines[2])
+        header['TimeClosed'] = hdr_lines[3][3:]
+        header['TimeClosed_dt'] = self.parse_neuralynx_time_string(hdr_lines[3])
 
         # Read the parameters, assuming "-PARAM_NAME PARAM_VALUE" format
         for line in hdr_lines[4:]:
@@ -276,7 +276,7 @@ class NeuraLynxFile(DataFile):
         
         if self.params['mapping_file'] != '':
             self.all_files = parse_ncs_mapping(self.params['mapping_file'])[self.params['idx_mapping']]
-            self.all_channels = range(len(self.all_files))
+            self.all_channels = list(range(len(self.all_files)))
         else:
             folder_path = os.path.dirname(os.path.abspath(self.file_name))
             tmp_all_files = self._get_sorted_channels_()
@@ -300,7 +300,7 @@ class NeuraLynxFile(DataFile):
         header['nb_channels'] = len(self.all_channels)
         header['gain'] = float(self.header['ADBitVolts']) * 1000000
 
-        self.inverse = self.header.has_key('InputInverted') and (self.header['InputInverted'] == 'True')
+        self.inverse = 'InputInverted' in self.header and (self.header['InputInverted'] == 'True')
         if self.inverse:
             header['gain'] *= -1
 

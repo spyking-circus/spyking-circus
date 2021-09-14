@@ -369,7 +369,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         beer_path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(beer_path, 'a', libver='earliest')
         beer_key = 'proportion'
-        if beer_key in beer_file.keys():
+        if beer_key in list(beer_file.keys()):
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=proportion)
         beer_file.close()
@@ -432,7 +432,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         beer_path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(beer_path, 'a', libver='earliest')
         beer_key = 'thresh_fn'
-        if beer_key in beer_file.keys():
+        if beer_key in list(beer_file.keys()):
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=threshold_false_negatives)
         beer_file.close()
@@ -1186,7 +1186,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         beer_filename = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(beer_filename, 'a', libver='earliest')
         group_name = "beer_spiketimes"
-        if group_name in beer_file.keys():
+        if group_name in list(beer_file.keys()):
             beer_file.pop(group_name)
         beer_file.create_group(group_name)
         if test_method == 'full':
@@ -1236,13 +1236,13 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         # # Save class weights.
         class_weights_ = numpy.array([[cw[0], cw[1]] for cw in class_weights])
         class_weights_key = "class_weights"
-        if class_weights_key in beer_file.keys():
+        if class_weights_key in list(beer_file.keys()):
             beer_file.pop(class_weights_key)
         beer_file.create_dataset(class_weights_key, data=class_weights_)
         # # Save confusion matrices.
         confusion_matrices_ = numpy.array(confusion_matrices)
         confusion_matrices_key = "confusion_matrices"
-        if confusion_matrices_key in beer_file.keys():
+        if confusion_matrices_key in list(beer_file.keys()):
             beer_file.pop(confusion_matrices_key)
         beer_file.create_dataset(confusion_matrices_key, data=confusion_matrices_)
         beer_file.close()
@@ -1331,7 +1331,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             else:
                 nb_templates = len(result['spiketimes'])
                 temp_match = []
-                for key in result['spiketimes'].keys():
+                for key in list(result['spiketimes'].keys()):
                     i = int(key.split('_')[1])
                     if i not in selection:
                         temp_match += [i]
@@ -1523,17 +1523,17 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         beer_file = h5py.File(filename, 'a', libver='earliest')
         # # Save selection.
         beer_key = 'selection'
-        if beer_key in beer_file.keys():
+        if beer_key in list(beer_file.keys()):
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=selection)
         # # Save contingency matrices of templates.
         beer_key = 'sc_contingency_matrices'
-        if beer_key in beer_file.keys():
+        if beer_key in list(beer_file.keys()):
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=sc_contingency_matrices)
         # # Save contingency matrix of best template.
         beer_key = 'sc_contingency_matrix'
-        if beer_key in beer_file.keys():
+        if beer_key in list(beer_file.keys()):
             beer_file.pop(beer_key)
         beer_file.create_dataset(beer_key, data=sc_contingency_matrix)
         beer_file.close()
@@ -1564,7 +1564,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             # TODO end swap zone.
             filename = "{}.beer.hdf5".format(file_out_suff)
             beer_file = h5py.File(filename, 'r+', libver='earliest')
-            if 'circus_error' in beer_file.keys():
+            if 'circus_error' in list(beer_file.keys()):
                 beer_file.pop('circus_error')
             beer_file.create_dataset('circus_error', data=numpy.array(error, dtype=numpy.float32))
             beer_file.close()

@@ -61,7 +61,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
                 templates = load_data(params, 'templates')
             except Exception:
                 templates = numpy.zeros((0, 0, 0))
-        for key in result['spiketimes'].keys():
+        for key in list(result['spiketimes'].keys()):
             elec = int(key.split('_')[1])
             lims = (t_start*sampling_rate + template_shift, t_stop*sampling_rate - template_shift-1)
             idx = numpy.where((result['spiketimes'][key] > lims[0]) & (result['spiketimes'][key] < lims[1]))
@@ -72,7 +72,7 @@ def view_fit(file_name, t_start=0, t_stop=1, n_elec=2, fit_on=True, square=True,
                 tmp2 = templates[:, elec+templates.shape[1] // 2].toarray().reshape(N_e, N_t)
 
                 curve[:, spike - template_shift:spike + template_shift + 1] += amp1 * tmp1 + amp2 * tmp2
-        print("Number of spikes %d" % count)
+        print(("Number of spikes %d" % count))
 
     if not numpy.iterable(n_elec):
         if square:
@@ -398,7 +398,7 @@ def view_local_merges(
         nb_local_merge_groups = len(local_merge_groups)
         # Compute the maximal number of local merges in one of these groups.
         max_nb_clusters_per_group = 2
-        for cluster_nb in local_merge_flat_groups.keys():
+        for cluster_nb in list(local_merge_flat_groups.keys()):
             max_nb_clusters_per_group = max(max_nb_clusters_per_group, len(local_merge_flat_groups[cluster_nb]))
 
         nb_rows = nb_local_merge_groups
@@ -463,7 +463,7 @@ def view_local_merges(
             # Plot median waveforms.
             ax = axes[row_nb, col_nb]
             ax.set_axis_on()
-            for cluster_nb, median_trace in median_traces.items():
+            for cluster_nb, median_trace in list(median_traces.items()):
                 color = colors[cluster_nb]
                 ax.plot(median_trace, color=color)
             ax.plot(merged_median_trace, color='black')
@@ -895,7 +895,7 @@ def view_isolated_waveforms(file_name, t_start=0, t_stop=1):
         n_spikes += len(peaks[i])
 
     curve = numpy.zeros((n_spikes, N_t), dtype=numpy.float32)
-    print("We found %d spikes" % n_spikes)
+    print(("We found %d spikes" % n_spikes))
 
     count = 0
     for electrode in range(N_e):
@@ -1042,11 +1042,11 @@ def view_performance(file_name, triggers, lims=(150,150)):
     except Exception:
         result = {'spiketimes': {}, 'amplitudes': {}}
 
-    curve = numpy.zeros((len(triggers), len(result['spiketimes'].keys()), lims[1] + lims[0]), dtype=numpy.int32)
+    curve = numpy.zeros((len(triggers), len(list(result['spiketimes'].keys())), lims[1] + lims[0]), dtype=numpy.int32)
     count = 0
 
     for count, t_spike in enumerate(triggers):
-        for key in result['spiketimes'].keys():
+        for key in list(result['spiketimes'].keys()):
             elec = int(key.split('_')[1])
             idx = numpy.where((result['spiketimes'][key] > t_spike - lims[0]) & (result['spiketimes'][key] < t_spike + lims[0]))
             curve[count, elec, t_spike - result['spiketimes'][key][idx]] += 1
@@ -1082,7 +1082,7 @@ def view_templates(file_name, temp_id=0, best_elec=None, templates=None):
     probe = params.probe
 
     positions = []
-    for i in probe['channel_groups'][1]['geometry'].keys():
+    for i in list(probe['channel_groups'][1]['geometry'].keys()):
         positions.append(probe['channel_groups'][1]['geometry'][i])
     positions = np.array(positions)
     dx = np.median(np.diff(np.unique(positions[:, 0])))  # horizontal inter-electrode distance
@@ -1312,7 +1312,7 @@ def raster_plot(file_name):
     result = get_results(file_name)
     times = []
     templates = []
-    for key in result['spiketimes'].keys():
+    for key in list(result['spiketimes'].keys()):
         template = int(key.split('_')[1])
         times += result['spiketimes'][key].tolist()
         templates += [template]*len(result['spiketimes'][key])
@@ -1430,7 +1430,7 @@ def view_triggers_bis(file_name, mode='random', save=True):
     ax.grid()
     plt.savefig("/tmp/best-elec.png")
     #
-    print(mean_spike.shape)
+    print((mean_spike.shape))
     # end print zone
 
     mean_norm = numpy.linalg.norm(mean_spike)
@@ -2044,7 +2044,7 @@ def view_loss_curve(losses, title=None, save=None):
     x_max = len(losses) - 1
     fig = pylab.figure()
     ax = fig.gca()
-    ax.semilogy(range(x_min, x_max + 1), losses[1:], color='blue', linestyle='solid')
+    ax.semilogy(list(range(x_min, x_max + 1)), losses[1:], color='blue', linestyle='solid')
     ax.grid(True, which='both')
     if title is None:
         ax.set_title("Loss curve")
@@ -2155,7 +2155,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             for i in range(n_temp):
                 nb_fitted += len(data['temp_' + str(i)])
 
-            print("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp))
+            print(("Number of spikes {}/{} with {} templates".format(nb_fitted, nb_total, n_temp)))
 
             # # First pass to detect what are the scores.
             for i in range(n_temp):
@@ -2241,7 +2241,7 @@ def view_roc_curve(params, fprs, tprs, fpr, tpr, scerror=None, save=None):
             selection = scerror['selection']
             error = scerror['error']
 
-        print("Best error is obtained with templates {} : {}".format(selection, error))
+        print(("Best error is obtained with templates {} : {}".format(selection, error)))
 
         # TODO clean quarantine zone
         # ## Finally, we compute the ROC curve.

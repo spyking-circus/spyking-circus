@@ -1,4 +1,4 @@
-import numpy, h5py, pylab, cPickle
+import numpy, h5py, pylab, pickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *

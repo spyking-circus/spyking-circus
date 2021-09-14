@@ -101,7 +101,7 @@ def _read_header(path):
             uses64bitdims = True
             num_dims = -num_dims
         if (num_dims < 1) or (num_dims > 6):  # allow single dimension as of 12/6/17
-            print("Invalid number of dimensions: {}".format(num_dims))
+            print(("Invalid number of dimensions: {}".format(num_dims)))
             f.close()
             return None
         dims = []
@@ -118,7 +118,7 @@ def _read_header(path):
                 dims.append(tmp0)
         dt = _dt_from_dt_code(dt_code)
         if dt is None:
-            print("Invalid data type code: {}".format(dt_code))
+            print(("Invalid data type code: {}".format(dt_code)))
             f.close()
             return None
         H = MdaHeader(dt, dims)

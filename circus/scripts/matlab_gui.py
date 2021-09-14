@@ -96,7 +96,7 @@ def main(argv=None):
         gain = 1
 
     file_out_suff  = params.get('data', 'file_out_suff')
-    if data_file.params.has_key('data_offset'):
+    if 'data_offset' in data_file.params:
         data_offset = data_file.data_offset
     else:
         data_offset = 0
@@ -108,7 +108,7 @@ def main(argv=None):
         p = {}
         positions = []
         nodes = []
-        for key in probe['channel_groups'].keys():
+        for key in list(probe['channel_groups'].keys()):
             p.update(probe['channel_groups'][key]['geometry'])
             nodes += probe['channel_groups'][key]['channels']
             positions += [p[channel] for channel in probe['channel_groups'][key]['channels']]
@@ -122,7 +122,7 @@ def main(argv=None):
             'permutation': numpy.sort(nodes),
             'nb_total': numpy.array([probe['total_nb_channels']])
         }
-        write_datasets(cfile, to_write.keys(), to_write) 
+        write_datasets(cfile, list(to_write.keys()), to_write) 
         cfile.close()
         return t
 

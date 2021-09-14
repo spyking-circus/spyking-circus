@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import division
+
 
 import six
 import pkg_resources
@@ -269,12 +269,12 @@ class MergeWindow(QMainWindow):
         self.y_position = []
         self.label = []
         self.order = []
-        for key in self.probe['channel_groups'].keys():
-            for item in self.probe['channel_groups'][key]['geometry'].keys():
+        for key in list(self.probe['channel_groups'].keys()):
+            for item in list(self.probe['channel_groups'][key]['geometry'].keys()):
                 if item in self.probe['channel_groups'][key]['channels']:
                     self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
                     self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
-                    if len(self.probe['channel_groups'].keys()) == 1:
+                    if len(list(self.probe['channel_groups'].keys())) == 1:
                         self.label += ["%d" % item]
                     else:
                         self.label += ["%s-%d" % (key, item)]
@@ -563,7 +563,7 @@ class MergeWindow(QMainWindow):
         self.rpvs = numpy.zeros(0, dtype=numpy.float32)
         self.overlapping = numpy.zeros(0, dtype=numpy.int32)
 
-        to_explore = range(comm.rank, len(self.to_consider), comm.size)
+        to_explore = list(range(comm.rank, len(self.to_consider), comm.size))
 
         bins = numpy.linspace(0, self.duration, self.nb_bhatta_bins)
 
@@ -883,9 +883,9 @@ class MergeWindow(QMainWindow):
         self.use_lag = actual_lag
         self.score_x, self.score_y, self.score_z = self.calc_scores(lag=self.use_lag)
         if self.app is not None:
-            self.points = [zip(self.score_x, self.score_y),
-                           zip(self.norms[self.to_consider], self.rates[self.to_consider]),
-                           zip(self.score_x, self.score_z)]
+            self.points = [list(zip(self.score_x, self.score_y)),
+                           list(zip(self.norms[self.to_consider], self.rates[self.to_consider])),
+                           list(zip(self.score_x, self.score_z))]
             self.line_lag1.set_xdata((lag, lag))
             self.line_lag2.set_xdata((-lag, -lag))
             self.data_ax.set_xlabel('lag (ms) -- cutoff: %.2fms' % self.use_lag)
@@ -1320,7 +1320,7 @@ class MergeWindow(QMainWindow):
                     raise AssertionError(str(event.inaxes))
 
                 # Transform data coordinates to display coordinates
-                data = event.inaxes.transData.transform(zip(x, y))
+                data = event.inaxes.transData.transform(list(zip(x, y)))
                 distances = ((data[:, 0] - event.x)**2 +
                              (data[:, 1] - event.y)**2)
                 min_idx, min_value = np.argmin(distances), np.min(distances)
@@ -1548,7 +1548,7 @@ class MergeWindow(QMainWindow):
             mydata = h5py.File(self.file_out_suff + '.result%s.hdf5' % self.ext_out, 'w', libver='earliest')
             for key in keys:
                 mydata.create_group(key)
-                for temp in new_result[key].keys():
+                for temp in list(new_result[key].keys()):
                     tmp_path = '%s/%s' %(key, temp)
                     if self.hdf5_compress:
                         mydata.create_dataset(tmp_path, data=new_result[key][temp], compression='gzip')
@@ -1660,8 +1660,8 @@ class PreviewGUI(QMainWindow):
                 self.mua = io.load_data(self.params, 'mua')
                 count = 0
                 self.sizes = []
-                for key in self.probe['channel_groups'].keys():
-                    for item in self.probe['channel_groups'][key]['geometry'].keys():
+                for key in list(self.probe['channel_groups'].keys()):
+                    for item in list(self.probe['channel_groups'][key]['geometry'].keys()):
                         if item in self.probe['channel_groups'][key]['channels']:
                             self.sizes += [len(self.mua['spiketimes']['elec_%d' % count])]
                             count += 1
@@ -1682,17 +1682,17 @@ class PreviewGUI(QMainWindow):
         self.y_position = []
         self.label = []
         self.order = []
-        for key in self.probe['channel_groups'].keys():
-            for item in self.probe['channel_groups'][key]['geometry'].keys():
+        for key in list(self.probe['channel_groups'].keys()):
+            for item in list(self.probe['channel_groups'][key]['geometry'].keys()):
                 if item in self.probe['channel_groups'][key]['channels']:
                     self.x_position += [self.probe['channel_groups'][key]['geometry'][item][0]]
                     self.y_position += [self.probe['channel_groups'][key]['geometry'][item][1]]
-                    if len(self.probe['channel_groups'].keys()) == 1:
+                    if len(list(self.probe['channel_groups'].keys())) == 1:
                         self.label += ["%d" % item]
                     else:
                         self.label += ["%s-%d" % (key, item)]
 
-        self.points = zip(self.x_position, self.y_position)
+        self.points = list(zip(self.x_position, self.y_position))
 
         self.selected_points = set()
         self.inspect_points = []
@@ -1773,7 +1773,7 @@ class PreviewGUI(QMainWindow):
             try:
                 self.curve = numpy.zeros((self.N_e, self.chunk_size), dtype=numpy.float32)
                 limit = self.sampling_rate-self.template_shift+1
-                for key in self.result['spiketimes'].keys():
+                for key in list(self.result['spiketimes'].keys()):
                     elec  = int(key.split('_')[1])
                     lims  = (self.t_start*self.sampling_rate + self.template_shift, self.t_stop*self.sampling_rate - self.template_shift-1)
                     idx   = numpy.where((self.result['spiketimes'][key] > lims[0]) & (self.result['spiketimes'][key] < lims[1]))
@@ -1788,7 +1788,7 @@ class PreviewGUI(QMainWindow):
 
             if self.has_garbage:
                 self.uncollected = {}
-                for key in self.garbage['gspikes'].keys():
+                for key in list(self.garbage['gspikes'].keys()):
                     elec = int(key.split('_')[1])
                     lims = (self.t_start * self.sampling_rate + self.template_shift, self.t_stop * self.sampling_rate - self.template_shift - 1)
                     idx = numpy.where((self.garbage['gspikes'][key] > lims[0]) & (self.garbage['gspikes'][key] < lims[1]))
@@ -1890,7 +1890,7 @@ class PreviewGUI(QMainWindow):
                 # Transform data coordinates to display coordinates
                 x = self.x_position
                 y = self.y_position
-                data = event.inaxes.transData.transform(zip(x, y))
+                data = event.inaxes.transData.transform(list(zip(x, y)))
 
                 # Find the closest point
                 distances = ((data[:, 0] - event.x)**2 +
@@ -2058,7 +2058,7 @@ class PreviewGUI(QMainWindow):
         # Update information about the mouse position to the status bar
         status_bar = self.statusbar
         if event.inaxes == self.electrode_ax:
-            status_bar.showMessage(u'x: %.0fμm  y: %.0fμm' % (event.xdata, event.ydata))
+            status_bar.showMessage('x: %.0fμm  y: %.0fμm' % (event.xdata, event.ydata))
         elif event.inaxes == self.data_x:
             yspacing = numpy.max(np.abs(self.data)) * 1.05
             if yspacing != 0:
@@ -2079,7 +2079,7 @@ class PreviewGUI(QMainWindow):
                     fit = self.curve[electrode_idx, rel_time_idx]
                     msg += ' (fit: %.2f)' % fit
                 msg += '  t: %.2fs ' % self.time[time_idx]
-                msg += u'(electrode %d at x: %.0fμm  y: %.0fμm)' % (electrode_idx, electrode_x, electrode_y)
+                msg += '(electrode %d at x: %.0fμm  y: %.0fμm)' % (electrode_idx, electrode_x, electrode_y)
                 status_bar.showMessage(msg)
 
     def zoom(self, event):

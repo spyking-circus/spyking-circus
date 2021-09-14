@@ -31,7 +31,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     gpu_only = params.getboolean('fitting', 'gpu_only')
     nodes, edges = get_nodes_and_edges(params)
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
-    tmp_limits = map(float, tmp_limits)
+    tmp_limits = list(map(float, tmp_limits))
     amp_auto = params.getboolean('fitting', 'amp_auto')
     nb_chances = params.getint('fitting', 'nb_chances')
     max_chunk = params.getfloat('fitting', 'max_chunk')
@@ -118,7 +118,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     if use_gpu and do_spatial_whitening:
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
-    to_explore = range(comm.rank, processed_chunks, comm.size)
+    to_explore = list(range(comm.rank, processed_chunks, comm.size))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)

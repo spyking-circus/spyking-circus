@@ -1,4 +1,4 @@
-import numpy, pylab, cPickle
+import numpy, pylab, pickle
 import unittest
 from . import mpi_launch
 from circus.shared.utils import *

@@ -1,4 +1,4 @@
-import numpy, h5py, pylab, cPickle
+import numpy, h5py, pylab, pickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -12,7 +12,7 @@ def get_performance(file_name):
     result_name     = os.path.join(file_name, 'injected')
 
     pic_name        = file_name + '.pic'
-    data            = cPickle.load(open(pic_name))
+    data            = pickle.load(open(pic_name))
     n_cells         = data['cells'] 
     nb_insert       = len(n_cells)
     amplitude       = data['amplitudes']
@@ -26,12 +26,12 @@ def get_performance(file_name):
     garbage         = {}
     cgarbage        = 0
     cspikes         = 0
-    for key in result.get('spiketimes').keys():
+    for key in list(result.get('spiketimes').keys()):
         fitted_spikes[key] = result.get('spiketimes/%s' %key)[:]
         cspikes += len(fitted_spikes[key])
-    for key in result.get('amplitudes').keys():
+    for key in list(result.get('amplitudes').keys()):
         fitted_amps[key]   = result.get('amplitudes/%s' %key)[:]
-    for key in result.get('gspikes').keys():
+    for key in list(result.get('gspikes').keys()):
         garbage[key] = result.get('gspikes/%s' %key)[:]
         cgarbage += len(garbage[key])
 
@@ -41,10 +41,10 @@ def get_performance(file_name):
     real_amps       = {}
     ctruth          = 0
     result          = h5py.File(os.path.join(result_name, '%s.result.hdf5' %a))
-    for key in result.get('spiketimes').keys():
+    for key in list(result.get('spiketimes').keys()):
         spikes[key] = result.get('spiketimes/%s' %key)[:]
         ctruth     += len(spikes[key])
-    for key in result.get('real_amps').keys():
+    for key in list(result.get('real_amps').keys()):
         real_amps[key]   = result.get('real_amps/%s' %key)[:]
 
     n_tm            = templates[2]//2

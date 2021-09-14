@@ -1,7 +1,7 @@
 import os, sys, nose, h5py
 import circus
 import subprocess
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import unittest
 import colorama
 colorama.init(autoreset=True)
@@ -60,7 +60,7 @@ def mpi_launch(subtask, filename, nb_cpu, nb_gpu, use_gpu, output=None, benchmar
     else:
         if subtask == 'benchmarking':
             if (output is None) or (benchmark is None):
-                print "To generate synthetic datasets, you must provide output and type"
+                print("To generate synthetic datasets, you must provide output and type")
                 sys.exit(1)
             args += ['-np', nb_tasks,
                      'spyking-circus-subtask',
@@ -82,7 +82,7 @@ def get_dataset(self):
     result   = os.path.join(filename, 'data')
     filename = os.path.join(filename, 'data.dat')
     if not os.path.exists(filename):
-        print "Generating a synthetic dataset of 4 channels, 1min at 20kHz..."
+        print("Generating a synthetic dataset of 4 channels, 1min at 20kHz...")
         sampling_rate = 20000
         N_total       = 4
         gain          = 0.5

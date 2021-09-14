@@ -258,7 +258,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 print_and_log(["Disabling spatial whitening because of NaNs found"], 'info', logger)
 
         bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
-        io.write_datasets(bfile, to_write.keys(), to_write, compression=hdf5_compress)
+        io.write_datasets(bfile, list(to_write.keys()), to_write, compression=hdf5_compress)
         bfile.close()
 
     comm.Barrier()
@@ -709,7 +709,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             res['waveforms_pos'] = gdata_pos[idx, :]
 
         bfile = h5py.File(file_out_suff + '.basis.hdf5', 'r+', libver='earliest')
-        io.write_datasets(bfile, res.keys(), res, compression=hdf5_compress)
+        io.write_datasets(bfile, list(res.keys()), res, compression=hdf5_compress)
         if sign_peaks == 'positive':
             print_and_log(["A basis with %s dimensions has been built" % res['proj_pos'].shape[1]], 'info', logger)
         elif sign_peaks == 'negative':

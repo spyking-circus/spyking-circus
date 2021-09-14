@@ -1,4 +1,4 @@
-import numpy, h5py, pylab, cPickle
+import numpy, h5py, pylab, pickle
 import unittest
 from . import mpi_launch, get_dataset
 from circus.shared.utils import *
@@ -12,7 +12,7 @@ def get_performance(file_name, name):
     result_name     = os.path.join(file_name, 'injected')
 
     pic_name        = file_name + '.pic'
-    data            = cPickle.load(open(pic_name))
+    data            = pickle.load(open(pic_name))
     n_cells         = data['cells'] 
     n_point         = len(n_cells)
     amplitude       = data['amplitudes'][0:n_point]
@@ -42,12 +42,12 @@ def get_performance(file_name, name):
     res2            = numpy.zeros(len(n_cells))
     res3            = numpy.zeros(len(n_cells))
 
-    for gcount, temp_id in enumerate(xrange(n_tm - len(n_cells), n_tm)):
+    for gcount, temp_id in enumerate(range(n_tm - len(n_cells), n_tm)):
         source_temp = inj_templates[:, temp_id].toarray().flatten()
         similarity  = []
         temp_match  = None
         dmax        = 0
-        for i in xrange(templates.shape[1]//2):
+        for i in range(templates.shape[1]//2):
             d = numpy.corrcoef(templates[:, i].toarray().flatten(), source_temp)[0, 1]
             similarity += [d]
             if d > dmax:
