@@ -6,7 +6,10 @@ mail: pierre.yger <at> inserm.fr
 
 Contains the class to read *param files
 """
-import ConfigParser as configparser
+try:
+    import configparser
+except:
+    from six.moves import configparser
 
 from circus.shared.messages import print_and_log
 from circus.shared.probes import read_probe, parse_dead_channels, parse_common_grounds

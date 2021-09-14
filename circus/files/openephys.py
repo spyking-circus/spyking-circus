@@ -42,8 +42,8 @@ class OpenEphysFile(DataFile):
     is_streamable = ['multi-folders']
 
     # constants
-    NUM_HEADER_BYTES = 1024L
-    SAMPLES_PER_RECORD = 1024L
+    NUM_HEADER_BYTES = 1024
+    SAMPLES_PER_RECORD = 1024
     RECORD_SIZE = 8 + 2 * 2 + SAMPLES_PER_RECORD * 2 + 10  # size of each continuous record in bytes
     OFFSET_PER_BLOCK = ((8 + 2 * 2) / 2, 10 / 2)
 

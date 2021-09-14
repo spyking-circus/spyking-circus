@@ -36,6 +36,11 @@ from circus.shared.utils import query_yes_no, get_shared_memory_flag
 from circus.shared.probes import get_averaged_n_edges
 from circus.files import __supported_data_files__, list_all_file_format
 
+try:
+    import configparser
+except:
+    from six.moves import configparser
+
 def main(argv=None):
 
     if argv is None:
@@ -195,7 +200,6 @@ but a subset x,y can be done. Steps are:
             print_and_log(["%s does not exist" % file_params], 'error')
             sys.exit(0)
 
-        import ConfigParser as configparser
         parser = configparser.ConfigParser()
         myfile = open(file_params, 'r')
         lines = myfile.readlines()
