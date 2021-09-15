@@ -50,7 +50,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     # see: https://wiki.python.org/moin/UsingPickle
     def write_benchmark(filename, benchmark, cells, rates, amplitudes, sampling, probe, trends=None):
         """Save benchmark parameters in a file to remember them."""
-        import cPickle
+        import pickle
         to_write = {'benchmark': benchmark}
         to_write['cells'] = cells
         to_write['rates'] = rates
@@ -59,7 +59,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
         to_write['sampling'] = sampling
         if benchmark == 'drifts':
             to_write['drifts'] = trends
-        cPickle.dump(to_write, open(filename + '.pic', 'w'))
+        pickle.dump(to_write, open(filename + '.pic', 'w'))
 
     # Retrieve some key parameters.
     templates = io.load_data(params, 'templates')
@@ -349,7 +349,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
     loc_nb_chunks = len(to_process)
     numpy.random.seed(comm.rank)
 
-    to_explore = range(comm.rank, nb_chunks, comm.size)
+    to_explore = list(range(comm.rank, nb_chunks, comm.size))
 
     # Initialize the progress bar about the generation of the benchmark.
     if comm.rank == 0:

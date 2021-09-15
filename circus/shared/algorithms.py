@@ -718,7 +718,7 @@ def slice_result(result, times):
 
     for t in times:
         sub_result = {'spiketimes': {}, 'amplitudes': {}}
-        for key in result['spiketimes'].keys():
+        for key in list(result['spiketimes'].keys()):
             spike_times = result['spiketimes'][key]
             spike_times = spike_times.ravel()
             amplitudes = result['amplitudes'][key]
@@ -735,7 +735,7 @@ def merging_cc(params, nb_cpu, nb_gpu, use_gpu):
     def remove(result_, distances_, cc_merge_):
         do_merge = True
         to_merge_ = numpy.zeros((0, 2), dtype=numpy.int32)
-        g_idx = range(len(distances_))
+        g_idx = list(range(len(distances_)))
         result_['kept'] = numpy.arange(len(distances))
         while do_merge:
             dmax = distances_.max()
@@ -1295,11 +1295,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         if len(bad_values['data']) > 0:
             all_bad_values = numpy.concatenate([
                 values
-                for values in bad_values['data'].values()
+                for values in list(bad_values['data'].values())
             ])
             all_bad_times = numpy.concatenate([
                 values
-                for values in bad_values['times'].values()
+                for values in list(bad_values['times'].values())
             ])
         else:
             all_bad_values = numpy.zeros(0, dtype=numpy.float32)
@@ -1308,11 +1308,11 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         if len(neutral_values['data']) > 0:
             all_neutral_values = numpy.concatenate([
                 values
-                for values in neutral_values['data'].values()
+                for values in list(neutral_values['data'].values())
             ])
             all_neutral_times = numpy.concatenate([
                 values
-                for values in neutral_values['times'].values()
+                for values in list(neutral_values['times'].values())
             ])
         else:
             all_neutral_values = numpy.zeros(0, dtype=numpy.float32)
@@ -1536,13 +1536,13 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
 
         if fine_amplitude:
             hfile['limits'][:] = bounds[indices]
-        if 'purity' not in hfile.keys():
+        if 'purity' not in list(hfile.keys()):
             hfile.create_dataset('purity', data=purity_level[indices])
             hfile.create_dataset('nb_chances', data=max_nb_chances[indices])
         else:
             hfile['purity'][:] = purity_level[indices]
             hfile['nb_chances'][:] = max_nb_chances[indices]
-        if 'confusion' not in hfile.keys():
+        if 'confusion' not in list(hfile.keys()):
             hfile.create_dataset('confusion', data=confusion[indices])
         else:
             hfile['confusion'][:] = confusion[indices]

@@ -42,8 +42,8 @@ class NixFile(H5File):
         header = {}
         header['data_dtype'] = self.my_file.get(self.h5_key).dtype
 
-        for key in self.my_file.get('%s/dimensions' % nix_name).keys():
-            tmp = dict(self.my_file.get('%s/dimensions/%s' % (nix_name, key)).attrs.items())
+        for key in list(self.my_file.get('%s/dimensions' % nix_name).keys()):
+            tmp = dict(list(self.my_file.get('%s/dimensions/%s' % (nix_name, key)).attrs.items()))
             if tmp['label'] == 'time':
                 header['sampling_rate'] = 1./['sampling_interval']
 

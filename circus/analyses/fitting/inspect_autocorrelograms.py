@@ -47,7 +47,7 @@ window_size = lag_max - lag_min  # ms
 # Load spike times.
 results = load_data(params, 'results', extension=args.extension)
 spike_times = dict()
-for key in results['spiketimes'].keys():
+for key in list(results['spiketimes'].keys()):
     if key[:5] == 'temp_':
         template_key = key
         template_id = int(key[5:])
@@ -81,11 +81,11 @@ def compute_autocorrelogram(spike_times, bin_size, nb_bins, normalize=False):
 
 
 # Compute autocorrelograms.
-template_ids = np.sort(spike_times.keys())
+template_ids = np.sort(list(spike_times.keys()))
 nb_templates = template_ids.size
 autocorrelograms = np.zeros((nb_templates, nb_bins))
 bin_edges = None
-for k in tqdm.tqdm(range(0, nb_templates)):
+for k in tqdm.tqdm(list(range(0, nb_templates))):
     template_id = template_ids[k]
     autocorrelograms[k, :], bin_edges = \
         compute_autocorrelogram(spike_times[template_id], bin_size * 1e-3, nb_bins, normalize=True)

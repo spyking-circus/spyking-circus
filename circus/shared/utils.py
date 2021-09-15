@@ -159,7 +159,7 @@ def apply_patch_for_similarities(params, extension):
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r+', libver='earliest')
 
             for key in ['maxoverlap', 'maxlag', 'version']:
-                if key in myfile2.keys():
+                if key in list(myfile2.keys()):
                     myfile2.pop(key)
 
             myfile2.create_dataset('version', data=numpy.array(circus.__version__.split('.'), dtype=numpy.int32))
@@ -196,7 +196,7 @@ def query_yes_no(question, default="yes"):
     while True:
         sys.stdout.write(question + prompt)
         sys.stdout.flush()
-        choice = raw_input().lower()
+        choice = input().lower()
         if default is not None and choice == '':
             return valid[default]
         elif choice in valid:

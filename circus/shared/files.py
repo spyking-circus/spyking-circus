@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 from circus.shared.utils import get_tqdm_progressbar
 import numpy
@@ -730,7 +730,7 @@ def load_data_memshared(
 
             nb_data = 0
 
-            for key in myfile.keys():
+            for key in list(myfile.keys()):
 
                 if ('clusters_' in key) or (key == 'electrodes') or (key == 'local_clusters'):
                     if local_rank == 0:
@@ -1036,7 +1036,7 @@ def load_data(params, data, extension=''):
         filename = file_out_suff + '.templates%s.hdf5' % extension
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
-            if 'nb_chances' in myfile.keys():
+            if 'nb_chances' in list(myfile.keys()):
                 return myfile['nb_chances'][:]
             else:
                 N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
@@ -1158,7 +1158,7 @@ def load_data(params, data, extension=''):
     elif data == 'purity':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
-            if 'purity' in myfile.keys():
+            if 'purity' in list(myfile.keys()):
                 purity = myfile.get('purity')[:]
             else:
                 N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
@@ -1172,7 +1172,7 @@ def load_data(params, data, extension=''):
     elif data == 'confusion':
         if os.path.exists(file_out_suff + '.templates%s.hdf5' % extension):
             myfile = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r', libver='earliest')
-            if 'confusion' in myfile.keys():
+            if 'confusion' in list(myfile.keys()):
                 confusion = myfile.get('confusion')[:]
             else:
                 N_e, N_t, nb_templates = myfile.get('temp_shape')[:].ravel()
@@ -1240,7 +1240,7 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
-            for key in myfile.keys():
+            for key in list(myfile.keys()):
                 result[str(key)] = myfile.get(key)[:]
             myfile.close()
             return result
@@ -1251,7 +1251,7 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
-            for key in myfile.keys():
+            for key in list(myfile.keys()):
                 if (key.find('data') == -1):
                     result[str(key)] = myfile.get(key)[:]
             myfile.close()
@@ -1263,7 +1263,7 @@ def load_data(params, data, extension=''):
         if os.path.exists(filename):
             myfile = h5py.File(filename, 'r', libver='earliest')
             result = {}
-            for key in myfile.keys():
+            for key in list(myfile.keys()):
                 if ('clusters_' in key) or (key == 'electrodes') or (key == 'local_clusters'):
                     result[str(key)] = myfile.get(key)[:]
             myfile.close()
@@ -1649,7 +1649,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     else:
         result_debug = None
 
-    to_explore = range(nb_threads)
+    to_explore = list(range(nb_threads))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -1776,7 +1776,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
     mydata = h5py.File(file_out_suff + '.result.hdf5', mode='w', libver='earliest')
     for key in keys:
         mydata.create_group(key)
-        for temp in result[key].keys():
+        for temp in list(result[key].keys()):
             tmp_path = '%s/%s' % (key, temp)
             if hdf5_compress:
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
@@ -1812,11 +1812,11 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
 
     # Count the number of spikes.
     count = 0
-    for item in result['spiketimes'].keys():
+    for item in list(result['spiketimes'].keys()):
         count += len(result['spiketimes'][item])
     if collect_all:
         gcount = 0
-        for item in result['gspikes'].keys():
+        for item in list(result['gspikes'].keys()):
             gcount += len(result['gspikes'][item])
 
     # Print log message.
@@ -1862,7 +1862,7 @@ def collect_saturation(nb_threads, params, erase=False):
         result['timesteps']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
         result['amplitudes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
 
-    to_explore = range(nb_threads)
+    to_explore = list(range(nb_threads))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -1903,7 +1903,7 @@ def collect_saturation(nb_threads, params, erase=False):
     keys = ['timesteps', 'amplitudes', 'info']
     for key in keys:
         mydata.create_group(key)
-        for temp in result[key].keys():
+        for temp in list(result[key].keys()):
             tmp_path = '%s/%s' % (key, temp)
             if hdf5_compress:
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
@@ -1913,7 +1913,7 @@ def collect_saturation(nb_threads, params, erase=False):
 
     # Count and print the number of spikes.
     count = 0
-    for item in result['timesteps'].keys():
+    for item in list(result['timesteps'].keys()):
         count += len(result['timesteps'][item])
 
     to_write = ["Total saturation over all channels: %gs" %(count / data_file.sampling_rate)]
@@ -1984,7 +1984,7 @@ def collect_mua(nb_threads, params, erase=False):
         result['spiketimes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
         result['amplitudes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
 
-    to_explore = range(nb_threads)
+    to_explore = list(range(nb_threads))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -2025,7 +2025,7 @@ def collect_mua(nb_threads, params, erase=False):
     keys = ['spiketimes', 'amplitudes', 'info']
     for key in keys:
         mydata.create_group(key)
-        for temp in result[key].keys():
+        for temp in list(result[key].keys()):
             tmp_path = '%s/%s' % (key, temp)
             if hdf5_compress:
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
@@ -2035,7 +2035,7 @@ def collect_mua(nb_threads, params, erase=False):
 
     # Count and print the number of spikes.
     count = 0
-    for item in result['spiketimes'].keys():
+    for item in list(result['spiketimes'].keys()):
         count += len(result['spiketimes'][item])
 
     to_write = ["Number of threshold crossings : %d" % count]
@@ -2072,7 +2072,7 @@ def collect_artefacts(nb_threads, params, erase=False):
         result['spiketimes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.uint32)]
         result['amplitudes']['elec_' + str(i)] = [numpy.empty(shape=0, dtype=numpy.float32)]
 
-    to_explore = range(nb_threads)
+    to_explore = list(range(nb_threads))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -2113,7 +2113,7 @@ def collect_artefacts(nb_threads, params, erase=False):
     keys = ['spiketimes', 'amplitudes', 'info']
     for key in keys:
         mydata.create_group(key)
-        for temp in result[key].keys():
+        for temp in list(result[key].keys()):
             tmp_path = '%s/%s' % (key, temp)
             if hdf5_compress:
                 mydata.create_dataset(tmp_path, data=result[key][temp], compression='gzip')
@@ -2123,7 +2123,7 @@ def collect_artefacts(nb_threads, params, erase=False):
 
     # Count and print the number of spikes.
     count = 0
-    for item in result['spiketimes'].keys():
+    for item in list(result['spiketimes'].keys()):
         count += len(result['spiketimes'][item])
 
     to_write = ["Number of artefacts : %d" % count]
@@ -2140,7 +2140,7 @@ def get_results(params, extension=''):
     myfile = h5py.File(file_out_suff + '.result%s.hdf5' % extension, 'r', libver='earliest')
     for key in ['spiketimes', 'amplitudes']:
         result[str(key)] = {}
-        for temp in myfile.get(key).keys():
+        for temp in list(myfile.get(key).keys()):
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
             # Files has been saved with MATLAB and we need to be compatible with the default format
             if extension not in ['', '-merged'] and key == "spiketimes":
@@ -2155,7 +2155,7 @@ def get_mua(params, extension=''):
     myfile = h5py.File(file_out_suff + '.mua%s.hdf5' % extension, 'r', libver='earliest')
     for key in ['spiketimes', 'amplitudes']:
         result[str(key)] = {}
-        for temp in myfile.get(key).keys():
+        for temp in list(myfile.get(key).keys()):
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
     myfile.close()
     return result
@@ -2176,7 +2176,7 @@ def get_garbage(params, extension=''):
     myfile = h5py.File(file_out_suff + '.result%s.hdf5' % extension, 'r', libver='earliest')
     for key in ['gspikes']:
         result[str(key)] = {}
-        for temp in myfile.get(key).keys():
+        for temp in list(myfile.get(key).keys()):
             result[str(key)][str(temp)] = myfile.get(key).get(temp)[:]
     myfile.close()
     return result
@@ -2260,7 +2260,7 @@ def get_overlaps(
     else:
         upper_bounds = N_tm // 2
 
-    to_explore = range(comm.rank, N_e, comm.size)
+    to_explore = list(range(comm.rank, N_e, comm.size))
 
     if comm.rank == 0:
         if verbose:
@@ -2461,7 +2461,7 @@ def get_overlaps(
             myfile2 = h5py.File(file_out_suff + '.templates%s.hdf5' % extension, 'r+', libver='earliest')
 
             for key in ['maxoverlap', 'maxlag', 'version']:
-                if key in myfile2.keys():
+                if key in list(myfile2.keys()):
                     myfile2.pop(key)
 
             if not normalize:

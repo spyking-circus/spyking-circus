@@ -116,7 +116,7 @@ if median_snippet is not None:
     plot_snippet(ax, median_snippet, params, color='black', label="median", **kwargs)
 plot_template(ax, template, params, color='tab:blue', label="template", **kwargs)
 if mean_amplitude is not None:
-    print("mean_amplitude: {}".format(mean_amplitude))
+    print(("mean_amplitude: {}".format(mean_amplitude)))
     plot_template(ax, mean_amplitude * template, params, color='tab:green', label="scaled template", **kwargs)
 ax.legend()
 ax.set_xticks([])

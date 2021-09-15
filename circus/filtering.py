@@ -147,10 +147,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         if nb_shanks > 1:
             shank_channels = {}
-            for i in params.probe['channel_groups'].keys():
+            for i in list(params.probe['channel_groups'].keys()):
                 shank_channels[i] = numpy.array(params.probe['channel_groups'][i]['channels'], dtype=numpy.int32)
         else:
-            channel_group = params.probe['channel_groups'].keys()[0]
+            channel_group = list(params.probe['channel_groups'].keys())[0]
 
         process_all_channels = numpy.all(nodes == numpy.arange(N_total))
         duration = int(0.1*params.rate)
@@ -166,7 +166,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
             print_and_log(to_write, 'default', logger)
 
-        to_explore = range(comm.rank, nb_chunks, comm.size)
+        to_explore = list(range(comm.rank, nb_chunks, comm.size))
 
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(params, to_explore)
@@ -249,7 +249,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         global_median = numpy.median(local_chunk, 1)
                     local_chunk -= global_median[:, numpy.newaxis]
                 else:
-                    for i in params.probe['channel_groups'].keys():
+                    for i in list(params.probe['channel_groups'].keys()):
                         global_median = numpy.median(numpy.take(local_chunk, shank_channels[i], axis=1), 1)
                         local_chunk[:, shank_channels[i]] -= global_median[:, numpy.newaxis]
 
@@ -258,7 +258,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ground = local_chunk[:, common_ground[channel_group]]
                     local_chunk -= ground[:, numpy.newaxis]
                 else:
-                    for i in params.probe['channel_groups'].keys():
+                    for i in list(params.probe['channel_groups'].keys()):
                         ground = local_chunk[:, common_ground[i]]
                         local_chunk[:, shank_channels[i]] -= ground[:, numpy.newaxis]
 

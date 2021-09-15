@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import os
 from os.path import join as pjoin
 from setuptools import setup
@@ -99,7 +99,6 @@ setup(name='spyking-circus',
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'ASSY-01-P.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'ASSY-37-P.prb')]),
                   (pjoin(data_path, 'probes'), [pjoin('probes', 'ASSY-77-P.prb')])],
-      use_2to3=True,
       classifiers=[
           'Development Status :: 4 - Beta',
           'Environment :: Console',

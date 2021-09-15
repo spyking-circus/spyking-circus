@@ -161,12 +161,12 @@ but a subset x,y can be done. Steps are:
 
     file_params = f_next + '.params'
     if not os.path.exists(file_params) and not batch:
-        print(Fore.RED + 'The parameter file %s is not present!' % file_params)
+        print((Fore.RED + 'The parameter file %s is not present!' % file_params))
         create_params = query_yes_no(Fore.WHITE + "Do you want SpyKING CIRCUS to create a parameter file?")
 
         if create_params:
-            print(Fore.WHITE + "Creating %s" % file_params)
-            print(Fore.WHITE + "Fill it properly before launching the code! (see documentation)")
+            print((Fore.WHITE + "Creating %s" % file_params))
+            print((Fore.WHITE + "Fill it properly before launching the code! (see documentation)"))
             print_info(['Keep in mind that filtering is performed on site, so please',
                         'be sure to keep a copy of your data elsewhere'])
             shutil.copyfile(config_file, file_params)
@@ -318,31 +318,31 @@ but a subset x,y can be done. Steps are:
         print_and_log(['Config file: %s' % (f_next + '.params')], 'debug', logger)
         print_and_log(['Data file  : %s' % data_file], 'debug', logger)
 
-        print(get_colored_header())
-        print(Fore.GREEN + "File          : " + Fore.CYAN + filename)
+        print((get_colored_header()))
+        print((Fore.GREEN + "File          : " + Fore.CYAN + filename))
         if preview:
-            print(Fore.GREEN + "Steps         : " + Fore.CYAN + "preview mode")
+            print((Fore.GREEN + "Steps         : " + Fore.CYAN + "preview mode"))
         elif result:
-            print(Fore.GREEN + "Steps         : " + Fore.CYAN + "result mode")
+            print((Fore.GREEN + "Steps         : " + Fore.CYAN + "result mode"))
         else:
-            print(Fore.GREEN + "Steps         : " + Fore.CYAN + ", ".join(steps))
+            print((Fore.GREEN + "Steps         : " + Fore.CYAN + ", ".join(steps)))
         # print Fore.GREEN + "GPU detected  : ", Fore.CYAN + str(HAVE_CUDA)
-        print(Fore.GREEN + "Number of CPU : " + Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count()))
+        print((Fore.GREEN + "Number of CPU : " + Fore.CYAN + str(nb_cpu) + "/" + str(psutil.cpu_count())))
         # if HAVE_CUDA:
         #     print Fore.GREEN + "Number of GPU : ", Fore.CYAN + str(nb_gpu)
-        print(Fore.GREEN + "Parallel HDF5 : " + Fore.CYAN + str(parallel_hdf5))
+        print((Fore.GREEN + "Parallel HDF5 : " + Fore.CYAN + str(parallel_hdf5)))
 
         do_upgrade = ''
         use_shared_memory = get_shared_memory_flag(params)
         if not SHARED_MEMORY:
             do_upgrade = Fore.WHITE + '   [please consider upgrading MPI]'
 
-        print(Fore.GREEN + "Shared memory : " + Fore.CYAN + str(use_shared_memory) + do_upgrade)
-        print(Fore.GREEN + "Hostfile      : " + Fore.CYAN + hostfile)
+        print((Fore.GREEN + "Shared memory : " + Fore.CYAN + str(use_shared_memory) + do_upgrade))
+        print((Fore.GREEN + "Hostfile      : " + Fore.CYAN + hostfile))
         print("")
-        print(Fore.GREEN + "##################################################################")
+        print((Fore.GREEN + "##################################################################"))
         print("")
-        print(Fore.RESET)
+        print((Fore.RESET))
 
         # Launch the subtasks
         subtasks = [('filtering', 'mpirun'),

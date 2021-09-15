@@ -47,12 +47,12 @@ __supported_data_files__ = {
 
 if HAVE_NEUROSHARE:
 
-    from plexon import PlexonFile
+    from .plexon import PlexonFile
     __supported_data_files__[PlexonFile.description] = PlexonFile
 
 if HAVE_PYMCSTREAM:
     
-    from mcd import MCDFile
+    from .mcd import MCDFile
     __supported_data_files__[MCDFile.description] = MCDFile
 
 

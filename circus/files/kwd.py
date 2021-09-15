@@ -40,7 +40,7 @@ class KwdFile(H5File):
             count = 0
             params = self.get_description()
             my_file = h5py.File(self.file_name, mode='r')
-            all_matches = my_file.get('recordings').keys()
+            all_matches = list(my_file.get('recordings').keys())
             all_streams = []
             for m in all_matches:
                 all_streams += [int(m)]
@@ -85,8 +85,8 @@ class KwdFile(H5File):
 
         header['nb_channels'] = self._shape[1]
         mykey = 'recordings/%s/application_data' % self.params['recording_number']
-        header['gain'] = dict(self.my_file.get(mykey).attrs.items())['channel_bit_volts']
-        self._t_start = dict(self.my_file.get(mykey).attrs.items())['start_time']
+        header['gain'] = dict(list(self.my_file.get(mykey).attrs.items()))['channel_bit_volts']
+        self._t_start = dict(list(self.my_file.get(mykey).attrs.items()))['start_time']
 
         self._close()
 

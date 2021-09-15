@@ -320,7 +320,7 @@ class DataFile(object):
 
     def _fill_from_header(self, header):
 
-        for key in header.keys():
+        for key in list(header.keys()):
             self.params[key] = header[key]
             if self.is_master:
                 print_and_log(['%s is read from the header with a value of %s' % (key, self.params[key])], 'debug', logger)
@@ -329,8 +329,8 @@ class DataFile(object):
 
         missing = {}
 
-        for key, value in self._required_fields.items():
-            if key not in params.keys():
+        for key, value in list(self._required_fields.items()):
+            if key not in list(params.keys()):
                 missing[key] = value
 
         if len(missing) > 0:
@@ -342,7 +342,7 @@ class DataFile(object):
         to_write = ['The parameters for %s file format are:' % self.description.upper(), '']
         nb_params = 0
 
-        for key, value in self._required_fields.items():
+        for key, value in list(self._required_fields.items()):
             mystring = '-- %s -- %s' % (key, str(value))
             mystring += ' [** mandatory **]'
             to_write += [mystring]
@@ -350,7 +350,7 @@ class DataFile(object):
 
         to_write += ['']
 
-        for key, value in self._default_values.items():
+        for key, value in list(self._default_values.items()):
             mystring = '-- %s -- %s' % (key, str(type(value)))
             mystring += ' [default is %s]' % value
             to_write += [mystring]
@@ -522,7 +522,7 @@ class DataFile(object):
 
     def get_description(self):
         result = {}
-        for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset'] + self._default_values.keys() + self._required_fields.keys():
+        for key in ['sampling_rate', 'data_dtype', 'gain', 'nb_channels', 'dtype_offset'] + list(self._default_values.keys()) + list(self._required_fields.keys()):
             result[key] = self.params[key]
         return result
 

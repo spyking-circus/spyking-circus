@@ -194,7 +194,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     old_results = io.load_data(params, 'results', extension=input_extension)
     electrodes = io.load_data(params, 'electrodes', extension=input_extension)
     clusters = io.load_data(params, 'clusters', extension=input_extension)
-    for spike_template, spike_cluster in templates_to_clusters.items():
+    for spike_template, spike_cluster in list(templates_to_clusters.items()):
         spike_group = cluster_group[spike_cluster]
         if spike_group in ['good', 'unsorted']:
             if clusters_to_templates[spike_cluster] is None:
@@ -355,7 +355,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     result_output_file = h5py.File(result_output_path, mode='w', libver='earliest')
     for key in keys:
         result_output_file.create_group(key)
-        for temp in new_results[key].keys():
+        for temp in list(new_results[key].keys()):
             tmp_path = "{}/{}".format(key, temp)
             result_output_file.create_dataset(tmp_path, data=new_results[key][temp])
     result_output_file.close()

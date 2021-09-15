@@ -297,7 +297,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     last_chunk_size = 0
     slice_indices = numpy.zeros(0, dtype=numpy.int32)
 
-    to_explore = range(comm.rank, processed_chunks, comm.size)
+    to_explore = list(range(comm.rank, processed_chunks, comm.size))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)

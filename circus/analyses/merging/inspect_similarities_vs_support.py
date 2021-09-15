@@ -38,8 +38,8 @@ assert np.min(template_similarities) >= 0.0, np.min(template_similarities)
 assert np.max(template_similarities) <= 1.0, np.max(template_similarities)
 
 # ...
-print("template similarity max.: {}".format(np.max(template_similarities)))
-print("template_similarity min.: {}".format(np.min(template_similarities)))
+print(("template similarity max.: {}".format(np.max(template_similarities))))
+print(("template_similarity min.: {}".format(np.min(template_similarities))))
 
 # Plot template similarities.
 fig, ax = plt.subplots(2)

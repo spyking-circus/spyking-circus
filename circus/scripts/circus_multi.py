@@ -72,7 +72,7 @@ into N individual results files, one per stream
         mydata = h5py.File(file_out_suff + '.result%s-%d.hdf5' % (extension, count), 'w', libver='earliest')
         for key in keys:
             mydata.create_group(key)
-            for temp in result[key].keys():
+            for temp in list(result[key].keys()):
                 tmp_path = '%s/%s' % (key, temp)
                 mydata.create_dataset(tmp_path, data=result[key][temp])
         mydata.close()

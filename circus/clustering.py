@@ -82,7 +82,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     ss_scale = params.getfloat('clustering', 'smart_search_scale')
     debug = params.getboolean('clustering', 'debug')
     tmp_limits = params.get('fitting', 'amp_limits').replace('(', '').replace(')', '').split(',')
-    _ = map(float, tmp_limits)
+    _ = list(map(float, tmp_limits))
     elt_count = 0
     m_ratio = params.getfloat('clustering', 'm_ratio')
     sub_output_dim = params.getint('clustering', 'sub_dim')
@@ -429,7 +429,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             loop_max_elts_elec = max_elts_elec
             loop_nb_elts = nb_elts
         
-        to_explore = range(comm.rank, nb_chunks, comm.size)
+        to_explore = list(range(comm.rank, nb_chunks, comm.size))
 
         local_nb_chunks = len(to_explore)
         rejected = 0
@@ -1005,7 +1005,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             tmp_h5py = None  # default assignment (for PyCharm code inspection)
 
-        to_explore = range(comm.rank, n_e, comm.size)
+        to_explore = list(range(comm.rank, n_e, comm.size))
         sys.stderr.flush()
 
         if (comm.rank == 0) and gpass == nb_repeats:
@@ -1380,7 +1380,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
 
         data_file.close()
 
-        to_explore = range(comm.rank, n_e, comm.size)
+        to_explore = list(range(comm.rank, n_e, comm.size))
 
         if comm.rank == 0:
             to_explore = get_tqdm_progressbar(params, to_explore)

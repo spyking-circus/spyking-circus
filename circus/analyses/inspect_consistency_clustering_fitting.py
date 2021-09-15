@@ -35,7 +35,7 @@ nb_time_steps = params.getint('detection', 'N_t')
 # Load spike times.
 results = load_data(params, 'results', extension='')  # TODO support other extensions?
 results_data = dict()
-for key in results['spiketimes'].keys():
+for key in list(results['spiketimes'].keys()):
     if key[:5] == 'temp_':
         template_key = key
         template_id = int(key[5:])
@@ -76,7 +76,7 @@ df.set_index('template_id')
 selection = pd.Series(df['local_cluster'] != df['local_cluster_bis'])
 if selection.any():
     pd.set_option('display.max_rows', 100)
-    print(df[selection])
+    print((df[selection]))
     raise UserWarning("Found a mismatch between saved and recomputed local clusters.")
 
 
@@ -97,7 +97,7 @@ def compute_minimum_intervals(spike_times, peak_times):
 
 
 # Compute proportions of minimum intervals below the given threshold interval.
-template_ids = np.array(results_data['spike_times'].keys())
+template_ids = np.array(list(results_data['spike_times'].keys()))
 proportions = np.zeros_like(template_ids, dtype=np.float)
 for k, template_id in enumerate(template_ids):
     # Select spike times.

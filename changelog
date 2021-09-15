@@ -3,6 +3,7 @@ Release 1.1.0
 =============
 
 * make the behavior of the code deterministic, to ease comparison between numerous runs
+* dropping py2.7 support, since it is now deprecated
 
 =============
 Release 1.0.9

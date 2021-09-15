@@ -163,7 +163,7 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         print_and_log(["Computing extracellular medians..."], level='default', logger=logger)
 
-    to_explore = range(comm.rank, nb_chunks, comm.size)
+    to_explore = list(range(comm.rank, nb_chunks, comm.size))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -193,7 +193,7 @@ def extract_extra_thresholds(params):
     if comm.rank == 0:
         print_and_log(["Computing extracellular thresholds..."], level='default', logger=logger)
 
-    to_explore = range(comm.rank, nb_chunks, comm.size)
+    to_explore = list(range(comm.rank, nb_chunks, comm.size))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -262,12 +262,12 @@ def extract_extra_spikes_(params):
         beer_file = h5py.File(path, 'a', libver='earliest')
         # # Save medians.
         extra_medians_key = "extra_medians"
-        if extra_medians_key in beer_file.keys():
+        if extra_medians_key in list(beer_file.keys()):
             beer_file.pop(extra_medians_key)
         beer_file.create_dataset(extra_medians_key, data=extra_medians)
         # # Save median absolute deviations.
         extra_mads_key = "extra_mads"
-        if extra_mads_key in beer_file.keys():
+        if extra_mads_key in list(beer_file.keys()):
             beer_file.pop(extra_mads_key)
         beer_file.create_dataset(extra_mads_key, data=extra_mads)
         beer_file.close()
@@ -402,7 +402,7 @@ def extract_extra_spikes_(params):
     if comm.rank == 0:
         print_and_log(["Collecting extracellular spikes..."], level='default', logger=logger)
     
-    to_explore = range(comm.rank, nb_chunks, comm.size)
+    to_explore = list(range(comm.rank, nb_chunks, comm.size))
 
     if comm.rank == 0:
         to_explore = get_tqdm_progressbar(params, to_explore)
@@ -465,7 +465,7 @@ def extract_extra_spikes_(params):
         path = "{}.beer.hdf5".format(file_out_suff)
         beer_file = h5py.File(path, 'a', libver='earliest')
         group_name = "extra_spiketimes"
-        if group_name in beer_file.keys():
+        if group_name in list(beer_file.keys()):
             beer_file.pop(group_name)
         beer_file.create_group(group_name)
         for i in numpy.arange(0, N_elec):
@@ -473,7 +473,7 @@ def extract_extra_spikes_(params):
             triggers = times[mask]
             beer_file.create_dataset("{}/elec_{}".format(group_name, i), data=triggers)
         group_name = "extra_spike_values"
-        if group_name in beer_file.keys():
+        if group_name in list(beer_file.keys()):
             beer_file.pop(group_name)
         beer_file.create_group(group_name)
         for i in numpy.arange(0, N_elec):
@@ -550,10 +550,10 @@ def extract_juxta_spikes_(params):
 
         # Save medians and median absolute deviations to BEER file.
         beer_file = h5py.File(beer_path, 'a', libver='earliest')
-        if "juxta_median" in beer_file.keys():
+        if "juxta_median" in list(beer_file.keys()):
             beer_file.pop("juxta_median")
         beer_file.create_dataset("juxta_median", data=juxta_median)
-        if "juxta_mad" in beer_file.keys():
+        if "juxta_mad" in list(beer_file.keys()):
             beer_file.pop("juxta_mad")
         beer_file.create_dataset("juxta_mad", data=juxta_mad)
         beer_file.close()
@@ -578,7 +578,7 @@ def extract_juxta_spikes_(params):
     # Save juxta spike times to BEER file.
     beer_file = h5py.File(beer_path, 'a', libver='earliest')
     group_name = "juxta_spiketimes"
-    if group_name in beer_file.keys():
+    if group_name in list(beer_file.keys()):
         beer_file.pop(group_name)
     beer_file.create_group(group_name)
     key = "{}/elec_0".format(group_name)
@@ -602,7 +602,7 @@ def extract_juxta_spikes_(params):
         # Save juxta spike values to BEER file.
         beer_file = h5py.File(beer_path, 'a', libver='earliest')
         group_name = "juxta_spike_values"
-        if group_name in beer_file.keys():
+        if group_name in list(beer_file.keys()):
             beer_file.pop(group_name)
         beer_file.create_group(group_name)
         key = "{}/elec_0".format(group_name)
