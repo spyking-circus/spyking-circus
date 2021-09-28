@@ -258,6 +258,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     elec_positions = {}
+    elec_positions_shanks = {}
     elec_ydata = {}
 
     for i in range(n_e):
@@ -271,6 +272,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         indices = nodes_indices[i]
         elec_positions[i] = numpy.where(indices == i)[0]
         elec_ydata[i] = numpy.arange(len(indices))
+
+        shank_nodes, _ = get_nodes_and_edges(params, shank_with=nodes[i])
+        indices = inv_nodes[shank_nodes]
+        elec_positions_shanks[i] = numpy.where(indices == i)[0]
 
     max_elts_elec //= comm.size
     nb_elts //= comm.size
@@ -1443,11 +1448,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         raise ValueError("unexpected value %s" % extraction)
 
                     if use_savgol and savgol_window > 3:
-                        min_value = first_component[elec_positions[elec], template_shift]
+                        min_value = first_component[elec_positions_shanks[ielec], template_shift]
                         tmp_fast = scipy.signal.savgol_filter(first_component, savgol_window, 3, axis=1)
                         tmp_slow = scipy.signal.savgol_filter(first_component, 3 * savgol_window, 3, axis=1)
                         first_component = centered_filter * tmp_fast + (1 - centered_filter) * tmp_slow
-                        first_component[elec_positions[elec], template_shift] = min_value
+                        first_component[elec_positions_shanks[ielec], template_shift] = min_value
 
                     if comp_templates:
                         local_stds = numpy.std(first_component, 1)
