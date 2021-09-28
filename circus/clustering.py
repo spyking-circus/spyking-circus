@@ -874,7 +874,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                                     if gpass <= 1:
                                         result['noise_times_' + str(elec)].append([peak + local_offset])
 
-            del local_chunk
+                del local_chunk
 
         for elec in range(n_e):
             if gpass == 1:
