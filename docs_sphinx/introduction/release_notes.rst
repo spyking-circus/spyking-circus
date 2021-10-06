@@ -34,6 +34,93 @@ Code and documentation contributions (ordered by the number of commits):
 * Ben Acland
 
 =============
+Release 1.1.0
+=============
+
+* make the behavior of the code deterministic, to ease comparison between numerous runs
+* dropping py2.7 support, since it is now deprecated
+* fix a rare bug with local_chunk not defined in clustering
+* fix a bug with shanks leading to rare errors
+
+=============
+Release 1.0.9
+=============
+
+* add the option to flag saturation values (with the sat_value parameter)
+* fix a bug: non analyzed channels were filtered (unexpected behavior)
+* add the option to flag artefacts times (as values higher than weird_thresh MAD)
+* fix a nasty bug leading to missed units when too many global merges
+
+
+=============
+Release 1.0.8
+=============
+
+* script circus-artefacts now saves everything in ms, to be consistent
+* fix a bug in the neuralynx wrapper, causing last chunk to be ignored
+* add the option, in circus-multi to export everything for phy
+* optimization for clusters, to secure the .params file during overwritting
+* fix a bug in the preview mode with the gain
+
+=============
+Release 1.0.7
+=============
+
+* can run meta merging even without a proper DISPLAY
+* fix a potential bug for positive peaks or electrodes without spikes
+* the .params file was not created automatically anymore
+* fix a bug while computing the support if shanks
+* fix bugs in the RHD file wrapper
+* add clean_merging option to remove duplicated spikes in pairs during meta merging
+* fix the info function in the launcher
+* fix for common ground if only one shank
+* adaptive global maximal amplitude for every templates
+* optimization of the mapping-file mode
+* bug in the batch mode
+* fix a bug when filtering multi files and not overwriting
+
+=============
+Release 1.0.6
+=============
+
+* optimizations of the fitting procedure
+* optimizations in the basis for PCA (smoothing waveforms)
+* optimizations to remove more mixtures (using matching)
+* optimizations to make the automated amplitudes more robust
+* can read non sorted channels with HDF5 file format
+* fix a regression with positive peaks introduced in 1.0.4
+* fix a int overflow in windows only impacting the automatic amplitudes
+
+=============
+Release 1.0.5
+=============
+
+* automatic versioning with versionneer
+* conda/pip packages built with git actions (thanks to Marcel)
+
+=============
+Release 1.0.4
+=============
+
+* possibility for the amplitudes [a_min, a_max] to depend on time
+* median is now removed per shanks
+* common ground syntax slightly changed, to allow one ground per shank
+* fix a bug when collect_all and dense templates
+* fix if no templates are found
+* improvements of the smart search
+* add the option to collect normalized MSE during fitting. False by default
+* fix the rhd wrapper
+* divide and conquer assigment now based on barycenters instead of simple extremas
+* exit the clustering if too many centroids are found (sign of bad channels)
+* fixes in the meta merging GUI (RPV and dip)
+* optimizations for the second component, less double counting
+* fix to use at least 1 CPU
+* the code can be launched on a .params file with [data] file_name filled
+* add the mapping-file mode for neuralynx [mapping_file] (should be generalized?)
+* better estimation of amplitudes for axonal spikes
+* enhance the estimation of amplitudes by proper alignement
+
+=============
 Release 1.0.2
 =============
 
