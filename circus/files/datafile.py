@@ -150,7 +150,8 @@ class DataFile(object):
                 print_and_log(["Shape of the data is not defined. Are you sure of the wrapper?"], 'error', logger)
             sys.exit(1)
 
-        self.params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
+        if not self.is_empty:
+            self.params['dtype_offset'] = get_offset(self.data_dtype, self.dtype_offset)
 
         if self.stream_mode:
             self._sources = self.set_streams(self.stream_mode)
