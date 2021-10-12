@@ -142,6 +142,7 @@ class CircusParser(object):
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['filtering', 'common_ground', 'string', ''],
                           ['filtering', 'sat_value', 'string', ''],
+                          ['filtering', 'sat_threshold', 'string', 'both'],
                           ['clustering', 'nb_repeats', 'int', '3'],
                           ['clustering', 'make_plots', 'string', ''],
                           ['clustering', 'debug_plots', 'string', ''],
@@ -535,6 +536,12 @@ class CircusParser(object):
         if not test:
             if comm.rank == 0:
                 print_and_log(["Only 3 detection modes for peaks in [detection]: negative, positive, both"], 'error', logger)
+            sys.exit(0)
+
+        test = (self.parser.get('filtering', 'sat_threshold').lower() in ['negative', 'positive', 'both'])
+        if not test:
+            if comm.rank == 0:
+                print_and_log(["Only 3 detection modes for saturaiton in [filtering]: negative, positive, both"], 'error', logger)
             sys.exit(0)
 
         if self.parser.getboolean('data', 'auto_cluster'):

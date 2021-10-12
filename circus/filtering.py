@@ -76,6 +76,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     clean_artefact = params.getboolean('triggers', 'clean_artefact')
     remove_median = params.getboolean('filtering', 'remove_median')
     sat_value = params.get('filtering', 'sat_value')
+    sat_threshold = params.get('filtering', 'sat_threshold')
     if sat_value != '':
         flag_saturation = True
         sat_value = float(sat_value)
@@ -210,7 +211,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             len_chunk = len(local_chunk)
 
             if flag_saturation:
-                indices = numpy.where(numpy.abs(local_chunk) >= saturation * data_file_in.gain)
+
+                if sat_threshold == 'negative':
+                    indices = numpy.where(local_chunk <= saturation * data_file_in.gain)
+                elif sat_threshold == 'positive':
+                    indices = numpy.where(local_chunk >= saturation * data_file_in.gain)
+                elif sat_threshold == 'both':
+                    indices = numpy.where(numpy.abs(local_chunk) >= saturation * data_file_in.gain)
 
                 if not process_all_channels:
                     to_keep = numpy.in1d(indices[1], nodes)
