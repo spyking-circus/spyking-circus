@@ -21,11 +21,14 @@ def read(fname):
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
 
-if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
-    # We seem to be running under a "conda build"
-    data_path = pjoin('data', 'spyking-circus')
-else:
-    data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
+try:
+    data_path = os.environ['SPYKING_CIRCUS_DATA_PATH']
+except KeyError:
+    if 'CONDA_BUILD' in os.environ and 'RECIPE_DIR' in os.environ:
+        # We seem to be running under a "conda build"
+        data_path = pjoin('data', 'spyking-circus')
+    else:
+        data_path = pjoin(os.path.expanduser('~'), 'spyking-circus')
 
 
 def _package_tree(pkgroot):
