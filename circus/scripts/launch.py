@@ -8,6 +8,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ['HDF5_USE_FILE_LOCKING'] = "FALSE"
+os.environ['RDMAV_FORK_SAFE'] = "0"
 
 import sys
 import argparse
