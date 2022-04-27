@@ -1490,7 +1490,7 @@ function [fr_times, fr_repeat, line_count_out] = find_spikes_for_raster2(rep_beg
 
 spk_time  = spk_time(:);
 rep_times = [rep_begin_time(:)'; rep_end_time(:)'];
-rep_times = rep_times(:);
+rep_times = sort(rep_times(:));
 
 [~, fr_repeat] = histc( spk_time, rep_times);
 keep = mod(fr_repeat,2) == 1;

@@ -1,4 +1,4 @@
-Why using it?
+Why use it?
 =============
 
 .. include:: <isonum.txt>
