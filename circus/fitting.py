@@ -518,7 +518,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             all_spikes = local_peaktimes + g_offset
 
             if collect_all:
-                c_all_times = numpy.zeros((len_chunk, n_e), dtype=numpy.bool)
+                c_all_times = numpy.zeros((len_chunk, n_e), dtype=bool)
                 c_min_times = numpy.maximum(numpy.arange(len_chunk) - template_shift, 0)
                 c_max_times = numpy.minimum(numpy.arange(len_chunk) + template_shift + 1, len_chunk)
                 for i in range(n_e):
@@ -718,7 +718,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                     ('peak_scalar_products', numpy.float32, peak_scalar_products_debug_file),
                     ('peak_solved_flags', numpy.float32, peak_solved_flags_debug_file),
                     ('template_nbs', numpy.uint32, template_nbs_debug_file),
-                    ('success_flags', numpy.bool, success_flags_debug_file),
+                    ('success_flags', bool, success_flags_debug_file),
                 ]:
                     field_to_write = numpy.array(result_debug[field_label], dtype=field_dtype)
                     field_file.write(field_to_write.tostring())

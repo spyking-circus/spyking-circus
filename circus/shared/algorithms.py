@@ -486,7 +486,7 @@ def slice_templates(params, to_remove=None, to_merge=None, to_keep=None, extensi
         else:
             limits = hfile.create_dataset('limits', shape=(len(to_keep), 2), dtype=numpy.float32, chunks=True)
         if has_support:
-            supports = hfile.create_dataset('supports', shape=(len(to_keep), n_e), dtype=numpy.bool, chunks=True)
+            supports = hfile.create_dataset('supports', shape=(len(to_keep), n_e), dtype=bool, chunks=True)
         else:
             supports = None  # default assignment
 
@@ -1074,7 +1074,7 @@ def refine_amplitudes(params, nb_cpu, nb_gpu, use_gpu, normalization=True, debug
         labels = labels[labels > -1]
         indices[i] = list(labels)
 
-    mask_intersect = numpy.zeros((nb_temp, nb_temp), dtype=numpy.bool)
+    mask_intersect = numpy.zeros((nb_temp, nb_temp), dtype=bool)
     for i in range(nb_temp):
         for j in range(i, nb_temp):
             mask_intersect[i, j] = numpy.any(supports[i]*supports[j])

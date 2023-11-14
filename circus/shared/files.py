@@ -1644,7 +1644,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
             'peak_scalar_products': [numpy.empty(shape=0, dtype=numpy.float32)],
             'peak_solved_flags': [numpy.empty(shape=0, dtype=numpy.float32)],
             'template_nbs': [numpy.empty(shape=0, dtype=numpy.uint32)],
-            'success_flags': [numpy.empty(shape=0, dtype=numpy.bool)],
+            'success_flags': [numpy.empty(shape=0, dtype=bool)],
         }
     else:
         result_debug = None
@@ -1721,7 +1721,7 @@ def collect_data(nb_threads, params, erase=False, with_real_amps=False, with_vol
                 ('peak_scalar_products', '.peak_scalar_products_debug_%d.data', numpy.float32),
                 ('peak_solved_flags', '.peak_solved_flags_debug_%d.data', numpy.float32),
                 ('template_nbs', '.template_nbs_debug_%d.data', numpy.uint32),
-                ('success_flags', '.success_flags_debug_%d.data', numpy.bool),
+                ('success_flags', '.success_flags_debug_%d.data', bool),
             ]:
                 filename = file_out_suff + filename_formatter % node
                 data = numpy.fromfile(filename, dtype=dtype)

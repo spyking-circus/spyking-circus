@@ -318,7 +318,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if gpass == 1:
             for p in search_peaks:
 
-                smart_searches[p] = all_gather_array(smart_searches[p][comm.rank::comm.size], comm, 0).astype(numpy.bool)
+                smart_searches[p] = all_gather_array(smart_searches[p][comm.rank::comm.size], comm, 0).astype(bool)
                 indices = []
                 for idx in range(comm.size):
                     indices += list(numpy.arange(idx, n_e, comm.size))
@@ -602,12 +602,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 if len(local_peaktimes) > 0:
 
                     diff_times = local_peaktimes[-1] - local_peaktimes[0]
-                    all_times = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                    all_times = numpy.zeros((n_e, diff_times+1), dtype=bool)
                     padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
                     min_times = numpy.maximum(padded_peaks - safety_time, 0)
                     max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
 
-                    test_extremas = numpy.zeros((n_e, diff_times+1), dtype=numpy.bool)
+                    test_extremas = numpy.zeros((n_e, diff_times+1), dtype=bool)
                     for i in range(n_e):
                         test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
@@ -1221,7 +1221,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                             save = [plot_path, '%s_%d.%s' % (p, ielec, make_plots)]
                             injected = None
                             if test_clusters:
-                                injected = numpy.zeros(len(result['data_%s_' % p + str(ielec)]), dtype=numpy.bool)
+                                injected = numpy.zeros(len(result['data_%s_' % p + str(ielec)]), dtype=bool)
                                 key = 'spikes_' + str(ielec)
                                 thresh = 2
                                 if key in injected_spikes:
@@ -1363,7 +1363,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
             else:
                 amps_lims = hfile.create_dataset('limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True)
-            supports = hfile.create_dataset('supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True)
+            supports = hfile.create_dataset('supports', shape=(total_nb_clusters, n_e), dtype=bool, chunks=True)
             g_count = node_pad
             g_offset = total_nb_clusters
         else:
@@ -1375,7 +1375,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, nb_amp_times, 2), dtype=numpy.float32, chunks=True)
             else:
                 amps_lims = hfile.create_dataset('limits', shape=(local_nb_clusters, 2), dtype=numpy.float32, chunks=True)
-            supports = hfile.create_dataset('supports', shape=(local_nb_clusters, n_e), dtype=numpy.bool, chunks=True)
+            supports = hfile.create_dataset('supports', shape=(local_nb_clusters, n_e), dtype=bool, chunks=True)
             g_count = 0
             g_offset = local_nb_clusters
 
@@ -1703,7 +1703,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                         'limits', shape=(total_nb_clusters, 2), dtype=numpy.float32, chunks=True
                     )
                 supports = hfile.create_dataset(
-                    'supports', shape=(total_nb_clusters, n_e), dtype=numpy.bool, chunks=True
+                    'supports', shape=(total_nb_clusters, n_e), dtype=bool, chunks=True
                 )
                 count = 0
                 for i in range(comm.size):

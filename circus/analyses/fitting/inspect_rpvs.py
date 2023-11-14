@@ -38,9 +38,9 @@ amplitudes = results['amplitudes'][template_key][:, 0]
 # Find RPVs.
 nb_spike_times = spike_times.size
 spike_intervals = np.diff(spike_times)
-are_pre_violations = np.zeros(nb_spike_times, dtype=np.bool)
+are_pre_violations = np.zeros(nb_spike_times, dtype=bool)
 are_pre_violations[:-1] = (spike_intervals < args.refractory_period)
-are_post_violations = np.zeros(nb_spike_times, dtype=np.bool)
+are_post_violations = np.zeros(nb_spike_times, dtype=bool)
 are_post_violations[+1:] = (spike_intervals < args.refractory_period)
 
 # Plot amplitudes.

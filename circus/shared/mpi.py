@@ -52,7 +52,7 @@ def check_if_cluster():
 def check_valid_path(path):
 
     data = numpy.array([os.path.exists(path)], dtype='int32')
-    res = all_gather_array(data, comm, dtype='int32').astype(numpy.bool)
+    res = all_gather_array(data, comm, dtype='int32').astype(bool)
     return numpy.all(res)
 
 

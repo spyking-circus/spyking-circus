@@ -143,12 +143,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         if len(local_peaktimes) > 0:
 
             diff_times = local_peaktimes[-1]-local_peaktimes[0]
-            all_times = numpy.zeros((N_e, diff_times+1), dtype=numpy.bool)
+            all_times = numpy.zeros((N_e, diff_times+1), dtype=bool)
             padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
             min_times = numpy.maximum(padded_peaks - safety_time, 0)
             max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
 
-            test_extremas = numpy.zeros((N_e, diff_times + 1), dtype=numpy.bool)
+            test_extremas = numpy.zeros((N_e, diff_times + 1), dtype=bool)
             for i in range(N_e):
                 test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 
@@ -167,7 +167,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
                 else:
                     all_times[elec, min_times[idx]:max_times[idx]] = True
         else:
-            all_times = numpy.zeros((N_e, len(local_chunk)), dtype=numpy.bool)
+            all_times = numpy.zeros((N_e, len(local_chunk)), dtype=bool)
 
     if do_temporal_whitening:
 
@@ -486,12 +486,12 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             if len(local_peaktimes) > 0:
 
                 diff_times = (local_peaktimes[-1] - local_peaktimes[0]) + 1
-                all_times = numpy.zeros((N_e, diff_times), dtype=numpy.bool)
+                all_times = numpy.zeros((N_e, diff_times), dtype=bool)
 
                 padded_peaks = (local_peaktimes - local_peaktimes[0]).astype(numpy.int32)
                 min_times = numpy.maximum(padded_peaks - safety_time, 0)
                 max_times = numpy.minimum(padded_peaks + safety_time + 1, diff_times + 1)
-                test_extremas = numpy.zeros((N_e, diff_times + 1), dtype=numpy.bool)
+                test_extremas = numpy.zeros((N_e, diff_times + 1), dtype=bool)
                 for i in range(N_e):
                     test_extremas[i, found_peaktimes[i] - local_peaktimes[0]] = True
 

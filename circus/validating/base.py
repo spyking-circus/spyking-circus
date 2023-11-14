@@ -169,7 +169,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
             tmp_juxta_spikes_ = juxta_spikes_
         else:
             # Remove juxta spikes times for which we see some artifacts in the corresponding extra snipets.
-            juxta_spike_times_selection = numpy.ones(juxta_spikes.shape[2], dtype=numpy.bool)
+            juxta_spike_times_selection = numpy.ones(juxta_spikes.shape[2], dtype=bool)
             for elec in range(0, juxta_spikes.shape[1]):
                 median = numpy.median(juxta_spikes[:, elec, :])
                 tmp_juxta_spikes = numpy.abs(juxta_spikes - median)

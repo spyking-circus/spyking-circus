@@ -82,7 +82,7 @@ elif args.selection == 'amplitudes_close_to_1':
     mean_amplitude = np.mean(amplitudes[selected_ids])
 elif args.selection in ['refractory_period_violations', 'rpvs']:
     assert np.all(np.diff(spike_times) > 0.0)
-    are_violations = np.zeros(spike_times.size, dtype=np.bool)
+    are_violations = np.zeros(spike_times.size, dtype=bool)
     spike_intervals = np.diff(spike_times) / sampling_rate
     refractory_period = 3.0e-3  # s
     are_violations[:-1] = (spike_intervals < refractory_period)

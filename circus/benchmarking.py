@@ -416,7 +416,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, file_name, benchmark, sim_same_elec):
                 # size of this subset is parameterized by the target correlation
                 # coefficients.
                 sidx = numpy.where(mips == True)[0]
-                spikes = numpy.zeros(chunk_size, dtype=numpy.bool)
+                spikes = numpy.zeros(chunk_size, dtype=bool)
                 spikes[sidx[numpy.random.rand(len(sidx)) < corrcoef]] = True
             else:
                 # Generate some spike indices at the given rate.

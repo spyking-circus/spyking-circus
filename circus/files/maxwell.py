@@ -24,7 +24,7 @@ class MaxwellFile(H5File):
             h5_key = 'sig'
             header['h5_key'] = 'sig'
             header['sampling_rate'] = 20000
-            header['dtype_offset'] = 512
+            header['dtype_offset'] = 'auto'
             header['gain'] = self.my_file.get('settings/lsb')[0]
         elif header['version'] == b'20190530':
             if not 'data%s' %self.params['well'] in list(self.my_file['data_store'].keys()):

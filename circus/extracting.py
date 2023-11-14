@@ -117,7 +117,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_clusters = inv_clusters[clusters[idx]]
 
             if len(local_peaktimes) > 0:
-                all_times = numpy.zeros((N_e, local_peaktimes[-1] - local_peaktimes[0] + 1), dtype=numpy.bool)
+                all_times = numpy.zeros((N_e, local_peaktimes[-1] - local_peaktimes[0] + 1), dtype=bool)
                 min_times = numpy.maximum(
                     local_peaktimes - local_peaktimes[0] - safety_time, 0
                 )
