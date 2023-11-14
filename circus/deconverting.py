@@ -29,11 +29,11 @@ def load_phy_results(input_path):
 
     spike_times_path = os.path.join(input_path, 'spike_times.npy')
     spike_times = np.load(spike_times_path)
-    spike_times = spike_times.astype(np.int)
+    spike_times = spike_times.astype(int)
 
     spike_templates_path = os.path.join(input_path, 'spike_templates.npy')
     spike_templates = np.load(spike_templates_path)
-    spike_templates = spike_templates.astype(np.int)
+    spike_templates = spike_templates.astype(int)
 
     templates_path = os.path.join(input_path, 'templates.npy')
     templates = np.load(templates_path)
@@ -41,7 +41,7 @@ def load_phy_results(input_path):
     spike_clusters_path = os.path.join(input_path, 'spike_clusters.npy')
     if os.path.isfile(spike_clusters_path):
         spike_clusters = np.load(spike_clusters_path)
-        spike_clusters = spike_clusters.astype(np.int)
+        spike_clusters = spike_clusters.astype(int)
     else:
         spike_clusters = spike_templates
 
@@ -283,7 +283,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu, extension):
     to_remove.extend(unmentioned_spike_templates)
 
     if len(to_merge) == 0:
-        to_merge = np.zeros((0, 2), dtype=np.int)
+        to_merge = np.zeros((0, 2), dtype=int)
     else:
         to_merge = np.array(to_merge)
         to_merge = to_merge[np.lexsort((to_merge[:, 1], to_merge[:, 0])), :]

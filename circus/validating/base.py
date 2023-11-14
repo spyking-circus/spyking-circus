@@ -1275,7 +1275,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
 
             n_temp = len(data)
             res = numpy.zeros((n_temp, 2))
-            sc_contingency_matrices = numpy.zeros((n_temp, 2, 2), dtype=numpy.int)
+            sc_contingency_matrices = numpy.zeros((n_temp, 2, 2), dtype=int)
             
             # First pass to detect what are the scores.
             for i in range(n_temp):
@@ -1345,7 +1345,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
 
                     nb_temps = len(temp_match)
                     local_errors = numpy.zeros((nb_temps, 2))
-                    local_sc_contingency_matrices = numpy.zeros((nb_temps, 2, 2), dtype=numpy.int)
+                    local_sc_contingency_matrices = numpy.zeros((nb_temps, 2, 2), dtype=int)
                     
                     for mcount, tmp in enumerate(temp_match):
                         
@@ -1515,7 +1515,7 @@ def main(params, nb_cpu, nb_gpu, us_gpu):
         # TODO clean working zone.
 
         # Prepare data to be saved.
-        selection = numpy.array(scerror['selection'], dtype=numpy.int)
+        selection = numpy.array(scerror['selection'], dtype=int)
         sc_contingency_matrices = scerror['contingency_matrices']
         sc_contingency_matrix = scerror['contingency_matrix']
         # Save data to BEER file.

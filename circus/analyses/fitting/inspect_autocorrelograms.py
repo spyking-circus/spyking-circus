@@ -58,7 +58,7 @@ def compute_autocorrelogram(spike_times, bin_size, nb_bins, normalize=False):
 
     assert nb_bins % 2 == 1, nb_bins
 
-    autocorrelogram = np.zeros(nb_bins, dtype=np.int)
+    autocorrelogram = np.zeros(nb_bins, dtype=int)
     b = np.unique(np.round(spike_times / bin_size))
     for k in range(0, nb_bins):
         autocorrelogram[k] += len(np.intersect1d(b, b + k - (nb_bins - 1) // 2, assume_unique=True))

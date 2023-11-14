@@ -111,7 +111,7 @@ class DistanceMatrix(object):
         """
 
         indices = numpy.argsort(-rho)  # sort indices by decreasing rho values
-        nearest_higher_rho_indices = numpy.zeros(self.size, dtype=numpy.int)  # i.e. neighbors
+        nearest_higher_rho_indices = numpy.zeros(self.size, dtype=int)  # i.e. neighbors
         nearest_higher_rho_distances = numpy.zeros(self.size, dtype=numpy.float32)  # i.e. deltas
         for k, index in enumerate(indices):
             higher_rho_indices = indices[0:k + 1]
@@ -219,7 +219,7 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
 
     nb_points = len(rho)
     # Find centroids.
-    centroids = numpy.zeros(nb_points, dtype=numpy.int)
+    centroids = numpy.zeros(nb_points, dtype=int)
     centroid_indices = fit_rho_delta(rho, delta, alpha)
     nb_clusters = len(centroid_indices)
     cluster_nbs = numpy.arange(1, nb_clusters + 1)
@@ -228,18 +228,18 @@ def find_centroids_and_clusters(dist, rho, delta, neighbors, alpha=3, method='ne
     if method == 'nearest_centroid':
         # Custom (and naive) method.
         if nb_clusters == 0:
-            labels = numpy.zeros(nb_points, dtype=numpy.int)
+            labels = numpy.zeros(nb_points, dtype=int)
         elif nb_clusters == 1:
-            labels = numpy.ones(nb_points, dtype=numpy.int)  # all points in one cluster
+            labels = numpy.ones(nb_points, dtype=int)  # all points in one cluster
         else:
             distances_to_centroids = dist.get_rows(centroid_indices)
             labels = numpy.argmin(distances_to_centroids, axis=0) + 1
     elif method == 'nearest_denser_point':
         # Method described in [Rodriguez & Laio (2014)](https://science.sciencemag.org/content/344/6191/1492.full).
         if nb_clusters == 0:
-            labels = numpy.zeros(nb_points, dtype=numpy.int)
+            labels = numpy.zeros(nb_points, dtype=int)
         elif nb_clusters == 1:
-            labels = numpy.ones(nb_points, dtype=numpy.int)  # all points in one cluster
+            labels = numpy.ones(nb_points, dtype=int)  # all points in one cluster
         else:
             labels = numpy.copy(centroids)
             indices = numpy.argsort(-rho)  # sort indices by decreasing density

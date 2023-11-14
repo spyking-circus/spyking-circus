@@ -37,7 +37,7 @@ nb_electrodes, = electrode_nbs.shape
 clusters = clusters_data['clusters']
 times = clusters_data['times']
 
-nb_points = np.zeros(nb_electrodes, dtype=np.int)
+nb_points = np.zeros(nb_electrodes, dtype=int)
 nb_components = None
 for k in range(0, nb_electrodes):
     nb_points[k], nb_components = data[electrode_nbs[k]].shape

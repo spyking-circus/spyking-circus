@@ -42,7 +42,7 @@ if times.size > nb_snippets:
     times = times[indices]
     clusters = clusters[indices]
 nodes, _ = get_nodes_and_edges(params)
-inv_nodes = np.zeros(nb_electrodes, dtype=np.int)
+inv_nodes = np.zeros(nb_electrodes, dtype=int)
 inv_nodes[nodes] = np.arange(len(nodes))
 indices = inv_nodes[nodes]
 snippets = get_stas(params, times, clusters, electrode, indices, nodes=nodes)
