@@ -1699,7 +1699,7 @@ class PreviewGUI(QMainWindow):
         self.inspect_colors = []
         self.lasso_selector = None
         self.rect_selector = widgets.RectangleSelector(
-            self.electrode_ax, onselect=self.callback_rect, button=1, drawtype='box', spancoords='data'
+            self.electrode_ax, onselect=self.callback_rect, button=1, spancoords='data'
         )
         self.rect_selector.set_active(False)
         self.plot_electrodes()
