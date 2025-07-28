@@ -153,7 +153,10 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         else:
             channel_group = list(params.probe['channel_groups'].keys())[0]
 
-        process_all_channels = numpy.all(nodes == numpy.arange(N_total))
+        if len(nodes) == N_total: 
+            process_all_channels = numpy.all(nodes == numpy.arange(N_total))
+        else:
+            process_all_channels = False
         duration = int(0.1*params.rate)
 
         if comm.rank == 0:
